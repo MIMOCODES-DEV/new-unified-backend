@@ -91,12 +91,13 @@ In the unified backend, ibo/bob/cr-tenant-to-tenant traffic becomes **internal q
 | D5 | **Redis is a required dependency**, with **BullMQ** for jobs and schedules (see §3.2) | Confirmed |
 | D6 | Anti-abuse: layered, non-destructive design — pending devices, quarantine instead of deletion (see §6) | Confirmed |
 | D7 | Full legacy compat layer; new clean API (`/v5`) for new app builds | Confirmed |
-| D8 | Backend is **API-only**; admin / reseller / customer UIs become separate SPAs | Confirmed |
+| D8 | Backend is **API-only**; admin / reseller / customer UIs become separate SPAs, **built by another team** (contract-first: OpenAPI published before implementation) | Confirmed |
 | D9 | Store stays external; contract preserved | Confirmed |
 | D10 | Admins & resellers are **central identities**; resellers have **one wallet usable across all apps** | Confirmed |
 | D11 | **Port all payment providers** but track them in a provider registry with usage metrics so unused ones can be removed later | Confirmed |
 | D12 | Cutover tenant-by-tenant, documented as a runbook only | Confirmed |
 | D13 | `NewUnifiedBackend/` (earlier attempt) is ignored | Confirmed |
+| D14 | **Rebuild, don't copy** (2026-10-13): every feature is re-implemented cleanly from its intent, without old bugs. Only the wire format of non-updatable apps and the store contract are matched, inside thin adapters. Supersedes the phase-1 "copy quirks + `LEGACY-QUIRK` markers" approach in §8.0. See `docs/ARCHITECTURE.md`, `docs/FEATURES.md`, `docs/TASKS.md`. | Confirmed |
 
 ### 3.1 Framework rationale (D4)
 
@@ -379,6 +380,8 @@ Examples of what is not ported: PHP import tools; `activateOpayDevices` (~770 li
 ## 8. Milestones
 
 ### 8.0 Two phases
+
+> **Superseded by D14.** There is no quirk-copying phase: features are rebuilt clean from the start; only wire formats are matched. The execution plan is `docs/TASKS.md`. The text below is kept for history.
 
 **Phase 1 — Faithful clean rebuild (M1–M13).** Rebuild the backend with the new architecture and clean code while keeping **every client-visible contract exactly as it is today**:
 - *Kept exactly:* paths, methods, request formats, response formats and outputs — including odd ones clients may depend on (literal `"undefined"` in error envelopes, HTTP 302 on store errors, `'ascii'` decoding, …). Endpoints we're unsure about are kept.
