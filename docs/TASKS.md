@@ -55,7 +55,7 @@ Shared: SETUP, contract capture, hardening, runbook. Both review each other's PR
 | ID | Task | Size | Owner |
 |---|---|---|---|
 | FE-01 | Kickoff with the frontend team: share FEATURES.md, agree API style (REST, error format, pagination, auth flow, i18n), point of contact | S | B |
-| FE-02 | Draft OpenAPI for customer API (device login, playlists, payments, account) — published before implementation | M | B |
+| FE-02 | Draft OpenAPI for the **unified customer API** (one API for every brand's site): device session, user accounts + plans, playlists (incl. QR / MAC-only add), device verify, recovery, payments per tenant config — union of ibo/bob/cr website features (FEATURES §6, inventory/client-usage.md) | M | B |
 | FE-03 | Draft OpenAPI for admin + reseller APIs | M | B |
 | FE-04 | Mock server from OpenAPI (e.g. Prism) so the frontend team can start before endpoints exist | S | B |
 | FE-05 | Staging environment the frontend team can call (seeded sample tenant) — by end of Sprint 4 | S | A |
@@ -82,6 +82,7 @@ Shared: SETUP, contract capture, hardening, runbook. Both review each other's PR
 | DEV-02 | Device repository (unique normalized MAC, `state` pending/active/quarantined, partial TTL) + index migration | M | A |
 | DEV-03 | Use case: register-or-get device (trial days from config, device key, `app_device_id` random MAC, wrong-app_type adoption) | M | A |
 | DEV-04 | Pending → active promotion rules + `trialHistory` | M | A |
+| DEV-10 | Fallback MACs (`52:54:00:12:34:57` BobPlayer, `…:59` CRPlayer, Windows/no-MAC TVs): treat as "no MAC", identify by `app_device_id`/u_id — never one shared record | M | A |
 | DEV-05 | Activation history (every license change with actor) | S | A |
 | DEV-06 | `u_id` identity + captcha service (registration + uid-recovery captchas, TTL) | M | A |
 | DEV-07 | Device key regenerate, parent PIN (hashed) set/change | S | A |
@@ -136,6 +137,8 @@ Shared: SETUP, contract capture, hardening, runbook. Both review each other's PR
 | LEG-07 | Family: Smart TV `device_info`, TV v4, recovery v3, misc (`status_check`, `app/version`, `get_app_setting`, `device/check-activate`) | M | A |
 | LEG-08 | Per-tenant legacy options (plain body, V4 lock, raw playlists for Android 44*, store-review build override) as config | S | A |
 | LEG-09 | Contract test runner replaying CAP-04 fixtures against new backend; all green | M | A |
+| LEG-10 | Routes apps call but no backend serves today: `POST /api/change-code` (CRPlayer activation code), `PUT /api/edit_playlist` on bob (BobPlayer) — implement from intent | S | A |
+| LEG-11 | Accept both legacy body styles: form `data=<IBO>` and JSON `{"data": "<IBO>"}` | S | A |
 
 ---
 

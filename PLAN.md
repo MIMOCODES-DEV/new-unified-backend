@@ -98,6 +98,7 @@ In the unified backend, ibo/bob/cr-tenant-to-tenant traffic becomes **internal q
 | D12 | Cutover tenant-by-tenant, documented as a runbook only | Confirmed |
 | D13 | `NewUnifiedBackend/` (earlier attempt) is ignored | Confirmed |
 | D14 | **Rebuild, don't copy** (2026-10-13): every feature is re-implemented cleanly from its intent, without old bugs. Only the wire format of non-updatable apps and the store contract are matched, inside thin adapters. Supersedes the phase-1 "copy quirks + `LEGACY-QUIRK` markers" approach in §8.0. See `docs/ARCHITECTURE.md`, `docs/FEATURES.md`, `docs/TASKS.md`. | Confirmed |
+| D15 | **One unified frontend** (2026-10-14): a single customer website serves every brand (the 3 IBO apps, BOB, cr brands, the unified app), built by the frontend team. The old websites' `/frontend/*` routes are **not** kept: the customer API is designed fresh for the unified frontend, covering the union of today's website features. Frozen contracts are only what installed apps (TV/phone) and the external store call. | Confirmed |
 
 ### 3.1 Framework rationale (D4)
 
