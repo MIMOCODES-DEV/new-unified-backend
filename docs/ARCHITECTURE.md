@@ -90,8 +90,9 @@ src/
         use-cases/            # register-device.use-case.ts, switch-mac.use-case.ts, ...
       infrastructure/         # mongo-device.repository.ts, device.mapper.ts, device.schema.ts
       devices.module.ts
+      index.ts                # public API of the module
     playlists/  licensing/  recovery/  domain-migrations/
-    customers/  resellers/  wallet/  codes-coupons/
+    staff/  customers/  resellers/  wallet/  codes-coupons/
     payments/   (providers/<name>/ adapters behind PaymentGateway port)
     transfers/  abuse/  content/  i18n/  app-updates/  partners/  media/  audit/
 
@@ -113,7 +114,7 @@ docs/
 ```
 
 **Module rules**
-- A module exposes only its `*.module.ts` exports (use cases + public types). Other modules never import its `domain/` or `infrastructure/` files directly.
+- A module exposes only its `index.ts` (Nest module, use cases, public types). Other modules and interfaces never import its `domain/`, `application/` or `infrastructure/` files directly. Enforced by ESLint (`eslint.config.js`).
 - One use case = one class = one public `execute()` method. Controllers call use cases, never repositories.
 - Cross-module side effects go through **domain events** (in-process event bus; durable ones through BullMQ). E.g. `PaymentConfirmed` → licensing activates the device.
 

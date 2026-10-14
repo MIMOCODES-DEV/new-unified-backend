@@ -1,0 +1,27 @@
+import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ClsModule } from 'nestjs-cls';
+import { HealthModule } from './interfaces/http/health/health.module.js';
+import { AccessGuard } from './shared/auth/access.guard.js';
+import { ConfigModule } from './shared/config/config.module.js';
+import { DatabaseModule } from './shared/database/database.module.js';
+import { GlobalExceptionFilter } from './shared/errors/global-exception.filter.js';
+import { LoggerModule } from './shared/logger/logger.module.js';
+import { RedisModule } from './shared/redis/redis.module.js';
+
+/** Root module of the HTTP process. No jobs run here. */
+@Module({
+  imports: [
+    ConfigModule,
+    LoggerModule,
+    ClsModule.forRoot({ global: true, middleware: { mount: true, generateId: true } }),
+    DatabaseModule,
+    RedisModule,
+    HealthModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: AccessGuard },
+    { provide: APP_FILTER, useClass: GlobalExceptionFilter },
+  ],
+})
+export class ApiModule {}
