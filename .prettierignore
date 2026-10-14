@@ -1,0 +1,8 @@
+dist
+coverage
+pnpm-lock.yaml
+# Planning docs are hand-edited; keep their tables as written.
+PLAN.md
+docs
+tools
+test/fixtures
