@@ -1,0 +1,144 @@
+{
+  "generatedBy": "tools/legacy-analysis/generate-codec-vectors.cjs",
+  "fakeKeys": {
+    "TOKEN_KEY": "fake-token-key-123",
+    "ANDROID_AES_SECRET": "fake-aes-old",
+    "ANDROID_AES_NEW_SECRET": "fake-aes-new-v2",
+    "TV_AES_NEW_SECRET": "fake-aes-tv-v3",
+    "ANDROID_V3_AES_NEW_SECRET": "fake-aes-android-v3",
+    "ANDROID_SIGNING_SECRET": "fake-sign-android",
+    "TV_SIGNING_SECRET": "fake-sign-tv"
+  },
+  "note": "Outputs of the real old functions, run with fake keys and a seeded Math.random. Never edit by hand; regenerate.",
+  "aes": [
+    {
+      "server": "iboplayer-backend",
+      "version": "old",
+      "deviceType": "TV",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX1+jI0YwDgbmWc5lNakR5ObH1WVR0U2stEMmwMRNE+Kk6TwEV1E1UfvtYzHmBYfebgqJfj0EYnXR32W5uFXEw27hFZ21Yexadmc=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "iboplayer-backend",
+      "version": "V2",
+      "deviceType": "TV",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX1/L87kP2nu6wYKpj4sr0O7InePN9nwMP7qTCaEY0DgBaGHpH6V2i8iDOgR7jw2f84NHHjn7PrMXxNmoulJN077Vy119AgysWAc=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "iboplayer-backend",
+      "version": "V3",
+      "deviceType": "TV",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX1/ALfL6whHRutpdUpeQ8j9mR5nXTPd+Y5OY+K2RQr/NPjcQfka7sEm3GVsAlHpY9sKV6Zd+hSYYhaRgo2EsFMDnYKsGj6rMAIo=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "iboplayer-backend",
+      "version": "V3",
+      "deviceType": "android",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX18PpweOkRKg9UkJlQ28rKEw7RwDm7mZjP7jiDirirNPmcmdG4BYCsHkhS2igprYi5yhhDDHCK5qghP5uod2monztnp0438WjGI=",
+      "decrypted": "[non-string: [object Object]]",
+      "roundTrips": false
+    },
+    {
+      "server": "iboplayer-backend",
+      "version": "old",
+      "note": "input over 512 chars is rejected",
+      "ciphertextLength": 600,
+      "decrypted": ""
+    },
+    {
+      "server": "bobplayer-backend",
+      "version": "old",
+      "deviceType": "TV",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX1+g81fyXSYcX4OVBIjnhcL1s7v+v804/mZUlyqLAgIfBV31Poow6NrBPC3X18aJppwoF2JNLHpGZHg0Aswy7gjMzh4lOh8LsaA=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "version": "V2",
+      "deviceType": "TV",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX195TKBcewNf7QMSL20OSuTnOrBnlNCWqlNCKH07/YMyoyEf2PeWELLSyYzMzrG1zPMK4FSZA/T7wNF0Mpmeva1uJfbsIAE0CEk=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "version": "V3",
+      "deviceType": "TV",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX191UuuCbrne0ZiQ5p01afYxot4MWjY+UjUgvcXUHihbpApSqISDVb6kW3sVAfP7qSAj9HjG/w3fGth6V+fgnMQFXaC5FmRAaj4=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "version": "V3",
+      "deviceType": "android",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX19a7bXv5eOWt/ZqBhYm3SVSAD78ijSBGBCaIKA4kCfSrs/Nrstw/z+DUnWUImhIUb7bzTx/1Xan1QUSTCZB3GJ0a53x8SufTPo=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "version": "old",
+      "note": "input over 512 chars is rejected",
+      "ciphertextLength": 600,
+      "decrypted": ""
+    },
+    {
+      "server": "cr-unified-backend",
+      "version": "old",
+      "deviceType": "TV",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX1/ikuzQM0NS7xco6EM1FBEoRPKKm7pkawfcpflaMbFYMA7Gwk01IZr38gEiQg9ymsbfU3VXv2rh0PvqyRx/n+Wu5oq80TqRc+c=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "version": "V2",
+      "deviceType": "TV",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX1/3bou02CRQCMOeNw0yX+2aDs3JSIOk0IkWBrcEEgjC5NDRh5VdNlIq9iDT9SAzODMwM9ggQovfz4kLmeVlw3n/7NhLj7Ow9tw=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "version": "V3",
+      "deviceType": "TV",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX18XnB02G0F0TcE2NgvRBCdIova5/ap0u1U/MsbmO+IsfbzLNf3OYmhtVCFYRPE6Xqmdooq0+IXBQIEqxPhXPsjliPSWsH7kq/c=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "version": "V3",
+      "deviceType": "android",
+      "plaintext": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "ciphertext": "U2FsdGVkX186iNuct9pesz3BY4nJLhMHKEXxQh26FTe4EExh0jXcqbIe9z3ukre8hCHQbfCFpeIfJX+DdGdmezIVt9ns+SLVmIhaBkx7gbY=",
+      "decrypted": "{\"mac_address\":\"00:1a:79:aa:bb:cc\",\"app_type\":\"android\"}",
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "version": "old",
+      "note": "input over 512 chars is rejected",
+      "ciphertextLength": 600,
+      "decrypted": ""
+    }
+  ]
+}

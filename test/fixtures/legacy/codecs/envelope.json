@@ -1,0 +1,1017 @@
+{
+  "generatedBy": "tools/legacy-analysis/generate-codec-vectors.cjs",
+  "fakeKeys": {
+    "TOKEN_KEY": "fake-token-key-123",
+    "ANDROID_AES_SECRET": "fake-aes-old",
+    "ANDROID_AES_NEW_SECRET": "fake-aes-new-v2",
+    "TV_AES_NEW_SECRET": "fake-aes-tv-v3",
+    "ANDROID_V3_AES_NEW_SECRET": "fake-aes-android-v3",
+    "ANDROID_SIGNING_SECRET": "fake-sign-android",
+    "TV_SIGNING_SECRET": "fake-sign-tv"
+  },
+  "note": "Outputs of the real old functions, run with fake keys and a seeded Math.random. Never edit by hand; regenerate.",
+  "requests": [
+    {
+      "client": "bobplayer-app",
+      "payload": "tv-playlist-info",
+      "input": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "app_type": "samsung",
+        "version": "1.1.5"
+      },
+      "encoded": "AueyJtYWNfYWRkcmVzcyI6IjAwOjguO9L1PvjfNF1QICW9GJFhOjc5OmFhOmJiOmNjIiwiYXBwX3R5cGUiOiJzYW1zdW5nIiwidmVyc2lvbiI6IjEuMS41In0=",
+      "decodedBy": {
+        "iboplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "version": "1.1.5"
+          },
+          "enc_key": "guO9L1PvjfNF1QICW9GJ",
+          "enc_position": 26,
+          "enc_position_char": "A",
+          "enc_length_char": "u"
+        },
+        "bobplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "version": "1.1.5"
+          },
+          "enc_key": "guO9L1PvjfNF1QICW9GJ",
+          "enc_position": 26,
+          "enc_position_char": "A",
+          "enc_length_char": "u"
+        },
+        "cr-unified-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "version": "1.1.5"
+          },
+          "enc_key": "guO9L1PvjfNF1QICW9GJ",
+          "enc_position": 26,
+          "enc_position_char": "A",
+          "enc_length_char": "u"
+        }
+      }
+    },
+    {
+      "client": "bobplayer-app",
+      "payload": "v4-device-login",
+      "input": {
+        "mac_address": "52:54:00:12:34:57",
+        "app_type": "lg",
+        "u_id": "ACDE13",
+        "version": "1.0.7",
+        "recaptcha_code": "X7KQ",
+        "recaptcha_token": "tok-123"
+      },
+      "encoded": "QueyJtYWNfYWRkcmVzcyI6IjUyOjU0OjAwOjEyOjM0OjzyELvl3fZAaYtvmbydv2U3IiwiYXBwX3R5cGUiOiJsZyIsInVfaWQiOiJBQ0RFMTMiLCJ2ZXJzaW9uIjoiMS4wLjciLCJyZWNhcHRjaGFfY29kZSI6Ilg3S1EiLCJyZWNhcHRjaGFfdG9rZW4iOiJ0b2stMTIzIn0=",
+      "decodedBy": {
+        "iboplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "52:54:00:12:34:57",
+            "app_type": "lg",
+            "u_id": "ACDE13",
+            "version": "1.0.7",
+            "recaptcha_code": "X7KQ",
+            "recaptcha_token": "tok-123"
+          },
+          "enc_key": "zyELvl3fZAaYtvmbydv2",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "u"
+        },
+        "bobplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "52:54:00:12:34:57",
+            "app_type": "lg",
+            "u_id": "ACDE13",
+            "version": "1.0.7",
+            "recaptcha_code": "X7KQ",
+            "recaptcha_token": "tok-123"
+          },
+          "enc_key": "zyELvl3fZAaYtvmbydv2",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "u"
+        },
+        "cr-unified-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "52:54:00:12:34:57",
+            "app_type": "lg",
+            "u_id": "ACDE13",
+            "version": "1.0.7",
+            "recaptcha_code": "X7KQ",
+            "recaptcha_token": "tok-123"
+          },
+          "enc_key": "zyELvl3fZAaYtvmbydv2",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "u"
+        }
+      }
+    },
+    {
+      "client": "bobplayer-app",
+      "payload": "add-playlist-xc",
+      "input": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "app_type": "samsung",
+        "url": "http://provider.example:8080/get.php?username=u&password=p&type=m3u&output=hls",
+        "playlist_name": "My IPTV"
+      },
+      "encoded": "QueyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOm57H2A09it7xj90kykvt3NjIiwiYXBwX3R5cGUiOiJzYW1zdW5nIiwidXJsIjoiaHR0cDovL3Byb3ZpZGVyLmV4YW1wbGU6ODA4MC9nZXQucGhwP3VzZXJuYW1lPXUmcGFzc3dvcmQ9cCZ0eXBlPW0zdSZvdXRwdXQ9aGxzIiwicGxheWxpc3RfbmFtZSI6Ik15IElQVFYifQ==",
+      "decodedBy": {
+        "iboplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "url": "http://provider.example:8080/get.php?username=u&password=p&type=m3u&output=hls",
+            "playlist_name": "My IPTV"
+          },
+          "enc_key": "57H2A09it7xj90kykvt3",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "u"
+        },
+        "bobplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "url": "http://provider.example:8080/get.php?username=u&password=p&type=m3u&output=hls",
+            "playlist_name": "My IPTV"
+          },
+          "enc_key": "57H2A09it7xj90kykvt3",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "u"
+        },
+        "cr-unified-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "url": "http://provider.example:8080/get.php?username=u&password=p&type=m3u&output=hls",
+            "playlist_name": "My IPTV"
+          },
+          "enc_key": "57H2A09it7xj90kykvt3",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "u"
+        }
+      }
+    },
+    {
+      "client": "bobplayer-app",
+      "payload": "tiny",
+      "input": {
+        "a": 1
+      },
+      "encoded": "dueyJCNIaINxYp4auRflFzowxhIjoxfQ==",
+      "decodedBy": {
+        "iboplayer-backend": {
+          "status": "success",
+          "json": {
+            "a": 1
+          },
+          "enc_key": "CNIaINxYp4auRflFzowx",
+          "enc_position": 3,
+          "enc_position_char": "d",
+          "enc_length_char": "u"
+        },
+        "bobplayer-backend": {
+          "status": "success",
+          "json": {
+            "a": 1
+          },
+          "enc_key": "CNIaINxYp4auRflFzowx",
+          "enc_position": 3,
+          "enc_position_char": "d",
+          "enc_length_char": "u"
+        },
+        "cr-unified-backend": {
+          "status": "success",
+          "json": {
+            "a": 1
+          },
+          "enc_key": "CNIaINxYp4auRflFzowx",
+          "enc_position": 3,
+          "enc_position_char": "d",
+          "enc_length_char": "u"
+        }
+      }
+    },
+    {
+      "client": "bobplayer-app",
+      "payload": "latin1-accent",
+      "input": {
+        "playlist_name": "Télé Café"
+      },
+      "encoded": "BueyJwbGF5bGlzdF9uYW1lIjoiVOlHJRuph5qZj6u7hnFzINqs6SBDYWbpIn0=",
+      "decodedBy": {
+        "iboplayer-backend": {
+          "status": "success",
+          "json": {
+            "playlist_name": "Tili Cafi"
+          },
+          "enc_key": "HJRuph5qZj6u7hnFzINq",
+          "enc_position": 27,
+          "enc_position_char": "B",
+          "enc_length_char": "u"
+        },
+        "bobplayer-backend": {
+          "status": "success",
+          "json": {
+            "playlist_name": "Tili Cafi"
+          },
+          "enc_key": "HJRuph5qZj6u7hnFzINq",
+          "enc_position": 27,
+          "enc_position_char": "B",
+          "enc_length_char": "u"
+        },
+        "cr-unified-backend": {
+          "status": "success",
+          "json": {
+            "playlist_name": "Tili Cafi"
+          },
+          "enc_key": "HJRuph5qZj6u7hnFzINq",
+          "enc_position": 27,
+          "enc_position_char": "B",
+          "enc_length_char": "u"
+        }
+      }
+    },
+    {
+      "client": "crplayer-app",
+      "payload": "tv-playlist-info",
+      "input": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "app_type": "samsung",
+        "version": "1.1.5"
+      },
+      "encoded": "wueyJtYWNfYWRkcmVzcyI6Ij6838myBqw2hT9LfKj7IRAwOjFhOjc5OmFhOmJiOmNjIiwiYXBwX3R5cGUiOiJzYW1zdW5nIiwidmVyc2lvbiI6IjEuMS41In0=",
+      "decodedBy": {
+        "iboplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "version": "1.1.5"
+          },
+          "enc_key": "6838myBqw2hT9LfKj7IR",
+          "enc_position": 22,
+          "enc_position_char": "w",
+          "enc_length_char": "u"
+        },
+        "bobplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "version": "1.1.5"
+          },
+          "enc_key": "6838myBqw2hT9LfKj7IR",
+          "enc_position": 22,
+          "enc_position_char": "w",
+          "enc_length_char": "u"
+        },
+        "cr-unified-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "version": "1.1.5"
+          },
+          "enc_key": "6838myBqw2hT9LfKj7IR",
+          "enc_position": 22,
+          "enc_position_char": "w",
+          "enc_length_char": "u"
+        }
+      }
+    },
+    {
+      "client": "crplayer-app",
+      "payload": "v4-device-login",
+      "input": {
+        "mac_address": "52:54:00:12:34:57",
+        "app_type": "lg",
+        "u_id": "ACDE13",
+        "version": "1.0.7",
+        "recaptcha_code": "X7KQ",
+        "recaptcha_token": "tok-123"
+      },
+      "encoded": "QAeyJtYWNfYWRkcmVzcyI6IjUyOjU0OjAwOjEyOjM0OjgAjcbKaWfk7YK25HF5iG0P3cNTU3IiwiYXBwX3R5cGUiOiJsZyIsInVfaWQiOiJBQ0RFMTMiLCJ2ZXJzaW9uIjoiMS4wLjciLCJyZWNhcHRjaGFfY29kZSI6Ilg3S1EiLCJyZWNhcHRjaGFfdG9rZW4iOiJ0b2stMTIzIn0=",
+      "decodedBy": {
+        "iboplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "52:54:00:12:34:57",
+            "app_type": "lg",
+            "u_id": "ACDE13",
+            "version": "1.0.7",
+            "recaptcha_code": "X7KQ",
+            "recaptcha_token": "tok-123"
+          },
+          "enc_key": "gAjcbKaWfk7YK25HF5iG0P3cNT",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "A"
+        },
+        "bobplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "52:54:00:12:34:57",
+            "app_type": "lg",
+            "u_id": "ACDE13",
+            "version": "1.0.7",
+            "recaptcha_code": "X7KQ",
+            "recaptcha_token": "tok-123"
+          },
+          "enc_key": "gAjcbKaWfk7YK25HF5iG0P3cNT",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "A"
+        },
+        "cr-unified-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "52:54:00:12:34:57",
+            "app_type": "lg",
+            "u_id": "ACDE13",
+            "version": "1.0.7",
+            "recaptcha_code": "X7KQ",
+            "recaptcha_token": "tok-123"
+          },
+          "enc_key": "gAjcbKaWfk7YK25HF5iG0P3cNT",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "A"
+        }
+      }
+    },
+    {
+      "client": "crplayer-app",
+      "payload": "add-playlist-xc",
+      "input": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "app_type": "samsung",
+        "url": "http://provider.example:8080/get.php?username=u&password=p&type=m3u&output=hls",
+        "playlist_name": "My IPTV"
+      },
+      "encoded": "QxeyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmF1CKjx3wNYocV4KwJMk7s9KNjIiwiYXBwX3R5cGUiOiJzYW1zdW5nIiwidXJsIjoiaHR0cDovL3Byb3ZpZGVyLmV4YW1wbGU6ODA4MC9nZXQucGhwP3VzZXJuYW1lPXUmcGFzc3dvcmQ9cCZ0eXBlPW0zdSZvdXRwdXQ9aGxzIiwicGxheWxpc3RfbmFtZSI6Ik15IElQVFYifQ==",
+      "decodedBy": {
+        "iboplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "url": "http://provider.example:8080/get.php?username=u&password=p&type=m3u&output=hls",
+            "playlist_name": "My IPTV"
+          },
+          "enc_key": "F1CKjx3wNYocV4KwJMk7s9K",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "x"
+        },
+        "bobplayer-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "url": "http://provider.example:8080/get.php?username=u&password=p&type=m3u&output=hls",
+            "playlist_name": "My IPTV"
+          },
+          "enc_key": "F1CKjx3wNYocV4KwJMk7s9K",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "x"
+        },
+        "cr-unified-backend": {
+          "status": "success",
+          "json": {
+            "mac_address": "00:1a:79:aa:bb:cc",
+            "app_type": "samsung",
+            "url": "http://provider.example:8080/get.php?username=u&password=p&type=m3u&output=hls",
+            "playlist_name": "My IPTV"
+          },
+          "enc_key": "F1CKjx3wNYocV4KwJMk7s9K",
+          "enc_position": 42,
+          "enc_position_char": "Q",
+          "enc_length_char": "x"
+        }
+      }
+    },
+    {
+      "client": "crplayer-app",
+      "payload": "tiny",
+      "input": {
+        "a": 1
+      },
+      "encoded": "hueyJhIjozASsMwbs7nSuiTMl1YOPxfQ==",
+      "decodedBy": {
+        "iboplayer-backend": {
+          "status": "success",
+          "json": {
+            "a": 1
+          },
+          "enc_key": "zASsMwbs7nSuiTMl1YOP",
+          "enc_position": 7,
+          "enc_position_char": "h",
+          "enc_length_char": "u"
+        },
+        "bobplayer-backend": {
+          "status": "success",
+          "json": {
+            "a": 1
+          },
+          "enc_key": "zASsMwbs7nSuiTMl1YOP",
+          "enc_position": 7,
+          "enc_position_char": "h",
+          "enc_length_char": "u"
+        },
+        "cr-unified-backend": {
+          "status": "success",
+          "json": {
+            "a": 1
+          },
+          "enc_key": "zASsMwbs7nSuiTMl1YOP",
+          "enc_position": 7,
+          "enc_position_char": "h",
+          "enc_length_char": "u"
+        }
+      }
+    },
+    {
+      "client": "crplayer-app",
+      "payload": "latin1-accent",
+      "input": {
+        "playlist_name": "Télé Café"
+      },
+      "encoded": "GueyJwbGF5bGlzdF9uYW1lIjoiVOls6SBD4vnue7GMxDeNMZotnisHYWbpIn0=",
+      "decodedBy": {
+        "iboplayer-backend": {
+          "status": "success",
+          "json": {
+            "playlist_name": "Tili Cafi"
+          },
+          "enc_key": "4vnue7GMxDeNMZotnisH",
+          "enc_position": 32,
+          "enc_position_char": "G",
+          "enc_length_char": "u"
+        },
+        "bobplayer-backend": {
+          "status": "success",
+          "json": {
+            "playlist_name": "Tili Cafi"
+          },
+          "enc_key": "4vnue7GMxDeNMZotnisH",
+          "enc_position": 32,
+          "enc_position_char": "G",
+          "enc_length_char": "u"
+        },
+        "cr-unified-backend": {
+          "status": "success",
+          "json": {
+            "playlist_name": "Tili Cafi"
+          },
+          "enc_key": "4vnue7GMxDeNMZotnisH",
+          "enc_position": 32,
+          "enc_position_char": "G",
+          "enc_length_char": "u"
+        }
+      }
+    }
+  ],
+  "responses": [
+    {
+      "server": "iboplayer-backend",
+      "client": "bobplayer-app",
+      "payload": "status-success",
+      "input": {
+        "status": "success",
+        "token": "abc"
+      },
+      "request": "GDeyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc55YrApaa2CBRlWu09JXd5Fayd2UufuOmFhOmJiOmNjIn0=",
+      "requestKey": "5YrApaa2CBRlWu09JXd5Fayd2Uufu",
+      "encoded": "eyJzdGF0dX5YrApaa2CBRlWu09JXd5Fayd2UufuMiOiJzdWNjZXNzIiwidG9rZW4iOiJhYmMifQ==kD",
+      "decodedByClient": {
+        "status": "success",
+        "token": "abc"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "iboplayer-backend",
+      "client": "bobplayer-app",
+      "payload": "device-info",
+      "input": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "request": "jueyJtYWNfYQUi4zKRQTQqNUhnktyTOWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "QUi4zKRQTQqNUhnktyTO",
+      "encoded": "eyJtYWNfYWRkcmVzcyI6IjAwQUi4zKRQTQqNUhnktyTOOjFhOjc5OmFhOmJiOmNjIiwiZXhwaXJlX2RhdGUiOiIyMDI3LTAxLTAxIiwiaXNfdHJpYWwiOjMsInVybHMiOlt7ImlkIjoicDEiLCJ1cmwiOiJodHRwOi8vaC5leGFtcGxlLyIsInBsYXlsaXN0X25hbWUiOiJJUFRWIn1dLCJ0aGVtZXMiOltdfQ==yu",
+      "decodedByClient": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "iboplayer-backend",
+      "client": "bobplayer-app",
+      "payload": "arabic-name",
+      "input": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "request": "QueyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmxXqQuqUjmfkLT9FhFouINjIn0=",
+      "requestKey": "xXqQuqUjmfkLT9FhFouI",
+      "encoded": "eyJzdGF0dXMiOiJzdWNjZXNzIiwicGxheWxpc3RfbmxXqQuqUjmfkLT9FhFouIFtZSI6ItmC2YbYp9ipIn0=Qu",
+      "decodedByClient": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "iboplayer-backend",
+      "client": "bobplayer-app",
+      "payload": "tiny",
+      "input": {
+        "a": 1
+      },
+      "request": "jueyJtYWNfYc5A9A5p4cPKuHcbXyIdOWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "c5A9A5p4cPKuHcbXyIdO",
+      "encoded": "eyJhc5A9A5p4cPKuHcbXyIdOIjoxfQ==eu",
+      "decodedByClient": {
+        "a": 1
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "iboplayer-backend",
+      "client": "crplayer-app",
+      "payload": "status-success",
+      "input": {
+        "status": "success",
+        "token": "abc"
+      },
+      "request": "QueyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmUsg2lLJSUzagbXge8fveNjIn0=",
+      "requestKey": "Usg2lLJSUzagbXge8fve",
+      "encoded": "eyJzUsg2lLJSUzagbXge8fvedGF0dXMiOiJzdWNjZXNzIiwidG9rZW4iOiJhYmMifQ==eu",
+      "decodedByClient": {
+        "status": "success",
+        "token": "abc"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "iboplayer-backend",
+      "client": "crplayer-app",
+      "payload": "device-info",
+      "input": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "request": "QCeyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmpZ2PRE7zsh64pfZLOILmyx5g2k5KNjIn0=",
+      "requestKey": "pZ2PRE7zsh64pfZLOILmyx5g2k5K",
+      "encoded": "eyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmNjIiwiZXpZ2PRE7zsh64pfZLOILmyx5g2k5KhwaXJlX2RhdGUiOiIyMDI3LTAxLTAxIiwiaXNfdHJpYWwiOjMsInVybHMiOlt7ImlkIjoicDEiLCJ1cmwiOiJodHRwOi8vaC5leGFtcGxlLyIsInBsYXlsaXN0X25hbWUiOiJJUFRWIn1dLCJ0aGVtZXMiOltdfQ==YC",
+      "decodedByClient": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "iboplayer-backend",
+      "client": "crplayer-app",
+      "payload": "arabic-name",
+      "input": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "request": "QueyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmpBPXkDTXpZXCwFl6yJAANjIn0=",
+      "requestKey": "pBPXkDTXpZXCwFl6yJAA",
+      "encoded": "eyJzdGF0dXMiOiJpBPXkDTXpZXCwFl6yJAAzdWNjZXNzIiwicGxheWxpc3RfbmFtZSI6ItmC2YbYp9ipIn0=pu",
+      "decodedByClient": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "iboplayer-backend",
+      "client": "crplayer-app",
+      "payload": "tiny",
+      "input": {
+        "a": 1
+      },
+      "request": "BDeyJtYWNfYWRkcmVzcyI6IjAwOjFxNesFiBx2j0fnRTV2V2lBOuCj3LjohOjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "xNesFiBx2j0fnRTV2V2lBOuCj3Ljo",
+      "encoded": "exNesFiBx2j0fnRTV2V2lBOuCj3LjoyJhIjoxfQ==bD",
+      "decodedByClient": {
+        "a": 1
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "client": "bobplayer-app",
+      "payload": "status-success",
+      "input": {
+        "status": "success",
+        "token": "abc"
+      },
+      "request": "OueyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJig3U6PkSPeA5CdIzMWszwOmNjIn0=",
+      "requestKey": "g3U6PkSPeA5CdIzMWszw",
+      "encoded": "eyg3U6PkSPeA5CdIzMWszwJzdGF0dXMiOiJzdWNjZXNzIiwidG9rZW4iOiJhYmMifQ==cu",
+      "decodedByClient": {
+        "status": "success",
+        "token": "abc"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "client": "bobplayer-app",
+      "payload": "device-info",
+      "input": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "request": "rueyJtYWNfYWRkcmVzcZJ722Hu2K8eafwslcnTVyI6IjAwOjFhOjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "ZJ722Hu2K8eafwslcnTV",
+      "encoded": "eyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmNjIiwiZXZJ722Hu2K8eafwslcnTVhwaXJlX2RhdGUiOiIyMDI3LTAxLTAxIiwiaXNfdHJpYWwiOjMsInVybHMiOlt7ImlkIjoicDEiLCJ1cmwiOiJodHRwOi8vaC5leGFtcGxlLyIsInBsYXlsaXN0X25hbWUiOiJJUFRWIn1dLCJ0aGVtZXMiOltdfQ==Yu",
+      "decodedByClient": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "client": "bobplayer-app",
+      "payload": "arabic-name",
+      "input": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "request": "NBeyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJH5iF7NiJjRfEYeblHGMyf5IPz8diOmNjIn0=",
+      "requestKey": "H5iF7NiJjRfEYeblHGMyf5IPz8d",
+      "encoded": "eyJzdGF0dXMiOiJzdWNjZXNzIiwicGxhH5iF7NiJjRfEYeblHGMyf5IPz8deWxpc3RfbmFtZSI6ItmC2YbYp9ipIn0=GB",
+      "decodedByClient": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "client": "bobplayer-app",
+      "payload": "tiny",
+      "input": {
+        "a": 1
+      },
+      "request": "MveyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOm6qgYoMpgPykOlugNsaJKGJiOmNjIn0=",
+      "requestKey": "6qgYoMpgPykOlugNsaJKG",
+      "encoded": "eyJhI6qgYoMpgPykOlugNsaJKGjoxfQ==fv",
+      "decodedByClient": {
+        "a": 1
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "client": "crplayer-app",
+      "payload": "status-success",
+      "input": {
+        "status": "success",
+        "token": "abc"
+      },
+      "request": "QueyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmujITtqC6xR83lF2rEitwNjIn0=",
+      "requestKey": "ujITtqC6xR83lF2rEitw",
+      "encoded": "eyJzdGF0dXMiOiJzdWNjZXNzIiwidG9ujITtqC6xR83lF2rEitwrZW4iOiJhYmMifQ==Fu",
+      "decodedByClient": {
+        "status": "success",
+        "token": "abc"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "client": "crplayer-app",
+      "payload": "device-info",
+      "input": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "request": "tueyJtYWNfYWRkcmVzcyIy4xjB4cfV02QGkFyNKjw6IjAwOjFhOjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "y4xjB4cfV02QGkFyNKjw",
+      "encoded": "y4xjB4cfV02QGkFyNKjweyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmNjIiwiZXhwaXJlX2RhdGUiOiIyMDI3LTAxLTAxIiwiaXNfdHJpYWwiOjMsInVybHMiOlt7ImlkIjoicDEiLCJ1cmwiOiJodHRwOi8vaC5leGFtcGxlLyIsInBsYXlsaXN0X25hbWUiOiJJUFRWIn1dLCJ0aGVtZXMiOltdfQ==au",
+      "decodedByClient": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "client": "crplayer-app",
+      "payload": "arabic-name",
+      "input": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "request": "xueyJtYWNfYWRkcmVzcyI6IjASR6mNFPWjXaCaW4eHHCZwOjFhOjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "SR6mNFPWjXaCaW4eHHCZ",
+      "encoded": "eyJzdSR6mNFPWjXaCaW4eHHCZGF0dXMiOiJzdWNjZXNzIiwicGxheWxpc3RfbmFtZSI6ItmC2YbYp9ipIn0=fu",
+      "decodedByClient": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "bobplayer-backend",
+      "client": "crplayer-app",
+      "payload": "tiny",
+      "input": {
+        "a": 1
+      },
+      "request": "sueyJtYWNfYWRkcmVzcyCqiWzJm9v0pax1Rkjo2CI6IjAwOjFhOjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "CqiWzJm9v0pax1Rkjo2C",
+      "encoded": "eyCqiWzJm9v0pax1Rkjo2CJhIjoxfQ==cu",
+      "decodedByClient": {
+        "a": 1
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "client": "bobplayer-app",
+      "payload": "status-success",
+      "input": {
+        "status": "success",
+        "token": "abc"
+      },
+      "request": "CueyJtYWNfYWRkcmVzcyI6IjAwOjFh9D7H5BltYIoSiKMXv9M8Ojc5OmFhOmJiOmNjIn0=",
+      "requestKey": "9D7H5BltYIoSiKMXv9M8",
+      "encoded": "eyJzdGF0dXM9D7H5BltYIoSiKMXv9M8iOiJzdWNjZXNzIiwidG9rZW4iOiJhYmMifQ==lu",
+      "decodedByClient": {
+        "status": "success",
+        "token": "abc"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "client": "bobplayer-app",
+      "payload": "device-info",
+      "input": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "request": "jueyJtYWNfYa9hyEo2pEBHEpYuuzJYeWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "a9hyEo2pEBHEpYuuzJYe",
+      "encoded": "eyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmNjIiwiZXa9hyEo2pEBHEpYuuzJYehwaXJlX2RhdGUiOiIyMDI3LTAxLTAxIiwiaXNfdHJpYWwiOjMsInVybHMiOlt7ImlkIjoicDEiLCJ1cmwiOiJodHRwOi8vaC5leGFtcGxlLyIsInBsYXlsaXN0X25hbWUiOiJJUFRWIn1dLCJ0aGVtZXMiOltdfQ==Yu",
+      "decodedByClient": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "client": "bobplayer-app",
+      "payload": "arabic-name",
+      "input": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "request": "LueyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOK3Zqhff6jR83CXhvC6u5mJiOmNjIn0=",
+      "requestKey": "K3Zqhff6jR83CXhvC6u5",
+      "encoded": "eyJzdGF0dXMK3Zqhff6jR83CXhvC6u5iOiJzdWNjZXNzIiwicGxheWxpc3RfbmFtZSI6ItmC2YbYp9ipIn0=lu",
+      "decodedByClient": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "client": "bobplayer-app",
+      "payload": "tiny",
+      "input": {
+        "a": 1
+      },
+      "request": "PBeyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOX1fhorIe6Zp5ZOMZPEJPsaeFvhamNjIn0=",
+      "requestKey": "X1fhorIe6Zp5ZOMZPEJPsaeFvha",
+      "encoded": "eyJhX1fhorIe6Zp5ZOMZPEJPsaeFvhaIjoxfQ==eB",
+      "decodedByClient": {
+        "a": 1
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "client": "crplayer-app",
+      "payload": "status-success",
+      "input": {
+        "status": "success",
+        "token": "abc"
+      },
+      "request": "yueyJtYWNfYWRkcmVzcyI6IjAweInVhZIg3yn52D7RKVUUOjFhOjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "eInVhZIg3yn52D7RKVUU",
+      "encoded": "eyJzdGF0dXMiOiJzdWNjZXNeInVhZIg3yn52D7RKVUUzIiwidG9rZW4iOiJhYmMifQ==xu",
+      "decodedByClient": {
+        "status": "success",
+        "token": "abc"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "client": "crplayer-app",
+      "payload": "device-info",
+      "input": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "request": "DueyJtYWNfYWRkcmVzcyI6IjAwOjFhOLmcMwAx0tQ9PBw9dhLRTjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "LmcMwAx0tQ9PBw9dhLRT",
+      "encoded": "eyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmNjIiwiZXLmcMwAx0tQ9PBw9dhLRThwaXJlX2RhdGUiOiIyMDI3LTAxLTAxIiwiaXNfdHJpYWwiOjMsInVybHMiOlt7ImlkIjoicDEiLCJ1cmwiOiJodHRwOi8vaC5leGFtcGxlLyIsInBsYXlsaXN0X25hbWUiOiJJUFRWIn1dLCJ0aGVtZXMiOltdfQ==Yu",
+      "decodedByClient": {
+        "mac_address": "00:1a:79:aa:bb:cc",
+        "expire_date": "2027-01-01",
+        "is_trial": 3,
+        "urls": [
+          {
+            "id": "p1",
+            "url": "http://h.example/",
+            "playlist_name": "IPTV"
+          }
+        ],
+        "themes": []
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "client": "crplayer-app",
+      "payload": "arabic-name",
+      "input": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "request": "gueyJtYWxy3BCa83Sph982Z4meeqNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiOmNjIn0=",
+      "requestKey": "xy3BCa83Sph982Z4meeq",
+      "encoded": "eyJzdGF0dXMiOiJzdWNjZXNzIiwicGxheWxxy3BCa83Sph982Z4meeqpc3RfbmFtZSI6ItmC2YbYp9ipIn0=Ju",
+      "decodedByClient": {
+        "status": "success",
+        "playlist_name": "قناة"
+      },
+      "roundTrips": true
+    },
+    {
+      "server": "cr-unified-backend",
+      "client": "crplayer-app",
+      "payload": "tiny",
+      "input": {
+        "a": 1
+      },
+      "request": "PueyJtYWNfYWRkcmVzcyI6IjAwOjFhOjc5OmFhOmJiO1si2mGLZWd6tu3enqFG1mNjIn0=",
+      "requestKey": "1si2mGLZWd6tu3enqFG1",
+      "encoded": "eyJ1si2mGLZWd6tu3enqFG1hIjoxfQ==du",
+      "decodedByClient": {
+        "a": 1
+      },
+      "roundTrips": true
+    }
+  ],
+  "appRequestsWithNonLatin1": [
+    {
+      "client": "bobplayer-app",
+      "input": {
+        "playlist_name": "قناة"
+      },
+      "result": "Error: InvalidCharacterError: btoa received a non-Latin-1 character"
+    },
+    {
+      "client": "crplayer-app",
+      "input": {
+        "playlist_name": "قناة"
+      },
+      "result": "Error: InvalidCharacterError: btoa received a non-Latin-1 character"
+    }
+  ]
+}

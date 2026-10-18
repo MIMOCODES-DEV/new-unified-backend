@@ -3,6 +3,7 @@
 > Sources: survey of `iboplayer-backend` (ibo), `bobplayer-backend` (bob), `cr-unified-backend` (cr) on 2026-10-13; the 14 October code audit (*Combined Backend Features* slides); every row where the two disagreed was re-checked in the code on 2026-10-14.
 > Purpose: the list of **features** the new backend must provide. Each feature is rebuilt cleanly from its intent — the old code is a reference for *what* it does, never for *how*.
 > Legend: ✅ yes · (x) partial / broken · — no. † = taken from the 14 October audit, not re-checked.
+> Store and payment contracts in detail: [`inventory/store-contract.md`](inventory/store-contract.md), [`inventory/payment-contracts.md`](inventory/payment-contracts.md). Endpoint catalogue: [`inventory/endpoints.md`](inventory/endpoints.md).
 > Which routes real clients (website, BobPlayer, CRPlayer) call: [`inventory/client-usage.md`](inventory/client-usage.md).
 > Code that nothing can reach (dead handlers, commented-out routes, unused packages) is listed in [`inventory/old-backends-unused.md`](inventory/old-backends-unused.md).
 
@@ -109,7 +110,7 @@ The V4 routes are written once in a loop over the app types, so 10 lines of code
 | Feature | ibo | bob | cr |
 |---|---|---|---|
 | Store API (`token` header): `validate-mac-address`, `save-device-activation`, `save-play-list`, `delete-playlist`, `delete-playlist-by-id`(cr), `reset-playlist`, `update-domain`, `count-domain-updates`, `switch-mac-address` | ✅ | ✅ | ✅ |
-| License transfer protocol (via `save-device-activation`) | (x) branch † | (x) branch † | ✅ |
+| License transfer protocol (via `save-device-activation`: `create_if_missing`, `migrated_from/to_app`) | — | — | ✅ (checked in code, CAP-05) |
 | Mimo Store / MDLS order + signed callback | ✅ | ✅ | (x) HMAC computed, not compared |
 | `PLATFORM_KEY` APIs: reseller notification CRUD, `transfer-device-app` (cross-app transfer) | — | — | ✅ |
 | Cross-app import of paying devices (HTTP polling) | — | ✅ asks ibo | ✅ asks ibo + bob | → internal lookup via central `deviceRegistry` |

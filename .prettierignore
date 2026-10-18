@@ -5,3 +5,4 @@ pnpm-lock.yaml
 PLAN.md
 docs
 tools
+test/fixtures

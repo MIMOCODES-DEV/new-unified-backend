@@ -3,5 +3,6 @@
   "project": ["src/**/*.ts", "test/**/*.ts"],
   "ignore": ["src/modules/_template/**"],
   "ignoreDependencies": ["pino-pretty"],
-  "ignoreExportsUsedInFile": true
+  "ignoreExportsUsedInFile": true,
+  "entry": ["tools/**/*.cjs"]
 }

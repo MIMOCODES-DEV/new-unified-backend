@@ -1,0 +1,32 @@
+{
+  "generatedBy": "tools/legacy-analysis/generate-codec-vectors.cjs",
+  "fakeKeys": {
+    "TOKEN_KEY": "fake-token-key-123",
+    "ANDROID_AES_SECRET": "fake-aes-old",
+    "ANDROID_AES_NEW_SECRET": "fake-aes-new-v2",
+    "TV_AES_NEW_SECRET": "fake-aes-tv-v3",
+    "ANDROID_V3_AES_NEW_SECRET": "fake-aes-android-v3",
+    "ANDROID_SIGNING_SECRET": "fake-sign-android",
+    "TV_SIGNING_SECRET": "fake-sign-tv"
+  },
+  "note": "Outputs of the real old functions, run with fake keys and a seeded Math.random. Never edit by hand; regenerate.",
+  "signatures": {
+    "androidV2": {
+      "formula": "base64(HMAC-SHA256(ANDROID_SIGNING_SECRET, data)).trim()",
+      "secret": "fake-sign-android",
+      "data": "U2FsdGVkX18tBpeabfevV0hcruZ5eBcgyIsRm6+DjJFVKXFqe3Gy6bDwQMfFqqg9OlWhX86ez3wZyxUvTSVtLA==",
+      "signature": "SsmuXdbY7KBq0I0VA0QmGDnN3G9AGvMuR26vsIjVySg="
+    },
+    "tvV3": {
+      "formula": "base64(HMAC-SHA256(TV_SIGNING_SECRET, data)).trim()",
+      "secret": "fake-sign-tv",
+      "data": "U2FsdGVkX18tBpeabfevV0hcruZ5eBcgyIsRm6+DjJFVKXFqe3Gy6bDwQMfFqqg9OlWhX86ez3wZyxUvTSVtLA==",
+      "signature": "kjScxL0zi5KYmtsIM50csuIe93trzWgTeq63FXdsvKE="
+    },
+    "tvV3Uid": {
+      "formula": "base64(HMAC-SHA1(TV_SIGNING_SECRET, lower(mac) + TV_AES_NEW_SECRET))",
+      "mac": "00:1A:79:AA:BB:CC",
+      "u_id": "qF0/vjxgi8P0uNpMQwGRM0Daqa8="
+    }
+  }
+}
