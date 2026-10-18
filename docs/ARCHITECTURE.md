@@ -80,7 +80,8 @@ src/
     crypto/                   # secrets vault (envelope encryption), hashing
     http/                     # outbound HTTP client (timeouts, SSRF guard)
 
-  tenancy/                    # tenant registry, host resolver, CLS context, tenantConfig, tenantSecrets
+  tenancy → modules/tenants/  # tenant registry + host resolver (domain, use cases, Mongo repo)
+                              # shared/tenancy/ = request-context key; interfaces/http/tenant/ = the middleware
 
   modules/                    # one folder per bounded context
     devices/

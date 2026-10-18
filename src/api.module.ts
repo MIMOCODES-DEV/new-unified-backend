@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ClsModule } from 'nestjs-cls';
 import { HealthModule } from './interfaces/http/health/health.module.js';
+import { TenantHttpModule } from './interfaces/http/tenant/tenant-http.module.js';
 import { AccessGuard } from './shared/auth/access.guard.js';
 import { ConfigModule } from './shared/config/config.module.js';
 import { DatabaseModule } from './shared/database/database.module.js';
@@ -18,6 +19,7 @@ import { RedisModule } from './shared/redis/redis.module.js';
     DatabaseModule,
     RedisModule,
     HealthModule,
+    TenantHttpModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AccessGuard },
