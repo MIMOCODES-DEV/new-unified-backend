@@ -16,6 +16,11 @@ export const envSchema = z.object({
   // Key of the XOR device tokens V4 apps get at login (TOKEN_KEY in the old backends). Must equal
   // the old key at cutover, or every logged-in TV must log in again. Unset → V4 login refused.
   LEGACY_DEVICE_TOKEN_KEY: z.string().min(8).optional(),
+  // TV v3 (IBO app): AES passphrase and HMAC signing secret (TV_AES_NEW_SECRET / TV_SIGNING_SECRET
+  // in the old ibo backend). Both ship inside the app, so they identify the app build only.
+  // Move to per-brand secrets with TEN-04. Unset → TV v3 refuses every request.
+  LEGACY_TV_V3_AES_KEY: z.string().min(8).optional(),
+  LEGACY_TV_V3_SIGNING_KEY: z.string().min(8).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
