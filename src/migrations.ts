@@ -1,3 +1,4 @@
+import { devicesMigrations } from './modules/devices/index.js';
 import { tenantsMigrations } from './modules/tenants/index.js';
 import type { Migration } from './shared/database/migrations/migration.js';
 
@@ -8,4 +9,4 @@ export const centralMigrations: readonly Migration[] = [...tenantsMigrations];
  * Every brand-database migration (devices, playlists, …), applied to each brand's own database
  * by `pnpm cli migrate:tenants`. Modules add theirs here as they are built.
  */
-export const tenantMigrations: readonly Migration[] = [];
+export const tenantMigrations: readonly Migration[] = [...devicesMigrations];

@@ -22,6 +22,7 @@ jobs:
       - run: pnpm knip
       - run: pnpm test
       - run: pnpm test:int
+      - run: pnpm test:e2e
       - run: pnpm build
 
   docker:

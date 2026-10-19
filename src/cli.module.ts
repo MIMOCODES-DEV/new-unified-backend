@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ClsModule } from 'nestjs-cls';
+import { DevicesModule } from './modules/devices/index.js';
 import { TenantsModule } from './modules/tenants/index.js';
 import { ConfigModule } from './shared/config/config.module.js';
 import { DatabaseModule } from './shared/database/database.module.js';
@@ -15,6 +16,7 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     DatabaseModule,
     TenancyModule,
     TenantsModule,
+    DevicesModule,
   ],
 })
 export class CliModule {}

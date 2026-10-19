@@ -32,7 +32,9 @@ export class AccessGuard implements CanActivate {
       throw new ForbiddenException();
     }
 
-    if (access.kind === 'public') {
+    // Legacy device routes speak the old apps' protocols (envelope, AES, XOR token); each route
+    // decodes and checks its own credentials, so the guard only confirms the route declared it.
+    if (access.kind === 'public' || access.kind === 'legacy-device') {
       return true;
     }
 

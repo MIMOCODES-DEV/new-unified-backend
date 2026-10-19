@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 560" width="680" height="560" role="img">
+<title>Architecture layers</title>
+<desc>Three processes (API, worker, CLI) share one codebase. Interfaces import a module only through its index.ts. Inside a module, application holds use cases and ports and depends on domain; infrastructure implements the ports. Everything may use shared, which holds no business rules.</desc>
+<style>
+.bg{fill:#ffffff}
+text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.t{font-size:14px;font-weight:500;fill:#2c2c2a}
+.ts{font-size:12px;fill:#5f5e5a}
+.box rect{fill:#f1efe8;stroke:#b4b2a9}
+.purple rect{fill:#EEEDFE;stroke:#534AB7}.purple .t{fill:#3C3489}.purple .ts{fill:#534AB7}
+.teal rect{fill:#E1F5EE;stroke:#0F6E56}.teal .t{fill:#085041}.teal .ts{fill:#0F6E56}
+.grp{fill:none;stroke:#b4b2a9;stroke-dasharray:4 3}
+.arr{stroke:#888780;stroke-width:1.5;fill:none}
+
+.bg{fill:#1f1e1d}.t{fill:#f1efe8}.ts{fill:#b4b2a9}
+.box rect{fill:#2c2c2a;stroke:#5f5e5a}
+.purple rect{fill:#3C3489;stroke:#AFA9EC}.purple .t{fill:#EEEDFE}.purple .ts{fill:#CECBF6}
+.teal rect{fill:#085041;stroke:#5DCAA5}.teal .t{fill:#E1F5EE}.teal .ts{fill:#9FE1CB}
+.grp{stroke:#5f5e5a}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect class="bg" x="0" y="0" width="680" height="560" rx="12"/>
+<g class="box"><rect x="40" y="30" width="180" height="56" rx="8" stroke-width="0.8"/>
+<text class="t" x="130" y="50" text-anchor="middle" dominant-baseline="central">API</text>
+<text class="ts" x="130" y="68" text-anchor="middle" dominant-baseline="central">main.api.ts · HTTP</text></g>
+<g class="box"><rect x="250" y="30" width="180" height="56" rx="8" stroke-width="0.8"/>
+<text class="t" x="340" y="50" text-anchor="middle" dominant-baseline="central">Worker</text>
+<text class="ts" x="340" y="68" text-anchor="middle" dominant-baseline="central">main.worker.ts · jobs</text></g>
+<g class="box"><rect x="460" y="30" width="180" height="56" rx="8" stroke-width="0.8"/>
+<text class="t" x="550" y="50" text-anchor="middle" dominant-baseline="central">CLI</text>
+<text class="ts" x="550" y="68" text-anchor="middle" dominant-baseline="central">main.cli.ts · commands</text></g>
+<line class="arr" x1="340" y1="86" x2="340" y2="112" marker-end="url(#a)"/>
+<g class="teal"><rect x="40" y="116" width="600" height="50" rx="8" stroke-width="0.8"/>
+<text class="t" x="340" y="133" text-anchor="middle" dominant-baseline="central">interfaces</text>
+<text class="ts" x="340" y="151" text-anchor="middle" dominant-baseline="central">Controllers, middleware, job handlers, CLI commands</text></g>
+<line class="arr" x1="340" y1="166" x2="340" y2="222" marker-end="url(#a)"/>
+<text class="ts" x="350" y="196">Imports index.ts only</text>
+<rect class="grp" x="40" y="186" width="600" height="250" rx="12" stroke-width="0.8"/>
+<text class="ts" x="56" y="204">modules/&lt;name&gt;</text>
+<g class="purple"><rect x="60" y="226" width="560" height="36" rx="8" stroke-width="0.8"/>
+<text class="t" x="340" y="244" text-anchor="middle" dominant-baseline="central">index.ts · the module's public API</text></g>
+<line class="arr" x1="195" y1="262" x2="195" y2="286" marker-end="url(#a)"/>
+<g class="purple"><rect x="60" y="290" width="270" height="56" rx="8" stroke-width="0.8"/>
+<text class="t" x="195" y="310" text-anchor="middle" dominant-baseline="central">application</text>
+<text class="ts" x="195" y="328" text-anchor="middle" dominant-baseline="central">Use cases + ports</text></g>
+<g class="purple"><rect x="350" y="290" width="270" height="56" rx="8" stroke-width="0.8"/>
+<text class="t" x="485" y="310" text-anchor="middle" dominant-baseline="central">infrastructure</text>
+<text class="ts" x="485" y="328" text-anchor="middle" dominant-baseline="central">Mongo repositories, migrations</text></g>
+<line class="arr" x1="350" y1="318" x2="334" y2="318" stroke-dasharray="4 3" marker-end="url(#a)"/>
+<line class="arr" x1="195" y1="346" x2="195" y2="366" marker-end="url(#a)"/>
+<g class="purple"><rect x="60" y="370" width="270" height="50" rx="8" stroke-width="0.8"/>
+<text class="t" x="195" y="387" text-anchor="middle" dominant-baseline="central">domain</text>
+<text class="ts" x="195" y="405" text-anchor="middle" dominant-baseline="central">Entities, rules · pure TypeScript</text></g>
+<text class="ts" x="485" y="380" text-anchor="middle">Dashed arrow: implements a port</text>
+<text class="ts" x="485" y="398" text-anchor="middle">Solid arrow: may import</text>
+<line class="arr" x1="195" y1="420" x2="195" y2="472" marker-end="url(#a)"/>
+<line class="arr" x1="600" y1="346" x2="600" y2="472" marker-end="url(#a)"/>
+<g class="box"><rect x="40" y="476" width="600" height="56" rx="8" stroke-width="0.8"/>
+<text class="t" x="340" y="496" text-anchor="middle" dominant-baseline="central">shared</text>
+<text class="ts" x="340" y="514" text-anchor="middle" dominant-baseline="central">Kernel, config, logger, database, tenancy · no business rules</text></g>
+</svg>

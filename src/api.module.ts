@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ClsModule } from 'nestjs-cls';
 import { HealthModule } from './interfaces/http/health/health.module.js';
+import { LegacyAppsModule } from './interfaces/legacy/apps/legacy-apps.module.js';
+import { LegacyV4Module } from './interfaces/legacy/v4/legacy-v4.module.js';
 import { TenantHttpModule } from './interfaces/http/tenant/tenant-http.module.js';
 import { AccessGuard } from './shared/auth/access.guard.js';
 import { ConfigModule } from './shared/config/config.module.js';
@@ -22,6 +24,8 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     RedisModule,
     HealthModule,
     TenantHttpModule,
+    LegacyV4Module,
+    LegacyAppsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AccessGuard },

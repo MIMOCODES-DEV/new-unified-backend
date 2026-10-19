@@ -1,7 +1,7 @@
 import { ForbiddenException, NotImplementedException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
-import { Public, Store } from './access.decorators.js';
+import { LegacyDevice, Public, Store } from './access.decorators.js';
 import { AccessGuard } from './access.guard.js';
 
 class TestController {
@@ -10,6 +10,9 @@ class TestController {
 
   @Store()
   store(): void {}
+
+  @LegacyDevice()
+  legacy(): void {}
 
   undecorated(): void {}
 }
@@ -30,6 +33,10 @@ describe('AccessGuard', () => {
 
   it('refuses routes without an access decorator', () => {
     expect(() => guard.canActivate(contextFor('undecorated'))).toThrow(ForbiddenException);
+  });
+
+  it('lets legacy-device routes through: the route checks the old app protocol itself', () => {
+    expect(guard.canActivate(contextFor('legacy'))).toBe(true);
   });
 
   it('refuses access kinds that are not implemented yet', () => {

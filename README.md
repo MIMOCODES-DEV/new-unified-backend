@@ -21,23 +21,30 @@ pnpm install
 cp .env.example .env
 docker compose up -d          # MongoDB (replica set) + Redis
 pnpm cli migrate:central      # apply central DB migrations
+pnpm cli tenants:seed --dev   # load the brands (+ <slug>.localhost hosts)
+pnpm cli migrate:tenants      # apply brand DB migrations (indexes)
 pnpm dev:api                  # HTTP API on http://localhost:3000 (GET /health, /ready)
 pnpm dev:worker               # background jobs (separate terminal)
 ```
 
 ## Scripts
 
-| Command                                | What it does                                                           |
-| -------------------------------------- | ---------------------------------------------------------------------- |
-| `pnpm dev:api` / `pnpm dev:worker`     | Run the API / worker from source with reload                           |
-| `pnpm cli <command>`                   | One-shot commands (`migrate:central`)                                  |
-| `pnpm build`                           | Compile `src/` to `dist/` with SWC                                     |
-| `pnpm start:api` / `pnpm start:worker` | Run the compiled build                                                 |
-| `pnpm lint`                            | ESLint, including the architecture boundary rules                      |
-| `pnpm typecheck`                       | `tsc --noEmit`                                                         |
-| `pnpm test`                            | Unit tests                                                             |
-| `pnpm test:int`                        | Integration tests against real Mongo + Redis containers (needs Docker) |
-| `pnpm format`                          | Prettier                                                               |
+| Command                                                 | What it does                                                                                                                            |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev:api` / `pnpm dev:worker`                      | Run the API / worker from source with reload                                                                                            |
+| `pnpm cli <command>`                                    | One-shot commands (`migrate:central`, `migrate:tenants`, `tenants:seed`)                                                                |
+| `pnpm cli device:register <brand> <mac                  | -> <app> [app-device-id]`                                                                                                               | Register-or-get a device, as an app does on start (new → pending trial) |
+| `pnpm cli device:activate <brand> <mac>`                | Move a device to `devices` as if it paid (until payments exist)                                                                         |
+| `pnpm cli device:trial-days <brand> [days]`             | Show or set how long new devices of a brand stay on trial (default 7)                                                                   |
+| `pnpm cli device:legacy-profile <brand> [ibo\|bob\|cr]` | Show or set which old backend the brand's installed apps expect (response shapes; default cr)                                           |
+| `pnpm build`                                            | Compile `src/` to `dist/` with SWC                                                                                                      |
+| `pnpm start:api` / `pnpm start:worker`                  | Run the compiled build                                                                                                                  |
+| `pnpm lint`                                             | ESLint, including the architecture boundary rules                                                                                       |
+| `pnpm typecheck`                                        | `tsc --noEmit`                                                                                                                          |
+| `pnpm test`                                             | Unit tests                                                                                                                              |
+| `pnpm test:int`                                         | Integration tests against real Mongo + Redis containers (needs Docker)                                                                  |
+| `pnpm test:e2e`                                         | End-to-end tests in `test/e2e/`: real HTTP server and CLI against containers. Runs before every `git push` (Husky `pre-push`) and in CI |
+| `pnpm format`                                           | Prettier                                                                                                                                |
 
 ## Layout
 

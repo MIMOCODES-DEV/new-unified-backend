@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 720" width="680" height="720" role="img">
+<title>Request pipeline</title>
+<desc>An HTTP request passes Fastify, the logger, the request context, the tenant middleware, a planned abuse gate, the access guard, planned door checks and validation, then the controller and use case. Any error is turned into a small JSON body by the global exception filter.</desc>
+<style>
+.bg{fill:#ffffff}
+text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.t{font-size:14px;font-weight:500;fill:#2c2c2a}
+.ts{font-size:12px;fill:#5f5e5a}
+.box rect{fill:#f1efe8;stroke:#b4b2a9}
+.plan rect{fill:none;stroke:#b4b2a9;stroke-dasharray:4 3}.plan .t{fill:#888780}
+.purple rect{fill:#EEEDFE;stroke:#534AB7}.purple .t{fill:#3C3489}.purple .ts{fill:#534AB7}
+.coral rect{fill:#FAECE7;stroke:#993C1D}.coral .t{fill:#712B13}.coral .ts{fill:#993C1D}
+.arr{stroke:#888780;stroke-width:1.5;fill:none}
+
+.bg{fill:#1f1e1d}.t{fill:#f1efe8}.ts{fill:#b4b2a9}
+.box rect{fill:#2c2c2a;stroke:#5f5e5a}
+.plan rect{stroke:#5f5e5a}.plan .t{fill:#888780}
+.purple rect{fill:#3C3489;stroke:#AFA9EC}.purple .t{fill:#EEEDFE}.purple .ts{fill:#CECBF6}
+.coral rect{fill:#712B13;stroke:#F0997B}.coral .t{fill:#FAECE7}.coral .ts{fill:#F5C4B3}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect class="bg" x="0" y="0" width="680" height="720" rx="12"/>
+<g class="box"><rect x="230" y="30" width="240" height="44" rx="8" stroke-width="0.8"/><text class="t" x="350" y="52" text-anchor="middle" dominant-baseline="central">Fastify</text></g>
+<text class="ts" x="490" y="56">Body limit 1 MB</text>
+<line class="arr" x1="350" y1="74" x2="350" y2="92" marker-end="url(#a)"/>
+<g class="box"><rect x="230" y="96" width="240" height="44" rx="8" stroke-width="0.8"/><text class="t" x="350" y="118" text-anchor="middle" dominant-baseline="central">Logger</text></g>
+<text class="ts" x="490" y="122">x-request-id, secrets hidden</text>
+<line class="arr" x1="350" y1="140" x2="350" y2="158" marker-end="url(#a)"/>
+<g class="box"><rect x="230" y="162" width="240" height="44" rx="8" stroke-width="0.8"/><text class="t" x="350" y="184" text-anchor="middle" dominant-baseline="central">Request context (CLS)</text></g>
+<line class="arr" x1="350" y1="206" x2="350" y2="224" marker-end="url(#a)"/>
+<g class="purple"><rect x="230" y="228" width="240" height="44" rx="8" stroke-width="0.8"/><text class="t" x="350" y="250" text-anchor="middle" dominant-baseline="central">Tenant middleware</text></g>
+<text class="ts" x="490" y="246">421 · 400 · 403</text>
+<text class="ts" x="490" y="262">Host header → brand</text>
+<text class="ts" x="214" y="254" text-anchor="end">Skipped for /health, /ready</text>
+<line class="arr" x1="350" y1="272" x2="350" y2="290" marker-end="url(#a)"/>
+<g class="plan"><rect x="230" y="294" width="240" height="44" rx="8" stroke-width="0.8"/><text class="t" x="350" y="316" text-anchor="middle" dominant-baseline="central">Abuse gate</text></g>
+<text class="ts" x="490" y="320">Planned: Redis rate limits</text>
+<line class="arr" x1="350" y1="338" x2="350" y2="356" marker-end="url(#a)"/>
+<g class="purple"><rect x="230" y="360" width="240" height="44" rx="8" stroke-width="0.8"/><text class="t" x="350" y="382" text-anchor="middle" dominant-baseline="central">Access guard</text></g>
+<text class="ts" x="490" y="378">No decorator: 403</text>
+<text class="ts" x="490" y="394">Not built yet: 501</text>
+<line class="arr" x1="350" y1="404" x2="350" y2="422" marker-end="url(#a)"/>
+<g class="plan"><rect x="230" y="426" width="240" height="44" rx="8" stroke-width="0.8"/><text class="t" x="350" y="448" text-anchor="middle" dominant-baseline="central">Door checks</text></g>
+<text class="ts" x="490" y="452">Planned: codec, token, JWT</text>
+<line class="arr" x1="350" y1="470" x2="350" y2="488" marker-end="url(#a)"/>
+<g class="plan"><rect x="230" y="492" width="240" height="44" rx="8" stroke-width="0.8"/><text class="t" x="350" y="514" text-anchor="middle" dominant-baseline="central">Validation</text></g>
+<text class="ts" x="490" y="518">Planned: zod schemas</text>
+<line class="arr" x1="350" y1="536" x2="350" y2="554" marker-end="url(#a)"/>
+<g class="box"><rect x="230" y="558" width="240" height="44" rx="8" stroke-width="0.8"/><text class="t" x="350" y="580" text-anchor="middle" dominant-baseline="central">Controller → use case</text></g>
+<line class="arr" x1="350" y1="602" x2="350" y2="628" marker-end="url(#a)"/>
+<text class="ts" x="360" y="620">If it throws</text>
+<g class="coral"><rect x="200" y="632" width="300" height="56" rx="8" stroke-width="0.8"/>
+<text class="t" x="350" y="652" text-anchor="middle" dominant-baseline="central">Global exception filter</text>
+<text class="ts" x="350" y="670" text-anchor="middle" dominant-baseline="central">422 · HTTP status · 500 without stack</text></g>
+</svg>

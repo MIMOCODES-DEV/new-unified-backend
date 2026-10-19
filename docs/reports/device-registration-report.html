@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device Registration Report</title>
+<style>
+:root{
+  --bg:#1f1e1d; --panel:#262523; --panel2:#2c2c2a; --line:#3d3c39; --line2:#5f5e5a;
+  --text:#f1efe8; --muted:#b4b2a9; --dim:#888780;
+  --amber:#EF9F27; --amber-bg:#633806; --amber-tx:#FAC775;
+  --teal:#5DCAA5; --teal-bg:#085041; --teal-tx:#9FE1CB;
+  --coral:#F0997B; --coral-bg:#712B13; --coral-tx:#F5C4B3;
+  --blue:#85B7EB; --blue-bg:#0C447C;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:48px 24px 96px}
+h1{font-size:40px;line-height:1.15;margin:0 0 12px;letter-spacing:-.01em}
+h2{font-size:26px;margin:64px 0 16px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:18px;margin:28px 0 8px}
+p{max-width:78ch;color:var(--text)}
+.lede{font-size:19px;color:var(--muted);max-width:70ch}
+a{color:var(--teal)}
+code{font:13.5px/1.4 ui-monospace,"Cascadia Code",Consolas,monospace;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--text)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:32px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.stat b{display:block;font-size:30px;line-height:1.1}
+.stat span{color:var(--muted);font-size:14px}
+.ok b{color:var(--teal)} .warn b{color:var(--amber)}
+figure{margin:24px 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;overflow-x:auto}
+figure svg{display:block;width:100%;height:auto;min-width:640px}
+figcaption{color:var(--muted);font-size:14px;margin-top:10px}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:15px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:14px}
+.tablewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px 8px}
+.tag{display:inline-block;font-size:12.5px;padding:1px 8px;border-radius:999px;border:1px solid;white-space:nowrap}
+.t-new{color:var(--teal-tx);border-color:var(--teal);background:var(--teal-bg)}
+.t-mod{color:var(--amber-tx);border-color:var(--amber);background:var(--amber-bg)}
+.t-fix{color:var(--coral-tx);border-color:var(--coral);background:var(--coral-bg)}
+ul{padding-left:22px} li{margin:6px 0;max-width:80ch}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 20px 14px}
+.card h3{margin-top:14px}
+.muted{color:var(--muted)}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 0}
+nav.toc a{color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:14px}
+nav.toc a:hover,nav.toc a:focus-visible{color:var(--text);border-color:var(--line2);outline:none}
+@media (max-width:640px){main{padding:32px 16px 72px}h1{font-size:30px}h2{font-size:22px}}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Register an unknown device with a trial</h1>
+<p class="lede">What was built in <code>new-unified-backend</code> for ibo, bob and cr: how a device the server has never seen gets a free trial, how it becomes a paying user, and how the old installed apps keep working unchanged.</p>
+<p class="muted">Branch <code>feat/device-registration</code> · based on master <code>3254a12</code> · nothing committed · 19 October 2026</p>
+
+<nav class="toc" aria-label="Sections">
+  <a href="#summary">Summary</a><a href="#flow">Flow</a><a href="#states">States</a><a href="#routes">Routes</a>
+  <a href="#arch">Architecture</a><a href="#data">Data</a><a href="#changes">What changed</a>
+  <a href="#ops">Config &amp; CLI</a><a href="#tests">Tests</a><a href="#review">Review</a>
+  <a href="#rulings">Decisions</a><a href="#next">Not done yet</a>
+</nav>
+
+<div class="stats">
+  <div class="stat ok"><b>273</b><span>unit tests pass</span></div>
+  <div class="stat ok"><b>25</b><span>end-to-end tests pass</span></div>
+  <div class="stat warn"><b>13 / 15</b><span>integration (2 already fail on master)</span></div>
+  <div class="stat"><b>16</b><span>old app routes served</span></div>
+  <div class="stat"><b>~5.5k</b><span>lines added (about half tests)</span></div>
+</div>
+
+<h2 id="summary">Summary</h2>
+<p>Any app calling for the first time with an unknown MAC gets a device record, a 6-digit device key and a trial (7 days by default, settable per brand). That record lives in <code>pendingDevices</code>. It moves into <code>devices</code> only when the device pays, inside a MongoDB transaction. Unpaid devices are never removed, so a device can't get a second trial by coming back later.</p>
+<p>The old apps don't change. Each brand answers in the exact shapes its old backend used (key order, field types, encodings). That means the V4 API, the legacy TV <code>playlist_info</code>, signed Android, Roku and the iOS/Android v2–v3 logins all work.</p>
+<p>The work was done in five slices:</p>
+<ul>
+  <li><b>1. Devices module.</b> Pending or paid, trial length, unique key, and the move on payment.</li>
+  <li><b>2. Legacy codecs.</b> Envelope, CryptoJS AES, HMAC signatures and the XOR token.</li>
+  <li><b>3. V4 API.</b> Captcha, <code>device_login</code> and <code>device_info</code>.</li>
+  <li><b>4. Devices without a usable MAC.</b> These are identified by <code>app_device_id</code>.</li>
+  <li><b>5. Pre-V4 app routes</b>, answered with per-brand response shapes.</li>
+</ul>
+
+<h2 id="flow">How a request flows</h2>
+<figure>
+<svg viewBox="0 0 1080 520" role="img" aria-labelledby="f1t f1d" xmlns="http://www.w3.org/2000/svg">
+<title id="f1t">Request flow</title>
+<desc id="f1d">Old apps call legacy routes. The Host header picks the brand. Controllers decode the wire format and call devices use cases, which read and write the brand database's pendingDevices and devices collections.</desc>
+<style>
+text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.t{font-size:14px;font-weight:600;fill:#f1efe8}.ts{font-size:12px;fill:#b4b2a9}
+.box rect{fill:#2c2c2a;stroke:#5f5e5a}
+.amber rect{fill:#633806;stroke:#EF9F27}.amber .t{fill:#FAEEDA}.amber .ts{fill:#FAC775}
+.teal rect{fill:#085041;stroke:#5DCAA5}.teal .t{fill:#E1F5EE}.teal .ts{fill:#9FE1CB}
+.blue rect{fill:#0C447C;stroke:#85B7EB}.blue .t{fill:#E6F1FB}.blue .ts{fill:#B5D4F4}
+.grp{fill:none;stroke:#5f5e5a;stroke-dasharray:4 3}
+.arr{stroke:#888780;stroke-width:1.5;fill:none}
+.lbl{font-size:12px;fill:#888780}
+</style>
+<defs><marker id="m1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect x="0" y="0" width="1080" height="520" rx="12" fill="#1f1e1d"/>
+
+<text class="ts" x="30" y="34">Installed apps (unchanged)</text>
+<g class="box"><rect x="30" y="48" width="200" height="50" rx="8"/><text class="t" x="130" y="68" text-anchor="middle">V4 TV apps</text><text class="ts" x="130" y="86" text-anchor="middle">lg, samsung, vidaa…</text></g>
+<g class="box"><rect x="30" y="112" width="200" height="50" rx="8"/><text class="t" x="130" y="132" text-anchor="middle">Legacy TV apps</text><text class="ts" x="130" y="150" text-anchor="middle">obfuscated envelope</text></g>
+<g class="box"><rect x="30" y="176" width="200" height="50" rx="8"/><text class="t" x="130" y="196" text-anchor="middle">Signed Android</text><text class="ts" x="130" y="214" text-anchor="middle">AES + HMAC</text></g>
+<g class="box"><rect x="30" y="240" width="200" height="50" rx="8"/><text class="t" x="130" y="260" text-anchor="middle">Roku</text><text class="ts" x="130" y="278" text-anchor="middle">plain JSON</text></g>
+<g class="box"><rect x="30" y="304" width="200" height="50" rx="8"/><text class="t" x="130" y="324" text-anchor="middle">iOS / Android v2–v3</text><text class="ts" x="130" y="342" text-anchor="middle">install uid</text></g>
+
+<line class="arr" x1="230" y1="200" x2="280" y2="200" marker-end="url(#m1)"/>
+<g class="blue"><rect x="284" y="150" width="150" height="100" rx="8"/><text class="t" x="359" y="186" text-anchor="middle">Tenant</text><text class="t" x="359" y="204" text-anchor="middle">middleware</text><text class="ts" x="359" y="226" text-anchor="middle">Host header → brand</text></g>
+<line class="arr" x1="434" y1="200" x2="484" y2="200" marker-end="url(#m1)"/>
+
+<rect class="grp" x="484" y="40" width="230" height="330" rx="12"/>
+<text class="ts" x="498" y="62">interfaces/legacy</text>
+<g class="box"><rect x="500" y="76" width="198" height="56" rx="8"/><text class="t" x="599" y="98" text-anchor="middle">V4DeviceController</text><text class="ts" x="599" y="117" text-anchor="middle">recaptcha · login · info</text></g>
+<g class="box"><rect x="500" y="146" width="198" height="56" rx="8"/><text class="t" x="599" y="168" text-anchor="middle">LegacyAppsController</text><text class="ts" x="599" y="187" text-anchor="middle">TV · Android · Roku · iOS</text></g>
+<g class="box"><rect x="500" y="216" width="198" height="56" rx="8"/><text class="t" x="599" y="238" text-anchor="middle">Codecs</text><text class="ts" x="599" y="257" text-anchor="middle">envelope · AES · HMAC · XOR</text></g>
+<g class="box"><rect x="500" y="286" width="198" height="56" rx="8"/><text class="t" x="599" y="308" text-anchor="middle">Presenters</text><text class="ts" x="599" y="327" text-anchor="middle">shapes per legacy profile</text></g>
+
+<line class="arr" x1="714" y1="200" x2="764" y2="200" marker-end="url(#m1)"/>
+<rect class="grp" x="764" y="40" width="290" height="330" rx="12"/>
+<text class="ts" x="778" y="62">modules/devices · use cases</text>
+<g class="amber"><rect x="780" y="76" width="258" height="50" rx="8"/><text class="t" x="909" y="97" text-anchor="middle">RegisterOrGetDevice</text><text class="ts" x="909" y="115" text-anchor="middle">by MAC, or by app_device_id</text></g>
+<g class="box"><rect x="780" y="136" width="258" height="44" rx="8"/><text class="t" x="909" y="163" text-anchor="middle">LoginV4Device · GetV4DeviceInfo</text></g>
+<g class="box"><rect x="780" y="190" width="258" height="44" rx="8"/><text class="t" x="909" y="217" text-anchor="middle">LoginAppDevice (install uid)</text></g>
+<g class="box"><rect x="780" y="244" width="258" height="44" rx="8"/><text class="t" x="909" y="271" text-anchor="middle">RequestRegistrationCaptcha</text></g>
+<g class="teal"><rect x="780" y="298" width="258" height="56" rx="8"/><text class="t" x="909" y="320" text-anchor="middle">ActivateDevice</text><text class="ts" x="909" y="339" text-anchor="middle">CLI today, payments later</text></g>
+
+<line class="arr" x1="909" y1="370" x2="909" y2="408" marker-end="url(#m1)"/>
+<rect class="grp" x="380" y="410" width="674" height="90" rx="12"/>
+<text class="ts" x="394" y="432">Brand database (one per tenant, name = slug)</text>
+<g class="amber"><rect x="396" y="440" width="150" height="48" rx="8"/><text class="t" x="471" y="469" text-anchor="middle">pendingDevices</text></g>
+<g class="teal"><rect x="560" y="440" width="120" height="48" rx="8"/><text class="t" x="620" y="469" text-anchor="middle">devices</text></g>
+<g class="box"><rect x="694" y="440" width="120" height="48" rx="8"/><text class="t" x="754" y="469" text-anchor="middle">captchas</text></g>
+<g class="box"><rect x="828" y="440" width="210" height="48" rx="8"/><text class="t" x="933" y="461" text-anchor="middle">tenantConfig</text><text class="ts" x="933" y="478" text-anchor="middle">trialDays · legacy.profile</text></g>
+</svg>
+<figcaption>All rules live in the devices use cases. Controllers only decode the old wire format, map errors and encode the answer in the brand's old shapes.</figcaption>
+</figure>
+
+<h3>First request from an unknown device</h3>
+<figure>
+<svg viewBox="0 0 1080 360" role="img" aria-labelledby="f2t f2d" xmlns="http://www.w3.org/2000/svg">
+<title id="f2t">Register-or-get decision</title>
+<desc id="f2d">With a usable MAC the device is looked up by MAC in devices then pendingDevices. With no MAC or a shared fallback MAC, by app_device_id. If none is found a pending trial is inserted, with retries on key collisions and a fallback to the winner of a race.</desc>
+<style>
+text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.t{font-size:14px;font-weight:600;fill:#f1efe8}.ts{font-size:12px;fill:#b4b2a9}
+.box rect{fill:#2c2c2a;stroke:#5f5e5a}
+.amber rect{fill:#633806;stroke:#EF9F27}.amber .t{fill:#FAEEDA}.amber .ts{fill:#FAC775}
+.teal rect{fill:#085041;stroke:#5DCAA5}.teal .t{fill:#E1F5EE}.teal .ts{fill:#9FE1CB}
+.coral rect{fill:#712B13;stroke:#F0997B}.coral .t{fill:#FAECE7}.coral .ts{fill:#F5C4B3}
+.arr{stroke:#888780;stroke-width:1.5;fill:none}.lbl{font-size:12px;fill:#888780}
+</style>
+<defs><marker id="m2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect x="0" y="0" width="1080" height="360" rx="12" fill="#1f1e1d"/>
+<g class="box"><rect x="24" y="150" width="150" height="56" rx="8"/><text class="t" x="99" y="172" text-anchor="middle">Request</text><text class="ts" x="99" y="191" text-anchor="middle">MAC? app_device_id?</text></g>
+<line class="arr" x1="174" y1="178" x2="214" y2="178" marker-end="url(#m2)"/>
+<g class="box"><rect x="218" y="140" width="170" height="76" rx="8"/><text class="t" x="303" y="164" text-anchor="middle">Usable MAC?</text><text class="ts" x="303" y="184" text-anchor="middle">not empty, not</text><text class="ts" x="303" y="200" text-anchor="middle">52:54:00:12:34:56/57/59</text></g>
+<path class="arr" d="M388 160 C430 160 430 80 470 80" marker-end="url(#m2)"/><text class="lbl" x="412" y="104">yes</text>
+<path class="arr" d="M388 196 C430 196 430 276 470 276" marker-end="url(#m2)"/><text class="lbl" x="412" y="256">no</text>
+<g class="box"><rect x="474" y="48" width="220" height="64" rx="8"/><text class="t" x="584" y="72" text-anchor="middle">Find by MAC</text><text class="ts" x="584" y="92" text-anchor="middle">devices → pending → devices</text></g>
+<g class="box"><rect x="474" y="244" width="220" height="64" rx="8"/><text class="t" x="584" y="268" text-anchor="middle">Find by app_device_id</text><text class="ts" x="584" y="288" text-anchor="middle">none sent → identity_required</text></g>
+<path class="arr" d="M694 80 C740 80 740 60 790 60" marker-end="url(#m2)"/><text class="lbl" x="716" y="54">found</text>
+<path class="arr" d="M694 276 C740 276 740 60 790 60" marker-end="url(#m2)"/>
+<path class="arr" d="M694 96 C740 96 740 200 790 200" marker-end="url(#m2)"/><text class="lbl" x="742" y="150">not found</text>
+<path class="arr" d="M694 292 C740 292 740 216 790 216" marker-end="url(#m2)"/>
+<g class="teal"><rect x="794" y="34" width="262" height="56" rx="8"/><text class="t" x="925" y="57" text-anchor="middle">Existing device</text><text class="ts" x="925" y="76" text-anchor="middle">lastSeenAt updated · same key</text></g>
+<g class="amber"><rect x="794" y="168" width="262" height="76" rx="8"/><text class="t" x="925" y="192" text-anchor="middle">Insert pending trial</text><text class="ts" x="925" y="212" text-anchor="middle">new key, trial = brand trialDays</text><text class="ts" x="925" y="228" text-anchor="middle">no MAC → random local MAC</text></g>
+<g class="coral"><rect x="794" y="270" width="262" height="70" rx="8"/><text class="t" x="925" y="294" text-anchor="middle">On conflict</text><text class="ts" x="925" y="313" text-anchor="middle">key taken → new key (×5)</text><text class="ts" x="925" y="329" text-anchor="middle">lost race → return the winner</text></g>
+<line class="arr" x1="925" y1="244" x2="925" y2="266" marker-end="url(#m2)"/>
+</svg>
+<figcaption>A usable MAC is the identity. <code>app_device_id</code> identifies a device only when it has no usable MAC (since the review fix, it is stored only then).</figcaption>
+</figure>
+
+<h2 id="states">Device states</h2>
+<figure>
+<svg viewBox="0 0 1080 300" role="img" aria-labelledby="f3t f3d" xmlns="http://www.w3.org/2000/svg">
+<title id="f3t">Device states</title>
+<desc id="f3d">Unknown MAC enters pendingDevices on trial. After trialDays the trial is expired but the record stays forever. Paying at any time moves the device into devices.</desc>
+<style>
+text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.t{font-size:15px;font-weight:600;fill:#f1efe8}.ts{font-size:12.5px;fill:#b4b2a9}
+.box rect{fill:#2c2c2a;stroke:#5f5e5a}
+.amber rect{fill:#633806;stroke:#EF9F27}.amber .t{fill:#FAEEDA}.amber .ts{fill:#FAC775}
+.teal rect{fill:#085041;stroke:#5DCAA5}.teal .t{fill:#E1F5EE}.teal .ts{fill:#9FE1CB}
+.coral rect{fill:#712B13;stroke:#F0997B}.coral .t{fill:#FAECE7}.coral .ts{fill:#F5C4B3}
+.grp{fill:none;stroke:#5f5e5a;stroke-dasharray:4 3}
+.arr{stroke:#888780;stroke-width:1.5;fill:none}.lbl{font-size:12px;fill:#888780}
+</style>
+<defs><marker id="m3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect x="0" y="0" width="1080" height="300" rx="12" fill="#1f1e1d"/>
+<rect class="grp" x="250" y="24" width="440" height="252" rx="12"/><text class="ts" x="266" y="46">pendingDevices · not paid · never removed</text>
+<rect class="grp" x="760" y="24" width="296" height="252" rx="12"/><text class="ts" x="776" y="46">devices · paid only</text>
+<g class="box"><rect x="24" y="100" width="180" height="64" rx="8"/><text class="t" x="114" y="126" text-anchor="middle">Unknown device</text><text class="ts" x="114" y="146" text-anchor="middle">first request</text></g>
+<line class="arr" x1="204" y1="132" x2="276" y2="132" marker-end="url(#m3)"/>
+<g class="amber"><rect x="280" y="96" width="170" height="72" rx="8"/><text class="t" x="365" y="122" text-anchor="middle">On trial</text><text class="ts" x="365" y="142" text-anchor="middle">is_trial 0</text><text class="ts" x="365" y="158" text-anchor="middle">expire_date = trial end</text></g>
+<line class="arr" x1="450" y1="132" x2="496" y2="132" marker-end="url(#m3)"/><text class="lbl" x="475" y="86" text-anchor="middle">trialDays pass</text>
+<g class="coral"><rect x="500" y="96" width="170" height="72" rx="8"/><text class="t" x="585" y="122" text-anchor="middle">Trial expired</text><text class="ts" x="585" y="142" text-anchor="middle">record kept</text><text class="ts" x="585" y="158" text-anchor="middle">no second trial</text></g>
+<path class="arr" d="M365 168 C365 240 700 240 790 172" marker-end="url(#m3)"/>
+<path class="arr" d="M585 168 C620 210 720 200 790 160" marker-end="url(#m3)"/>
+<text class="lbl" x="560" y="248">pays → move in one transaction</text>
+<g class="teal"><rect x="794" y="96" width="240" height="72" rx="8"/><text class="t" x="914" y="122" text-anchor="middle">Paid user</text><text class="ts" x="914" y="142" text-anchor="middle">is_trial 2 · activatedAt</text><text class="ts" x="914" y="158" text-anchor="middle">same id, MAC and key</text></g>
+</svg>
+<figcaption>Paid devices are reported as lifetime (activation + 5000 months, as in the old code) until licence plans exist.</figcaption>
+</figure>
+
+<h2 id="routes">Routes served</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Route</th><th>Apps</th><th>Wire format</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>POST /api/{type}/v4/recaptcha</code></td><td>V4 apps (13 types)</td><td>JSON</td><td>Captcha for a new MAC, or <code>already_verified</code></td></tr>
+<tr><td><code>POST /api/{type}/v4/device_login</code></td><td>V4 apps</td><td>Envelope</td><td>Registers or finds the device and issues the XOR token. Handles the u_id recovery challenge.</td></tr>
+<tr><td><code>POST /api/{type}/v4/device_info</code></td><td>V4 apps</td><td>Envelope + Bearer</td><td>Licence and trial info</td></tr>
+<tr><td><code>POST /api/playlist_info</code></td><td>Legacy TV</td><td>Form <code>data</code> envelope</td><td>Registers or finds the device and answers in the ibo, bob or cr shape</td></tr>
+<tr><td><code>POST /api/MBBPj5UwlCmTstXGb/android/playlist_information</code></td><td>Signed Android</td><td>AES + HMAC</td><td>Same, AES with the new key</td></tr>
+<tr><td><code>POST /api/Mxcvfghytrhjsjj/tv/playlist_information</code></td><td>bob TV alias</td><td>AES + HMAC</td><td>Same handler</td></tr>
+<tr><td><code>POST /api/device_login</code>, <code>/api/register_device</code></td><td>Roku</td><td>JSON</td><td>Token, device block and playlists</td></tr>
+<tr><td><code>POST /api/{ios|android}/{v2|v3}/device_login</code></td><td>iOS / Android</td><td>JSON</td><td>Token and device block. The first install uid wins and another uid is refused.</td></tr>
+</tbody></table></div>
+
+<h2 id="arch">Architecture</h2>
+<div class="cols">
+<div class="card"><h3>Domain</h3><p class="muted">The <code>Device</code> entity: pending or paid, trial end, key, uid, appUid, appDeviceId. Value objects: <code>TrialDays</code>, <code>AppType</code>, <code>Uid</code>, <code>AppDeviceId</code>, <code>LegacyProfile</code>. Typed errors.</p></div>
+<div class="card"><h3>Application</h3><p class="muted">Ports: repository, key generator, settings, captcha store and images, random MAC. Seven use cases with no framework or database code.</p></div>
+<div class="card"><h3>Infrastructure</h3><p class="muted">Mongo repository (two collections, transactional move), settings in <code>tenantConfig</code>, a captcha store with a 300 s TTL, svg-captcha, and migrations 0001–0003.</p></div>
+<div class="card"><h3>Interfaces</h3><p class="muted">Legacy codecs, the V4 controller, the old-apps controller, presenters (pure functions checked against recorded responses), CLI commands.</p></div>
+</div>
+
+<h2 id="data">Data</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Collection (per brand DB)</th><th>Holds</th><th>Indexes</th></tr></thead>
+<tbody>
+<tr><td><code>pendingDevices</code></td><td>Unpaid devices, on trial or expired, kept forever</td><td>Unique MAC, unique key, unique app_device_id (partial)</td></tr>
+<tr><td><code>devices</code></td><td>Paid devices only</td><td>Unique MAC, unique key, unique app_device_id (partial)</td></tr>
+<tr><td><code>captchas</code></td><td>Registration and u_id-recovery captchas</td><td>TTL 300 s</td></tr>
+<tr><td><code>tenantConfig</code></td><td><code>{_id:'tenant', devices.trialDays, legacy.profile}</code></td><td>—</td></tr>
+</tbody></table></div>
+<p class="muted">The key is unique across both collections: after inserting, the code re-checks <code>devices</code> and backs out on a clash.</p>
+
+<h2 id="changes">What changed</h2>
+<h3>New</h3>
+<ul>
+<li><span class="tag t-new">new</span> <code>src/modules/devices/</code>: the whole module (domain, application, infrastructure, migrations, specs)</li>
+<li><span class="tag t-new">new</span> <code>src/interfaces/legacy/codecs/</code>: envelope, AES passphrase, HMAC, XOR token, with 80 tests against recorded fixtures</li>
+<li><span class="tag t-new">new</span> <code>src/interfaces/legacy/v4/</code>: V4 controller, module and presenter</li>
+<li><span class="tag t-new">new</span> <code>src/interfaces/legacy/apps/</code>: old-apps controller, module and presenter</li>
+<li><span class="tag t-new">new</span> <code>src/interfaces/legacy/legacy-license.ts</code> and <code>legacy-http.ts</code>: shared licence view and request helpers</li>
+<li><span class="tag t-new">new</span> <code>test/e2e/</code>: API, devices CLI, V4 and old-app suites over real HTTP with Testcontainers</li>
+<li><span class="tag t-new">new</span> <code>test/integration/devices.int-spec.ts</code> and <code>test/support/in-memory-device.repository.ts</code></li>
+<li><span class="tag t-new">new</span> <code>vitest.e2e.config.ts</code> and <code>.husky/pre-push</code> (end-to-end tests run before every push)</li>
+<li><span class="tag t-new">new</span> <code>docs/diagrams/</code>, plus the spec and plan under <code>docs/superpowers/</code></li>
+</ul>
+<h3>Modified</h3>
+<ul>
+<li><span class="tag t-mod">mod</span> <code>src/api.module.ts</code>: adds LegacyV4Module and LegacyAppsModule. <code>src/cli.module.ts</code>: adds DevicesModule.</li>
+<li><span class="tag t-mod">mod</span> <code>src/main.cli.ts</code>: <code>device:register</code>, <code>device:activate</code>, <code>device:trial-days</code>, <code>device:legacy-profile</code></li>
+<li><span class="tag t-mod">mod</span> <code>src/migrations.ts</code>: registers the devices migrations</li>
+<li><span class="tag t-mod">mod</span> <code>src/shared/auth/access.guard.ts</code>: adds the <code>legacy-device</code> access level</li>
+<li><span class="tag t-mod">mod</span> <code>src/shared/config/env.schema.ts</code>: <code>LEGACY_TOKEN_KEY</code>, <code>ANDROID_SIGNING_SECRET</code>, <code>ANDROID_AES_NEW_SECRET</code> (all optional; routes answer 503 without them)</li>
+<li><span class="tag t-mod">mod</span> <code>package.json</code>: <code>svg-captcha@1.4.0</code> and <code>test:e2e</code>. CI workflow: runs e2e. README: commands.</li>
+</ul>
+
+<h2 id="ops">Config &amp; CLI</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Command</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>pnpm cli migrate:tenants</code></td><td>Applies 0001 devices indexes, 0002 captcha TTL and 0003 app_device_id to every brand</td></tr>
+<tr><td><code>pnpm cli device:register &lt;brand&gt; &lt;mac|-&gt; &lt;app&gt; [app-device-id]</code></td><td>Registers or finds a device, as an app would</td></tr>
+<tr><td><code>pnpm cli device:activate &lt;brand&gt; &lt;mac&gt;</code></td><td>Marks a device paid, standing in for payments until they exist</td></tr>
+<tr><td><code>pnpm cli device:trial-days &lt;brand&gt; [days]</code></td><td>Shows or sets the trial length (1–365, default 7)</td></tr>
+<tr><td><code>pnpm cli device:legacy-profile &lt;brand&gt; [ibo|bob|cr]</code></td><td>Shows or sets which old backend's shapes the brand speaks (default cr)</td></tr>
+</tbody></table></div>
+<p class="muted">Locally, ibo is set to <code>ibo</code> and bob to <code>bob</code>. Every other brand uses <code>cr</code>.</p>
+
+<h2 id="tests">Tests</h2>
+<ul>
+<li><b>Unit, 273 passing.</b> Domain, use cases against an in-memory repo (including forced races), codecs against recorded old traffic, presenters compared key-by-key with recorded old responses.</li>
+<li><b>Integration, 13 passing.</b> The real Mongo repository: concurrent first requests, concurrent activation, transaction move, key uniqueness across collections. Two tests in <code>health.int-spec.ts</code> fail, and they already fail on master.</li>
+<li><b>End-to-end, 25 passing.</b> A real server and CLI against throwaway MongoDB and Redis. Fake apps encode requests exactly as the installed apps do.</li>
+<li>Type check, ESLint (boundaries) and knip are clean. The pre-push hook and CI both run e2e.</li>
+</ul>
+
+<h2 id="review">Final review</h2>
+<p>A fresh reviewer read the whole branch. It confirmed several things hold up:</p>
+<ul>
+<li>signatures are compared in constant time;</li>
+<li>AES inputs are bounded;</li>
+<li>loose request bodies are handled safely;</li>
+<li>brands stay isolated;</li>
+<li>the race handling for concurrent first requests and concurrent activation is sound.</li>
+</ul>
+<div class="tablewrap"><table>
+<thead><tr><th>Finding</th><th>Grade</th><th>Outcome</th></tr></thead>
+<tbody>
+<tr><td>The same <code>app_device_id</code> on a second MAC (a box moving from ethernet to Wi-Fi) returned a 500 forever. Paying could also 500.</td><td>Important</td><td><span class="tag t-fix">fixed</span> <code>app_device_id</code> is now stored only on devices identified by it. Two new tests went red, then green.</td></tr>
+<tr><td>The first-uid-wins check is not atomic under concurrent logins</td><td>Minor</td><td>Deferred</td></tr>
+<tr><td>A concurrent uid or captcha state change can be lost during the move to paid</td><td>Minor</td><td>Deferred</td></tr>
+<tr><td>A wrong captcha answer doesn't use up the captcha (brute force possible within 5 minutes)</td><td>Minor</td><td>Deferred</td></tr>
+<tr><td><code>02:00:00:00:00:00</code> and <code>00:00:00:00:00:00</code> are not treated as shared MACs</td><td>Minor</td><td>Deferred</td></tr>
+<tr><td>Rare window where a backed-out record is shown once; missing tests for some races</td><td>Minor</td><td>Deferred</td></tr>
+</tbody></table></div>
+
+<h2 id="rulings">Decisions I made</h2>
+<ul>
+<li>Trial length lives in each brand's <code>tenantConfig</code> and is read on every new device. A bad stored value falls back to 7 with a warning.</li>
+<li>Requests in the envelope are decoded as Latin-1, as the apps really send them. AES is reimplemented on node:crypto and is proven compatible with CryptoJS.</li>
+<li>An unknown V4 <code>{type}</code> returns 404, and an undecodable envelope returns 400. The old code fell back or sent garbage.</li>
+<li>Paid devices show <code>is_trial 2</code> (lifetime) until licences exist. <code>is_expired</code> stays false, as in all the old backends.</li>
+<li>One global <code>LEGACY_TOKEN_KEY</code> and one set of Android secrets until per-brand secrets exist (TEN-04).</li>
+<li>The fallback MACs <code>52:54:00:12:34:56/57/59</code> count as "no MAC". Such devices get a random locally administered MAC.</li>
+<li>The per-brand legacy profile picks the response shapes. <code>tmdb_api_key</code> is sent empty, because the old hard-coded key was not copied.</li>
+<li>No app-update fields. Playlists are empty or the demo entry until the playlists module exists.</li>
+<li>A device first registered by another app family adopts the iOS/Android install uid instead of being refused forever.</li>
+<li>The CR Android v2/v3 captcha, the per-family V3/V4 locks, and the signed TV V3 and Android V3 routes are not reproduced.</li>
+</ul>
+
+<h2 id="next">Not done yet</h2>
+<ul>
+<li>Nothing is committed (per your instruction).</li>
+<li>Payments: <code>device:activate</code> stands in until the payments module exists.</li>
+<li>Signed TV V3 and Android V3 <code>playlist_information</code>, the CR v2/v3 captcha, and the app-update fields.</li>
+<li>Per-brand secrets (TEN-04) and a Redis cache for <code>tenantConfig</code> (TEN-05).</li>
+<li>The deferred minor findings above: rate limiting and one-attempt captchas, and atomic uid adoption.</li>
+<li>The two failing health integration tests on master. They are separate from this work.</li>
+</ul>
+
+</main>
+</body>
+</html>

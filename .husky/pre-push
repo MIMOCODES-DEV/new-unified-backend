@@ -1,0 +1,3 @@
+# End-to-end tests (real MongoDB + Redis containers, real HTTP server and CLI) must pass before any push.
+# Needs Docker running. Skipping with --no-verify is caught by CI, which runs the same suite.
+pnpm test:e2e
