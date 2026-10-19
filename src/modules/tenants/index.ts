@@ -3,6 +3,7 @@ export { TenantsModule } from './tenants.module.js';
 export { TenantRepository } from './application/ports/tenant.repository.js';
 export { ResolveTenantUseCase } from './application/use-cases/resolve-tenant.use-case.js';
 export { CreateTenantUseCase } from './application/use-cases/create-tenant.use-case.js';
+export { ListTenantsUseCase } from './application/use-cases/list-tenants.use-case.js';
 export {
   SeedTenantsUseCase,
   type SeedTenantEntry,

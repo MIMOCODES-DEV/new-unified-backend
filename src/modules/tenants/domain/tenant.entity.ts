@@ -6,6 +6,8 @@ export type TenantStatus = 'active' | 'disabled';
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 const MAX_NAME_LENGTH = 80;
+/** MongoDB's own databases: a brand database must never use these names. */
+const RESERVED_SLUGS = new Set(['admin', 'local', 'config']);
 
 export interface TenantProps {
   id: string;
@@ -37,6 +39,9 @@ export class Tenant {
         new InvalidTenantError('Slug must be 1-32 lowercase letters, digits or hyphens', { slug }),
       );
     }
+    if (RESERVED_SLUGS.has(slug)) {
+      return err(new InvalidTenantError('This slug is reserved by MongoDB', { slug }));
+    }
     const name = input.name.trim();
     if (name.length === 0 || name.length > MAX_NAME_LENGTH) {
       return err(new InvalidTenantError('Name must be 1-80 characters', { name: input.name }));
@@ -55,7 +60,8 @@ export class Tenant {
         name,
         hosts: [...input.hosts],
         status: 'active',
-        dbName: `tenant_${slug.replace(/-/g, '_')}`,
+        // The brand's database is named after the brand: cr7 → "cr7", bob-pro → "bob_pro".
+        dbName: slug.replace(/-/g, '_'),
         createdAt: input.now,
       }),
     );

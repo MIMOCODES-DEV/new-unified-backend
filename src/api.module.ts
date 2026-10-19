@@ -9,6 +9,7 @@ import { DatabaseModule } from './shared/database/database.module.js';
 import { GlobalExceptionFilter } from './shared/errors/global-exception.filter.js';
 import { LoggerModule } from './shared/logger/logger.module.js';
 import { RedisModule } from './shared/redis/redis.module.js';
+import { TenancyModule } from './shared/tenancy/tenancy.module.js';
 
 /** Root module of the HTTP process. No jobs run here. */
 @Module({
@@ -17,6 +18,7 @@ import { RedisModule } from './shared/redis/redis.module.js';
     LoggerModule,
     ClsModule.forRoot({ global: true, middleware: { mount: true, generateId: true } }),
     DatabaseModule,
+    TenancyModule,
     RedisModule,
     HealthModule,
     TenantHttpModule,

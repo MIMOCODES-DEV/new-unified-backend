@@ -10,8 +10,9 @@ export interface TenantDbLocation {
 }
 
 /**
- * Hands out tenant databases. Repositories obtain their tenant `Db` through this registry
- * (via the tenant context, task TEN-03) — no module opens connections itself.
+ * Hands out tenant databases. Repositories use TenantDb (shared/tenancy), which calls this with the
+ * current brand — no module opens connections itself. Connections are pooled per cluster URI
+ * (lazy, shared while connecting, dropped on failure); a `Db` handle is cheap and not cached.
  */
 @Injectable()
 export class TenantDbRegistry {

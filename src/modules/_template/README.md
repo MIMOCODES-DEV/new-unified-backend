@@ -18,7 +18,7 @@ Steps:
 1. Copy `_template` to `modules/<name>` and rename `Example` / `template` everywhere.
 2. Write the domain rules and their tests first.
 3. Add use cases with in-memory fakes of the ports in the specs.
-4. Implement the Mongo adapter; add its indexes as a migration, never `autoIndex`.
+4. Implement the Mongo adapter with `TenantDb` (brand data) or `CENTRAL_DB` (shared data). Add its indexes as a migration, never `autoIndex`, and list it in `src/migrations.ts` (`tenantMigrations` → `pnpm cli migrate:tenants`).
 5. Export use cases from `<name>.module.ts`, re-export them in `index.ts`, and call them from a controller in `src/interfaces/`.
 
 Rules (enforced by ESLint where possible):

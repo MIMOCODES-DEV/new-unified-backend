@@ -26,7 +26,7 @@ describe('CreateTenantUseCase', () => {
       'king4kplayer.com',
       'www.king4kplayer.com',
     ]);
-    expect(result.value.dbName).toBe('tenant_king4k');
+    expect(result.value.dbName).toBe('king4k');
     expect(result.value.isActive).toBe(true);
     expect(repository.items.size).toBe(1);
   });
@@ -50,6 +50,12 @@ describe('CreateTenantUseCase', () => {
 
     expect(!result.ok && result.error.code).toBe('tenants.conflict');
     expect(repository.items.size).toBe(1);
+  });
+
+  it("refuses a slug that would use one of MongoDB's own databases", async () => {
+    const result = await useCase.execute({ slug: 'admin', name: 'Admin', hosts: ['admin.com'] });
+
+    expect(!result.ok && result.error.code).toBe('tenants.invalid');
   });
 
   it('refuses a tenant without hosts or with an invalid host', async () => {

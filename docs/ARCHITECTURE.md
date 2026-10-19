@@ -81,7 +81,8 @@ src/
     http/                     # outbound HTTP client (timeouts, SSRF guard)
 
   tenancy → modules/tenants/  # tenant registry + host resolver (domain, use cases, Mongo repo)
-                              # shared/tenancy/ = request-context key; interfaces/http/tenant/ = the middleware
+                              # shared/tenancy/ = TenantContext (current brand) + TenantDb (its database)
+                              # interfaces/http/tenant/ = the middleware that sets the brand per request
 
   modules/                    # one folder per bounded context
     devices/

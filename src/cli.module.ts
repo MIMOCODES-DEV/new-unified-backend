@@ -1,11 +1,20 @@
 import { Module } from '@nestjs/common';
+import { ClsModule } from 'nestjs-cls';
 import { TenantsModule } from './modules/tenants/index.js';
 import { ConfigModule } from './shared/config/config.module.js';
 import { DatabaseModule } from './shared/database/database.module.js';
 import { LoggerModule } from './shared/logger/logger.module.js';
+import { TenancyModule } from './shared/tenancy/tenancy.module.js';
 
 /** Root module for one-shot CLI commands (migrations, tenant provisioning, ETL). */
 @Module({
-  imports: [ConfigModule, LoggerModule, DatabaseModule, TenantsModule],
+  imports: [
+    ConfigModule,
+    LoggerModule,
+    ClsModule.forRoot({ global: true }),
+    DatabaseModule,
+    TenancyModule,
+    TenantsModule,
+  ],
 })
 export class CliModule {}

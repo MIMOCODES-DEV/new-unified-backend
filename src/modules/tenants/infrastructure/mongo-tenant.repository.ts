@@ -36,6 +36,11 @@ export class MongoTenantRepository extends TenantRepository {
     return this.toEntity(await this.collection.findOne({ slug }));
   }
 
+  async findAll(): Promise<Tenant[]> {
+    const docs = await this.collection.find({}).sort({ slug: 1 }).toArray();
+    return docs.map((doc) => this.toEntity(doc)).filter((t): t is Tenant => t !== null);
+  }
+
   async findTakenHosts(hosts: readonly HostName[]): Promise<string[]> {
     const wanted = hosts.map((h) => h.value);
     const docs = await this.collection
