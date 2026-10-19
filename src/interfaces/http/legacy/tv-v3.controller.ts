@@ -15,26 +15,14 @@ import { type Device, RegisterDeviceUseCase } from '../../../modules/devices/ind
 import { LegacyDevice } from '../../../shared/auth/access.decorators.js';
 import { AppConfig } from '../../../shared/config/app-config.js';
 import { aesDecrypt, aesEncrypt } from './cryptojs-aes.js';
-import { legacyExpireDate, legacyIsTrial } from './legacy-device.mapper.js';
+import { DEMO_PLAYLIST, legacyExpireDate, legacyIsTrial } from './legacy-device.mapper.js';
 import { LegacyErrorFilter } from './legacy-error.filter.js';
 import { sameText, sign, tvV3Uid } from './legacy-signature.js';
+import { parseObject, text } from './legacy-fields.js';
 
 type FormBody = Record<string, string | undefined> | undefined;
 
-/** A field from the app's JSON, or '' when it is missing or not text. */
-const text = (value: unknown): string => (typeof value === 'string' ? value : '');
-
 const fail = (msg: string) => ({ status: 'error', msg });
-
-/** The IBO app reads urls[0].id at start-up and crashes on an empty list. */
-const DEMO_PLAYLIST = {
-  id: 'demo',
-  playlist_name: 'Sample',
-  url: '',
-  username: '',
-  password: '',
-  playlist_type: 'general',
-};
 
 @UseFilters(LegacyErrorFilter)
 @Controller('api/MBBPj5UwlCmTstXGb/tv/v3')
@@ -94,17 +82,5 @@ export class TvV3Controller {
       is_trial: legacyIsTrial(device),
       expire_date: legacyExpireDate(device),
     };
-  }
-}
-
-function parseObject(json: string | null): Record<string, unknown> | null {
-  if (!json) return null;
-  try {
-    const value: unknown = JSON.parse(json);
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
   }
 }

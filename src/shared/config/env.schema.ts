@@ -21,6 +21,10 @@ export const envSchema = z.object({
   // Move to per-brand secrets with TEN-04. Unset → TV v3 refuses every request.
   LEGACY_TV_V3_AES_KEY: z.string().min(8).optional(),
   LEGACY_TV_V3_SIGNING_KEY: z.string().min(8).optional(),
+  // Signed v2 (Android apps, bob TV alias): ANDROID_AES_NEW_SECRET / ANDROID_SIGNING_SECRET in the
+  // old backends. Shipped inside the apps, so they identify the app build only. Unset → v2 refused.
+  LEGACY_V2_AES_KEY: z.string().min(8).optional(),
+  LEGACY_V2_SIGNING_KEY: z.string().min(8).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

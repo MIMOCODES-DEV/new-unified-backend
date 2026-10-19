@@ -34,8 +34,9 @@ import { LegacyDevice } from '../../../shared/auth/access.decorators.js';
 import { LegacyErrorFilter } from './legacy-error.filter.js';
 import { AppConfig } from '../../../shared/config/app-config.js';
 import { decodeRequest, encodeResponse, randomKey } from './ibo-envelope.js';
-import { legacyExpireDate, legacyIsTrial } from './legacy-device.mapper.js';
+import { DEMO_PLAYLIST, legacyExpireDate, legacyIsTrial } from './legacy-device.mapper.js';
 import { decodeDeviceToken, encodeDeviceToken } from './xor-device-token.js';
+import { text } from './legacy-fields.js';
 
 /** The app types the old V4 routes exist for (bob routes/api.js). */
 const V4_APP_TYPES = new Set([
@@ -56,19 +57,7 @@ const V4_APP_TYPES = new Set([
 /** BobPlayer shows 4 characters and sends the token back with the answer. */
 const V4_CAPTCHA = { length: 4, width: 300, withToken: true };
 
-const DEMO_PLAYLIST = {
-  id: 'demo',
-  playlist_name: 'Sample',
-  url: '',
-  username: '',
-  password: '',
-  playlist_type: 'general',
-};
-
 type JsonBody = Record<string, unknown> | undefined;
-
-/** A field from the app's JSON, or '' when it is missing or not text. */
-const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 
 /** Error messages the old backend sent, by our error code. */
 const LOGIN_ERRORS: Record<string, { message: string; error_code?: number }> = {

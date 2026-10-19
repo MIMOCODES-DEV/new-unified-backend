@@ -8,4 +8,5 @@ export {
 export { GetDeviceUseCase } from './application/use-cases/get-device.use-case.js';
 export { LoginV4DeviceUseCase } from './application/use-cases/login-v4-device.use-case.js';
 export type { Device } from './domain/device.entity.js';
+export { parseAppType } from './domain/app-type.js';
 export { devicesMigrations } from './infrastructure/devices.migrations.js';
