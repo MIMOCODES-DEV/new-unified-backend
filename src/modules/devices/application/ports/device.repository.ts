@@ -9,4 +9,6 @@ export abstract class DeviceRepository {
    * (two requests registering the same MAC at the same moment): the caller reads it instead.
    */
   abstract insert(device: Device): Promise<boolean>;
+  /** Updates an existing device. */
+  abstract save(device: Device): Promise<void>;
 }

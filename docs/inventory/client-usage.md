@@ -3,6 +3,21 @@
 > 2026-10-14 · read-only survey of three clients, cross-checked against the live routes of the old backends.
 > Clients: `cr-unified-frontend` (React customer website, all cr brands), `iboplayer-frontend` (React customer website, IBO Player), `TvApps/bobplayer-app` and `TvApps/crplayer-app` (Samsung/LG/webOS TV web apps; production loads `app_src_min`, same routes as `app_src`).
 > **Websites vs apps (D15):** all websites are replaced by one unified frontend, so the website sections below describe **features to provide**, not routes to keep — their broken calls and field quirks are not carried over. The **TV app** sections are frozen contracts.
+> **Correction 2026-10-19 — app branches.** The TV app sections below were read from each app's `master` branch. The apps' `dev`-line branches already speak a different protocol (checked in both copies, `E:\Revamp\Apps` and `E:\TvApps`):
+>
+> | App | Branch (commit) | Protocol |
+> |---|---|---|
+> | CRPlayer | `master` (`6e71d1c`) | TV v4 below: `POST /api/v4/recaptcha` + `POST /api/tv/v4/playlist_info`, static `TV_API_TOKEN`, no `u_id` |
+> | CRPlayer | `dev`, `rebrand` (`f6aae2f`, "Changed from CR Player to C7 Player"), `playback-speed` | **full V4, same as BobPlayer**: `/api/{app_type}/v4/recaptcha`, `device_login` (`u_id`), `device_info` (Bearer device token), JSON `{data: <IBO>}`. Added in `1a30aa6` |
+> | BobPlayer | `master` (`f485a82`) | full V4 (section below) |
+> | BobPlayer | `dev` (`40cf747`) | rewritten on IBOPlayer's code ("kept BOB identity"), **same V4 routes and payloads**; pre-V4 `playlist_information` removed |
+>
+> **Decision 2026-10-19: the CRPlayer `master` "TV v4" route is NOT rebuilt.** It was an incomplete V4 implementation; the real V4 is the BobPlayer one, which CRPlayer `rebrand` already uses. Confirmed with the app team: the next C7 update ships from `rebrand`, and the other apps (BOB Premium has a `rebrand` branch with full V4; MAC TV Player next) are being unified onto the same V4 by the apps team. The new backend serves V4 only for these apps (the TV v4 door built and tested on 2026-10-19 is kept in git history, commit `e2adeb6`).
+> **Confirmed with the team lead (2026-10-19):** apps that cannot be updated stay on the **older endpoints (v1–v3)**; every other app moves to **full V4**. No app relies on the half-done TV v4 route, so it is not rebuilt. The legacy door therefore needs: full V4 (built) + the v1–v3 families (LEG-02…LEG-07).
+> Open risk for the app team: the TV shell falls back to the **assets packaged in the store build** when the remote assets are slow or fail (`host.js`, `FALLBACK_TIME`). Those fallback launches call the older endpoints, so they are served by the v1–v3 doors.
+> `tv/v3/playlist_information` (AES + signature) still appears in CRPlayer `rebrand`: dead fallback code (only used if `v4_auth` is missing) and the device-key login page (`device_key_login_page.js:55`). It is the IBO app's live protocol, so it is built with the IBO door.
+> Local dev switches: CRPlayer `rebrand` and BobPlayer `dev` have `DEVELOPMENT_MODE` + `DEVELOPMENT_BACKEND_URL` in `constants.js` (pins every server call); BobPlayer `master` only has `v4_auth.FORCED_BASE`.
+
 > This is the first **usage evidence** we have: an app route listed here is a contract; a route no client here calls is not automatically dead (other apps, other brands' builds and emails exist), but it moves down the priority list.
 
 ## Summary
@@ -11,7 +26,8 @@
 |---|---|---|---|
 | cr customer website | cr `/frontend/*` + `/api/:type/v4/*` | 46 call sites, 43 endpoints | 3 (PayPal create/capture, contact form) + 1 wrong method |
 | IBO customer website | ibo `/frontend/*` + `/api/*` | 24 endpoints | contact form (wrong path, method and body) |
-| CRPlayer TV app | cr `/api/*` | 9 endpoints | `POST /api/change-code` |
+| CRPlayer TV app (`master`, not rebuilt) | cr `/api/*` | 9 endpoints | `POST /api/change-code` |
+| CRPlayer TV app (`dev` / `rebrand`) | cr `/api/{app_type}/v4/*` | V4 set, as BobPlayer | — |
 | BobPlayer TV app | bob `/api/*` | 10 endpoints | `PUT /api/edit_playlist` |
 
 ## Broken today (client calls a route the backend doesn't have)
@@ -50,7 +66,9 @@ The cr site was derived from the IBO site: ibo's backend defines PayPal under bo
 - **Quirks the new customer API should not inherit:** `protect` sent as the strings `"true"`/`"false"`; save sends `playlist_url`/`xml_url` but reads `url`/`epg_url`; UID sent as `device_uid`, read as `u_id`; unprotected edit requests `/frontend/device/playlists/undefined`; the public activate page calls `/frontend/device` without a token and can bounce anonymous visitors to login.
 - **Also in the bundle:** a client-side "kill switch" keyed on a value visible in source; Hoory, GA4 and Ahrefs keys. `public/` ships TV-app bundles (`iboplayer/`, `iboplayerpro/`, `iboplayertv/`, `iboproplayer/`) that call `backend.ibosol.com/api/application-settings/IBOPLAYER` — their device calls are not mapped yet.
 
-## CRPlayer TV app → cr (legacy + "quasi-V4")
+## CRPlayer TV app (`master` branch) → cr (legacy + "quasi-V4")
+
+> `dev` / `rebrand` builds use full V4 instead — see the correction at the top.
 
 | Call | Encoding | Auth | Notes |
 |---|---|---|---|
@@ -66,7 +84,7 @@ The cr site was derived from the IBO site: ibo's backend defines PayPal under bo
 
 - Response fields read from `playlist_info`: `expire_date`, `captcha`, `ip_address`, `is_trial` (2 = lifetime), `themes[]`, `notifications[]` (plural), `notification`, `urls[]`, `languages[].code/.words`, `device_key`, `parent_pin`, `has_own_playlist`.
 - Hosts: static list replaced at startup by `cdn.jsdelivr.net/gh/mr-akme/app-config@HEAD/crplayer/domain.json`, plus a "Server URLs" screen. Two static entries have a trailing slash (`/api//v4/...`).
-- No u_id, no per-device token, no recovery. The typed captcha code is stored and **resent on every launch**.
+- On `master`: no u_id, no per-device token, no recovery. The typed captcha code is stored and **resent on every launch**.
 
 ## BobPlayer TV app → bob (V4)
 

@@ -10,6 +10,11 @@ export class InMemoryDeviceRepository extends DeviceRepository {
     return Promise.resolve(this.items.get(mac.value) ?? null);
   }
 
+  save(device: Device): Promise<void> {
+    this.items.set(device.mac.value, device);
+    return Promise.resolve();
+  }
+
   insert(device: Device): Promise<boolean> {
     if (this.items.has(device.mac.value)) return Promise.resolve(false);
     this.items.set(device.mac.value, device);

@@ -23,6 +23,7 @@ interface DeviceDocument {
   macAddress: string;
   appType: AppType;
   deviceKey: string;
+  uid?: string;
   state: DeviceState;
   license: { type: LicenseType; expiresAt: Date | null; revoked: boolean };
   createdAt: Date;
@@ -45,6 +46,12 @@ export class MongoDeviceRepository extends DeviceRepository {
     return doc ? toEntity(doc) : null;
   }
 
+  async save(device: Device): Promise<void> {
+    // createdAt is rewritten with its own value: it never changes.
+    const { _id, ...fields } = toDocument(device);
+    await (await this.collection()).updateOne({ _id }, { $set: fields });
+  }
+
   async insert(device: Device): Promise<boolean> {
     try {
       await (await this.collection()).insertOne(toDocument(device));
@@ -62,6 +69,7 @@ function toDocument(device: Device): DeviceDocument {
     macAddress: device.mac.value,
     appType: device.appType,
     deviceKey: device.deviceKey,
+    ...(device.uid ? { uid: device.uid } : {}),
     state: device.state,
     license: {
       type: device.license.type,
@@ -82,6 +90,7 @@ function toEntity(doc: DeviceDocument): Device {
     mac: mac.value,
     appType: doc.appType,
     deviceKey: doc.deviceKey,
+    uid: doc.uid ?? null,
     state: doc.state,
     license: License.restore(doc.license),
     createdAt: doc.createdAt,

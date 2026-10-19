@@ -13,6 +13,7 @@ interface CaptchaDocument {
   text: string;
   expiresAt?: Date;
   verifiedAt?: Date;
+  token?: string;
   updatedAt: Date;
 }
 
@@ -34,6 +35,7 @@ export class MongoCaptchaRepository extends CaptchaRepository {
       text: doc.text,
       expiresAt: doc.expiresAt ?? null,
       verifiedAt: doc.verifiedAt ?? null,
+      token: doc.token ?? null,
     });
   }
 
@@ -46,6 +48,7 @@ export class MongoCaptchaRepository extends CaptchaRepository {
     };
     if (captcha.expiresAt) doc.expiresAt = captcha.expiresAt;
     if (captcha.verifiedAt) doc.verifiedAt = captcha.verifiedAt;
+    if (captcha.token) doc.token = captcha.token;
     await (await this.collection()).replaceOne({ _id: doc._id }, doc, { upsert: true });
   }
 }

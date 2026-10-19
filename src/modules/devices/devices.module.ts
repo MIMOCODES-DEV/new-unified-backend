@@ -5,9 +5,12 @@ import { DeviceKeyGenerator } from './application/ports/device-key-generator.js'
 import { DeviceSettings } from './application/ports/device-settings.js';
 import { DeviceRepository } from './application/ports/device.repository.js';
 import {
+  IsCaptchaVerifiedUseCase,
   IssueCaptchaUseCase,
   VerifyCaptchaUseCase,
 } from './application/use-cases/device-captcha.use-cases.js';
+import { GetDeviceUseCase } from './application/use-cases/get-device.use-case.js';
+import { LoginV4DeviceUseCase } from './application/use-cases/login-v4-device.use-case.js';
 import { RegisterDeviceUseCase } from './application/use-cases/register-device.use-case.js';
 import { DefaultDeviceSettings } from './infrastructure/default-device.settings.js';
 import { MongoCaptchaRepository } from './infrastructure/mongo-captcha.repository.js';
@@ -21,6 +24,9 @@ import { SvgCaptchaGenerator } from './infrastructure/svg-captcha.generator.js';
     RegisterDeviceUseCase,
     IssueCaptchaUseCase,
     VerifyCaptchaUseCase,
+    IsCaptchaVerifiedUseCase,
+    LoginV4DeviceUseCase,
+    GetDeviceUseCase,
     { provide: CaptchaRepository, useClass: MongoCaptchaRepository },
     { provide: CaptchaImageGenerator, useClass: SvgCaptchaGenerator },
     { provide: DeviceRepository, useClass: MongoDeviceRepository },
@@ -28,6 +34,12 @@ import { SvgCaptchaGenerator } from './infrastructure/svg-captcha.generator.js';
     { provide: DeviceKeyGenerator, useClass: RandomDeviceKeyGenerator },
     { provide: Clock, useClass: SystemClock },
   ],
-  exports: [RegisterDeviceUseCase, IssueCaptchaUseCase, VerifyCaptchaUseCase],
+  exports: [
+    RegisterDeviceUseCase,
+    IssueCaptchaUseCase,
+    IsCaptchaVerifiedUseCase,
+    LoginV4DeviceUseCase,
+    GetDeviceUseCase,
+  ],
 })
 export class DevicesModule {}

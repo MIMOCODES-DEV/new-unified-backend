@@ -21,6 +21,8 @@ import { DeviceSettings } from '../ports/device-settings.js';
 export interface RegisterDeviceInput {
   mac: string;
   appType: string;
+  /** Already validated with parseUid (V4 apps only). */
+  uid?: string;
 }
 
 export interface RegisterDeviceOutput {
@@ -64,6 +66,7 @@ export class RegisterDeviceUseCase {
       mac: mac.value,
       appType: appType.value,
       deviceKey: this.keys.next(),
+      uid: input.uid ?? null,
       trial: trial.value,
       now,
     });

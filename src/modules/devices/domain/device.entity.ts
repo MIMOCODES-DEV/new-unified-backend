@@ -6,6 +6,8 @@
  * - A paid license (yearly or lifetime) moves a pending device to "active".
  * - Active or not = what its license says (see license.ts).
  * - License changes go through the device, so the state rule above always runs.
+ * - u_id: 6 letters/digits the V4 apps generate (stored uppercase). A device keeps the first one
+ *   it logs in with; a different one later means the app's data was wiped (ownership check).
  */
 import { DomainError } from '../../../shared/kernel/domain-error.js';
 import type { MacAddress } from '../../../shared/kernel/mac-address.js';
@@ -21,8 +23,23 @@ export type DeviceState = 'pending' | 'active';
 
 const DEVICE_KEY = /^[1-9]\d{5}$/;
 
+const UID = /^[A-Z0-9]{6}$/;
+
 export class InvalidDeviceKeyError extends DomainError {
   readonly code = 'devices.invalid_device_key';
+}
+
+export class InvalidUidError extends DomainError {
+  readonly code = 'devices.invalid_uid';
+}
+
+/** Normalizes a u_id from an app: trimmed, uppercase, exactly 6 letters/digits. */
+export function parseUid(input: string): Result<string, InvalidUidError> {
+  const uid = input.trim().toUpperCase();
+  if (!UID.test(uid)) {
+    return err(new InvalidUidError('u_id must be exactly 6 letters or digits'));
+  }
+  return ok(uid);
 }
 
 export interface DeviceProps {
@@ -30,6 +47,8 @@ export interface DeviceProps {
   mac: MacAddress;
   appType: AppType;
   deviceKey: string;
+  /** null until a V4 app logs in (devices migrated from older apps have none). */
+  uid: string | null;
   license: License;
   state: DeviceState;
   createdAt: Date;
@@ -43,6 +62,7 @@ export class Device {
     mac: MacAddress;
     appType: AppType;
     deviceKey: string;
+    uid?: string | null;
     trial: License;
     now: Date;
   }): Result<Device, InvalidDeviceKeyError> {
@@ -55,6 +75,7 @@ export class Device {
         mac: input.mac,
         appType: input.appType,
         deviceKey: input.deviceKey,
+        uid: input.uid ?? null,
         license: input.trial,
         state: 'pending',
         createdAt: input.now,
@@ -79,6 +100,9 @@ export class Device {
   get deviceKey(): string {
     return this.props.deviceKey;
   }
+  get uid(): string | null {
+    return this.props.uid;
+  }
   get license(): License {
     return this.props.license;
   }
@@ -87,6 +111,13 @@ export class Device {
   }
   get createdAt(): Date {
     return this.props.createdAt;
+  }
+
+  /** Keeps the first u_id the device logs in with. Returns false if it already has one. */
+  assignUid(uid: string): boolean {
+    if (this.props.uid) return false;
+    this.props.uid = uid;
+    return true;
   }
 
   isActive(now: Date): boolean {
