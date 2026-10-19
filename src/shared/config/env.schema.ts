@@ -13,6 +13,10 @@ export const envSchema = z.object({
     .regex(/^mongodb(\+srv)?:\/\//, 'must be a mongodb:// or mongodb+srv:// URI'),
   MONGO_CENTRAL_DB: z.string().min(1).default('unified_central'),
   REDIS_URL: z.string().regex(/^rediss?:\/\//, 'must be a redis:// or rediss:// URL'),
+  // Static Bearer token the CRPlayer TV app sends (TV_KEY_V4 in the old cr backend). It is
+  // visible in the app's code, so it only identifies the app; it is not real authentication.
+  // Moves to per-brand secrets with TEN-04. Unset → the TV v4 routes refuse every request.
+  LEGACY_TV_API_TOKEN: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

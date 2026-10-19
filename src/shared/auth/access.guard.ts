@@ -35,6 +35,11 @@ export class AccessGuard implements CanActivate {
     if (access.kind === 'public') {
       return true;
     }
+    // Old TV apps: the legacy door itself checks their token and envelope (it must answer
+    // in the old encrypted format, which a guard cannot do).
+    if (access.kind === 'legacy-device') {
+      return true;
+    }
 
     throw new NotImplementedException(`Access kind "${access.kind}" is not implemented yet`);
   }

@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ClsModule } from 'nestjs-cls';
+import { DevHttpModule } from './interfaces/http/dev/dev-http.module.js';
 import { HealthModule } from './interfaces/http/health/health.module.js';
+import { LegacyHttpModule } from './interfaces/http/legacy/legacy-http.module.js';
 import { TenantHttpModule } from './interfaces/http/tenant/tenant-http.module.js';
 import { AccessGuard } from './shared/auth/access.guard.js';
 import { ConfigModule } from './shared/config/config.module.js';
@@ -22,6 +24,9 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     RedisModule,
     HealthModule,
     TenantHttpModule,
+    LegacyHttpModule,
+    // /dev routes help developers try use cases; they must never reach production.
+    ...(process.env.NODE_ENV === 'production' ? [] : [DevHttpModule]),
   ],
   providers: [
     { provide: APP_GUARD, useClass: AccessGuard },

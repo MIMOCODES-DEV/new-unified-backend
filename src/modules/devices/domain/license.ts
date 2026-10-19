@@ -58,6 +58,11 @@ export class License {
     return ok(new License('trial', endOfDay(end), false));
   }
 
+  /** Rebuilds a license from storage, without checking the rules. Only repositories call this. */
+  static restore(props: { type: LicenseType; expiresAt: Date | null; revoked: boolean }): License {
+    return new License(props.type, props.expiresAt, props.revoked);
+  }
+
   get creditCost(): number {
     return CREDIT_COST[this.type];
   }
