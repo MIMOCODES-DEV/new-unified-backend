@@ -1,4 +1,10 @@
 import { err, ok, type Result } from '../../../shared/kernel/result.js';
+import {
+  DEFAULT_TENANT_SETTINGS,
+  mergeTenantSettings,
+  type TenantSettings,
+  type TenantSettingsPatch,
+} from '../../../shared/kernel/tenant-settings.js';
 import type { HostName } from './host-name.js';
 import { InvalidTenantError } from './tenant.errors.js';
 
@@ -16,12 +22,14 @@ export interface TenantProps {
   hosts: HostName[];
   status: TenantStatus;
   dbName: string;
+  settings: TenantSettings;
   createdAt: Date;
 }
 
 /**
  * A tenant is one brand (ibo, bob, cr7, smart…): its name, the exact host names it answers on,
- * and the database that holds its devices and playlists.
+ * the database that holds its devices and playlists, and the settings that make it behave
+ * differently from other brands.
  */
 export class Tenant {
   private constructor(private readonly props: TenantProps) {}
@@ -62,6 +70,7 @@ export class Tenant {
         status: 'active',
         // The brand's database is named after the brand: cr7 → "cr7", bob-pro → "bob_pro".
         dbName: slug.replace(/-/g, '_'),
+        settings: DEFAULT_TENANT_SETTINGS,
         createdAt: input.now,
       }),
     );
@@ -90,6 +99,9 @@ export class Tenant {
   get dbName(): string {
     return this.props.dbName;
   }
+  get settings(): TenantSettings {
+    return this.props.settings;
+  }
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -114,6 +126,14 @@ export class Tenant {
     }
     this.props.name = trimmed;
     return ok(undefined);
+  }
+
+  /** Applies a settings change. Returns whether anything actually changed. */
+  updateSettings(patch: TenantSettingsPatch): boolean {
+    const next = mergeTenantSettings(this.props.settings, patch);
+    if (JSON.stringify(next) === JSON.stringify(this.props.settings)) return false;
+    this.props.settings = next;
+    return true;
   }
 
   disable(): void {

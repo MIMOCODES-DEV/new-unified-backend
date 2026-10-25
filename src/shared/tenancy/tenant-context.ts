@@ -16,12 +16,20 @@ export class TenantContext {
    * middleware, a job without `run()`), and guessing a default brand could leak another brand's data.
    */
   get current(): CurrentTenant {
-    const tenant = this.cls.isActive()
-      ? this.cls.get<CurrentTenant | undefined>(CURRENT_TENANT)
-      : undefined;
+    const tenant = this.find();
     if (!tenant)
       throw new Error('No tenant in context: tenant data accessed outside a request or run()');
     return tenant;
+  }
+
+  /**
+   * Whether `tenantId` is the brand being served. Every credential we issue carries its brand
+   * (`tid`); guards must refuse one whose brand is not this one — a token from brand A is never
+   * valid on brand B's host. False outside a brand.
+   */
+  isCurrent(tenantId: string | undefined): boolean {
+    const tenant = this.find();
+    return tenant !== undefined && tenantId !== undefined && tenant.id === tenantId;
   }
 
   /** Runs `fn` as `tenant` (jobs, CLI). Code inside sees this brand; code outside is unaffected. */
@@ -30,5 +38,11 @@ export class TenantContext {
       this.cls.set(CURRENT_TENANT, tenant);
       return fn();
     });
+  }
+
+  private find(): CurrentTenant | undefined {
+    return this.cls.isActive()
+      ? this.cls.get<CurrentTenant | undefined>(CURRENT_TENANT)
+      : undefined;
   }
 }

@@ -2,32 +2,49 @@ import 'reflect-metadata';
 import { Controller, Get } from '@nestjs/common';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { ClsModule } from 'nestjs-cls';
+import { ClsModule, ClsService } from 'nestjs-cls';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { TenantHttpModule } from '../../src/interfaces/http/tenant/tenant-http.module.js';
-import { CreateTenantUseCase, TenantRepository } from '../../src/modules/tenants/index.js';
-import { InMemoryTenantRepository } from '../support/in-memory-tenant.repository.js';
+import {
+  CreateTenantUseCase,
+  UpdateTenantSettingsUseCase,
+} from '../../src/modules/tenants/index.js';
+import { Public } from '../../src/shared/auth/access.decorators.js';
+import { CURRENT_TENANT, type CurrentTenant } from '../../src/shared/tenancy/current-tenant.js';
+import { overrideTenantPorts, tenantFakes } from '../support/tenant-fakes.js';
 
 @Controller()
 class FakeHealthController {
+  constructor(private readonly cls: ClsService) {}
+
   @Get('health')
   health(): { status: string } {
     return { status: 'ok' };
+  }
+
+  @Public()
+  @Get('settings')
+  settings(): CurrentTenant['settings'] {
+    return this.cls.get<CurrentTenant>(CURRENT_TENANT).settings;
   }
 }
 
 describe('TenantMiddleware (HTTP)', () => {
   let app: NestFastifyApplication;
-  const repository = new InMemoryTenantRepository();
+  const fakes = tenantFakes();
+  const repository = fakes.tenants;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [ClsModule.forRoot({ global: true, middleware: { mount: true } }), TenantHttpModule],
-      controllers: [FakeHealthController],
-    })
-      .overrideProvider(TenantRepository)
-      .useValue(repository)
-      .compile();
+    const moduleRef = await overrideTenantPorts(
+      Test.createTestingModule({
+        imports: [
+          ClsModule.forRoot({ global: true, middleware: { mount: true } }),
+          TenantHttpModule,
+        ],
+        controllers: [FakeHealthController],
+      }),
+      fakes,
+    ).compile();
 
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     await app.init();
@@ -92,6 +109,23 @@ describe('TenantMiddleware (HTTP)', () => {
     });
 
     expect(res.statusCode).toBe(403);
+  });
+
+  it('puts the brand settings in the request context', async () => {
+    await app
+      .get(UpdateTenantSettingsUseCase)
+      .execute({ slug: 'cr7', patch: { features: { maintenance: true } } });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/settings',
+      headers: { host: 'cr7player.com' },
+    });
+
+    expect(res.json()).toMatchObject({
+      features: { maintenance: true, rawPlaylistsForAndroid44: false },
+      playlistProfile: 'xc',
+    });
   });
 
   it('lets health checks through without a brand host', async () => {

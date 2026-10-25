@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiModule } from '../../src/api.module.js';
 import { startInfrastructure, type TestInfrastructure } from '../support/infrastructure.js';
+import { TEST_SECRETS_KEY } from '../support/tenant-fakes.js';
 
 describe('health endpoints', () => {
   let infra: TestInfrastructure;
@@ -15,6 +16,7 @@ describe('health endpoints', () => {
     process.env.LOG_LEVEL = 'warn';
     process.env.MONGO_URI = infra.mongoUri;
     process.env.REDIS_URL = infra.redisUrl;
+    process.env.TENANT_SECRETS_KEY = TEST_SECRETS_KEY;
 
     const moduleRef = await Test.createTestingModule({ imports: [ApiModule] }).compile();
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());

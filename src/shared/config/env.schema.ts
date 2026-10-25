@@ -13,6 +13,11 @@ export const envSchema = z.object({
     .regex(/^mongodb(\+srv)?:\/\//, 'must be a mongodb:// or mongodb+srv:// URI'),
   MONGO_CENTRAL_DB: z.string().min(1).default('unified_central'),
   REDIS_URL: z.string().regex(/^rediss?:\/\//, 'must be a redis:// or rediss:// URL'),
+  /** Master key for per-brand secrets: 32 random bytes, base64. Required by processes that read them. */
+  TENANT_SECRETS_KEY: z
+    .string()
+    .refine((v) => Buffer.from(v, 'base64').length === 32, 'must be 32 bytes, base64-encoded')
+    .optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

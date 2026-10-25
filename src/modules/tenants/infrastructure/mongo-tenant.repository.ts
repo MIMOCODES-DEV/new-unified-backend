@@ -2,22 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Collection, Db } from 'mongodb';
 import { CENTRAL_DB } from '../../../shared/database/database.tokens.js';
 import { TenantRepository } from '../application/ports/tenant.repository.js';
-import { HostName } from '../domain/host-name.js';
-import { Tenant, type TenantStatus } from '../domain/tenant.entity.js';
+import type { HostName } from '../domain/host-name.js';
+import type { Tenant } from '../domain/tenant.entity.js';
+import { type TenantDocument, toTenant, toTenantDocument } from './tenant.document.js';
 
 export const TENANTS_COLLECTION = 'tenants';
-
-/** Stored shape of a tenant in the central database. */
-interface TenantDocument {
-  _id: string;
-  slug: string;
-  name: string;
-  hosts: string[];
-  status: TenantStatus;
-  dbName: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 @Injectable()
 export class MongoTenantRepository extends TenantRepository {
@@ -38,7 +27,7 @@ export class MongoTenantRepository extends TenantRepository {
 
   async findAll(): Promise<Tenant[]> {
     const docs = await this.collection.find({}).sort({ slug: 1 }).toArray();
-    return docs.map((doc) => this.toEntity(doc)).filter((t): t is Tenant => t !== null);
+    return docs.map((doc) => toTenant(doc));
   }
 
   async findTakenHosts(hosts: readonly HostName[]): Promise<string[]> {
@@ -51,38 +40,15 @@ export class MongoTenantRepository extends TenantRepository {
   }
 
   async save(tenant: Tenant): Promise<void> {
+    const { _id, createdAt, ...fields } = toTenantDocument(tenant, new Date());
     await this.collection.updateOne(
-      { _id: tenant.id },
-      {
-        $set: {
-          slug: tenant.slug,
-          name: tenant.name,
-          hosts: tenant.hosts.map((h) => h.value),
-          status: tenant.status,
-          dbName: tenant.dbName,
-          updatedAt: new Date(),
-        },
-        $setOnInsert: { createdAt: tenant.createdAt },
-      },
+      { _id },
+      { $set: fields, $setOnInsert: { createdAt } },
       { upsert: true },
     );
   }
 
   private toEntity(doc: TenantDocument | null): Tenant | null {
-    if (!doc) return null;
-    return Tenant.restore({
-      id: doc._id,
-      slug: doc.slug,
-      name: doc.name,
-      // Stored hosts were validated on save; a bad one here means the data was edited by hand.
-      hosts: doc.hosts.map((h) => {
-        const parsed = HostName.parse(h);
-        if (!parsed.ok) throw parsed.error;
-        return parsed.value;
-      }),
-      status: doc.status,
-      dbName: doc.dbName,
-      createdAt: doc.createdAt,
-    });
+    return doc ? toTenant(doc) : null;
   }
 }

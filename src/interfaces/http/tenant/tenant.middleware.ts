@@ -40,6 +40,7 @@ export class TenantMiddleware implements NestMiddleware {
       slug: tenant.slug,
       name: tenant.name,
       dbName: tenant.dbName,
+      settings: tenant.settings,
     };
     this.cls.set(CURRENT_TENANT, current);
     next();

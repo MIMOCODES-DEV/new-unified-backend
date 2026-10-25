@@ -15,3 +15,23 @@ export class TenantDisabledError extends DomainError {
 export class TenantConflictError extends DomainError {
   readonly code = 'tenants.conflict';
 }
+
+export class TenantNotFoundError extends DomainError {
+  readonly code = 'tenants.not_found';
+}
+
+export class InvalidTenantSettingsError extends DomainError {
+  readonly code = 'tenants.invalid_settings';
+}
+
+export class InvalidTenantSecretError extends DomainError {
+  readonly code = 'tenants.invalid_secret';
+}
+
+export class TenantSecretNotFoundError extends DomainError {
+  readonly code = 'tenants.secret_not_found';
+}
+
+export class InvalidTenantConfigError extends DomainError {
+  readonly code = 'tenants.invalid_config';
+}

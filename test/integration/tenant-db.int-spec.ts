@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AppConfig } from '../../src/shared/config/app-config.js';
 import { MongoClientPool } from '../../src/shared/database/mongo-client.pool.js';
 import { TenantDbRegistry } from '../../src/shared/database/tenant-db.registry.js';
+import { DEFAULT_TENANT_SETTINGS } from '../../src/shared/kernel/tenant-settings.js';
 import type { CurrentTenant } from '../../src/shared/tenancy/current-tenant.js';
 import { TenantContext } from '../../src/shared/tenancy/tenant-context.js';
 import { TenantDb } from '../../src/shared/tenancy/tenant-db.js';
@@ -13,6 +14,7 @@ const brand = (slug: string): CurrentTenant => ({
   slug,
   name: slug,
   dbName: slug,
+  settings: DEFAULT_TENANT_SETTINGS,
 });
 
 describe('TenantDb on MongoDB', () => {
