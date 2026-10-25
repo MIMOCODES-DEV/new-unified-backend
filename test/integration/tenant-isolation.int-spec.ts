@@ -13,7 +13,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { type Db, MongoClient, ObjectId } from 'mongodb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -36,6 +36,7 @@ import { TenantContext } from '../../src/shared/tenancy/tenant-context.js';
 import { TenantDb } from '../../src/shared/tenancy/tenant-db.js';
 import { startInfrastructure, type TestInfrastructure } from '../support/infrastructure.js';
 import { TEST_SECRETS_KEY } from '../support/tenant-fakes.js';
+import { createFastifyAdapter } from '../../src/shared/http/fastify-adapter.js';
 
 /** Test-only routes that touch brand data the way real modules will: through the brand context. */
 @Controller('probe')
@@ -135,7 +136,7 @@ describe('tenant isolation (real MongoDB + Redis)', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ApiModule, ProbeModule],
     }).compile();
-    app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app = moduleRef.createNestApplication<NestFastifyApplication>(createFastifyAdapter());
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
 

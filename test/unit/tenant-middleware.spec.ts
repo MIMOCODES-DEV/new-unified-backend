@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { Controller, Get } from '@nestjs/common';
-import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { ClsModule, ClsService } from 'nestjs-cls';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -12,6 +12,7 @@ import {
 import { Public } from '../../src/shared/auth/access.decorators.js';
 import { CURRENT_TENANT, type CurrentTenant } from '../../src/shared/tenancy/current-tenant.js';
 import { overrideTenantPorts, tenantFakes } from '../support/tenant-fakes.js';
+import { createFastifyAdapter } from '../../src/shared/http/fastify-adapter.js';
 
 @Controller()
 class FakeHealthController {
@@ -46,7 +47,7 @@ describe('TenantMiddleware (HTTP)', () => {
       fakes,
     ).compile();
 
-    app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app = moduleRef.createNestApplication<NestFastifyApplication>(createFastifyAdapter());
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
 
