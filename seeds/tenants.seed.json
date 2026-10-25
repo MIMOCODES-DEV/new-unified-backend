@@ -1,0 +1,98 @@
+{
+  "description": "Known brands (tenants) and the exact host names they answer on. Loaded with `pnpm cli tenants:seed`. Domains are public; NEVER put secrets here. `www.` variants of two-label domains are added by the command; `<slug>.localhost` is added with --dev.",
+  "sources": {
+    "ibo": "PLAN.md §1.1 (7 domains) + iboplayer-frontend src/config/sites.js (iboproplayertv.com)",
+    "bob": "TvApps/bobplayer-app panel_urls",
+    "cr-website": "cr-unified-frontend src/brands/*/brand.js",
+    "cr-legacy": "cr-unified-backend src/middleware/tenant.js LEGACY_HOST_RULES (exact hosts only)",
+    "crplayer": "TvApps/crplayer-app panel_urls"
+  },
+  "tenants": [
+    {
+      "slug": "ibo",
+      "name": "IBO Player",
+      "hosts": [
+        "iboplayer.com",
+        "iboiptv.com",
+        "ibobtv.com",
+        "tvplayeribo.com",
+        "iboplayerpro.com",
+        "iboplayers.pro",
+        "ibotvplayer.com",
+        "iboproplayertv.com"
+      ]
+    },
+    {
+      "slug": "bob",
+      "name": "BOB Player",
+      "hosts": ["bobplayer.com", "bobplayers.com", "api.bobplayers.com"]
+    },
+    {
+      "slug": "cr7",
+      "name": "CR7 Player",
+      "hosts": [
+        "cr7player.com",
+        "cr7tvplayer.com",
+        "crtvplayer.com",
+        "crapi.coderscodesdev.com",
+        "crapi.babyeducationonline.com"
+      ]
+    },
+    {
+      "slug": "messi",
+      "name": "Messi Player",
+      "hosts": ["messitvplayer.com", "pay.bopay.info", "mes.bopay.info"]
+    },
+    {
+      "slug": "iboapp",
+      "name": "IBO App",
+      "hosts": ["ibo-app.com", "player-ibo.com", "playibo.coderscodesdev.com"]
+    },
+    { "slug": "iptvibo", "name": "IPTV IBO", "hosts": ["vpnibo.coderscodesdev.com"] },
+    {
+      "slug": "bobprem",
+      "name": "BOB Premium",
+      "hosts": ["bobtvpremium.com", "bobplayerpremium.com"]
+    },
+    {
+      "slug": "ibox",
+      "name": "IBOX Player",
+      "hosts": ["iboxiptvplayer.com", "xibo.abeapp.eu", "xibo.coderscodesdev.com"]
+    },
+    { "slug": "abeplayer", "name": "ABE Player", "hosts": ["abeplayer.com", "abeplayertv.com"] },
+    { "slug": "alltv", "name": "All TV Player", "hosts": ["alltvplayer.com"] },
+    { "slug": "bobpro", "name": "BOB Pro", "hosts": ["bobprotv.com"] },
+    {
+      "slug": "duplex",
+      "name": "Duplex Player",
+      "hosts": ["duplex24.com", "duplexlive.com", "duplexplayer.com"]
+    },
+    { "slug": "family", "name": "Family 4K Player", "hosts": ["family4kplayer.com"] },
+    { "slug": "hushplayer", "name": "Hush Player", "hosts": ["hushplayer.com"] },
+    { "slug": "ibosol", "name": "IBOSOL", "hosts": ["ibosol.org", "ibosol.pro"] },
+    { "slug": "ibostb", "name": "IBO STB", "hosts": ["ibostb.com"] },
+    { "slug": "ibott", "name": "IBO TT", "hosts": ["ibottapp.com", "ibottplayer.com"] },
+    { "slug": "iboxvpn", "name": "IBOX VPN Player", "hosts": ["iboxvpnplayer.com"] },
+    { "slug": "king4k", "name": "King 4K", "hosts": ["king4kiptv.com", "king4kplayer.com"] },
+    { "slug": "ktn", "name": "KTN Player", "hosts": ["ktnplayer.com", "ktntvplayer.com"] },
+    { "slug": "mac", "name": "MAC TV Player", "hosts": ["mactvplayer.com"] },
+    { "slug": "smart", "name": "Smart One Pro", "hosts": ["smartonepro.com"] },
+    { "slug": "hq", "name": "UHD Player", "hosts": ["hqtvplayer.com"] },
+    { "slug": "virginia", "name": "Virginia Player", "hosts": ["virginia-player.com"] }
+  ],
+  "unresolved": [
+    {
+      "host": "ibovpnplayer.com",
+      "problem": "The website calls this brand `ibovpnplayer`, but the old cr backend routes the host to the `iptvibo` database (substring rule `ibovpnplayer`). Decide which tenant owns it, based on where its customers' data is."
+    },
+    {
+      "pattern": "iboiptvplayers",
+      "tenant": "iptvibo",
+      "problem": "Old substring rule without a domain ending; the real host name(s) are unknown."
+    },
+    {
+      "pattern": "crtvplayer / bobprem / bobtvprem",
+      "problem": "Old substring rules matched any host containing these words; only the concrete domains above are seeded. Check production DNS for others."
+    }
+  ]
+}
