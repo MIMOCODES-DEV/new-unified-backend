@@ -30,7 +30,7 @@ pnpm dev:worker               # background jobs (separate terminal)
 | Command                                | What it does                                                           |
 | -------------------------------------- | ---------------------------------------------------------------------- |
 | `pnpm dev:api` / `pnpm dev:worker`     | Run the API / worker from source with reload                           |
-| `pnpm cli <command>`                   | One-shot commands (`migrate:central`)                                  |
+| `pnpm cli <command>`                   | One-shot commands; run `pnpm cli` alone to list them (see below)       |
 | `pnpm build`                           | Compile `src/` to `dist/` with SWC                                     |
 | `pnpm start:api` / `pnpm start:worker` | Run the compiled build                                                 |
 | `pnpm lint`                            | ESLint, including the architecture boundary rules                      |
@@ -38,6 +38,27 @@ pnpm dev:worker               # background jobs (separate terminal)
 | `pnpm test`                            | Unit tests                                                             |
 | `pnpm test:int`                        | Integration tests against real Mongo + Redis containers (needs Docker) |
 | `pnpm format`                          | Prettier                                                               |
+
+## Brands (tenants)
+
+```sh
+pnpm cli tenants:seed --dev                        # load seeds/tenants.seed.json (+ <slug>.localhost hosts)
+pnpm cli migrate:tenants                           # create indexes in every brand's database
+pnpm cli tenant:create <slug> "<name>" <host>...   # new brand, database prepared
+pnpm cli tenant:show <slug>                        # hosts, settings, secret names
+pnpm cli tenant:add-host <slug> <host>...
+pnpm cli tenant:set <slug> features.maintenance true            # flags, profiles, CORS origins…
+echo '<value>' | pnpm cli tenant:set-secret <slug> store.key    # stored encrypted (TENANT_SECRETS_KEY)
+pnpm cli tenant:secrets <slug>                     # names only, never values
+pnpm cli tenant:delete-secret <slug> <name>
+pnpm cli tenant:config <slug>                      # business config (tenantConfig) with defaults
+pnpm cli tenant:config:set <slug> trial.days 3
+```
+
+Changes reach running API processes immediately (Redis host cache and pub/sub notices).
+
+Without Docker, `pnpm test:int` can use servers you are happy to wipe:
+`TEST_MONGO_URI="mongodb://localhost:27019/?replicaSet=rs0&directConnection=true" TEST_REDIS_URL=redis://localhost:6380 pnpm test:int`.
 
 ## Layout
 
