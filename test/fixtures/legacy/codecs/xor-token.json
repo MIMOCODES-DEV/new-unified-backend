@@ -1,0 +1,117 @@
+{
+  "generatedBy": "tools/legacy-analysis/generate-codec-vectors.cjs",
+  "fakeKeys": {
+    "TOKEN_KEY": "fake-token-key-123",
+    "ANDROID_AES_SECRET": "fake-aes-old",
+    "ANDROID_AES_NEW_SECRET": "fake-aes-new-v2",
+    "TV_AES_NEW_SECRET": "fake-aes-tv-v3",
+    "ANDROID_V3_AES_NEW_SECRET": "fake-aes-android-v3",
+    "ANDROID_SIGNING_SECRET": "fake-sign-android",
+    "TV_SIGNING_SECRET": "fake-sign-tv"
+  },
+  "note": "Outputs of the real old functions, run with fake keys and a seeded Math.random. Never edit by hand; regenerate.",
+  "tokens": [
+    {
+      "server": "iboplayer-backend",
+      "key": "fake-token-key-123",
+      "deviceId": "665f1c2e9b1e8a0012345678",
+      "mac": "00:1a:79:aa:bb:cc",
+      "token": "KAsyVHceKQEoA3hePBNrXX10IxYmIWgNIhE0X2MBBk1hdXNEKQstDWIeDF4qA2sDKhRnWH1eKAs=",
+      "decoded": {
+        "device_id": "665f1c2e9b1e8a0012345678",
+        "mac": "00:1a:79:aa:bb:cc"
+      }
+    },
+    {
+      "server": "iboplayer-backend",
+      "key": "fake-token-key-123",
+      "deviceId": "abc",
+      "mac": "AA-BB-CC-DD-EE-FF",
+      "token": "PzYhD2ExKSkpO2coKSxjdX5mNCQnMHsyIz4/KQ==",
+      "decoded": {
+        "device_id": "abc",
+        "mac": "AA-BB-CC-DD-EE-FF"
+      }
+    },
+    {
+      "server": "iboplayer-backend",
+      "key": "fake-token-key-123",
+      "tamperedToken": "AAAA",
+      "decoded": {
+        "ok": true,
+        "value": {
+          "device_id": "})",
+          "mac": null
+        }
+      }
+    },
+    {
+      "server": "bobplayer-backend",
+      "key": "fake-token-key-123",
+      "deviceId": "665f1c2e9b1e8a0012345678",
+      "mac": "00:1a:79:aa:bb:cc",
+      "token": "KAsyVHceKQEoA3hePBNrXX10IxYmIWgNIhE0X2MBBk1hdXNEKQstDWIeDF4qA2sDKhRnWH1eKAs=",
+      "decoded": {
+        "device_id": "665f1c2e9b1e8a0012345678",
+        "mac": "00:1a:79:aa:bb:cc"
+      }
+    },
+    {
+      "server": "bobplayer-backend",
+      "key": "fake-token-key-123",
+      "deviceId": "abc",
+      "mac": "AA-BB-CC-DD-EE-FF",
+      "token": "PzYhD2ExKSkpO2coKSxjdX5mNCQnMHsyIz4/KQ==",
+      "decoded": {
+        "device_id": "abc",
+        "mac": "AA-BB-CC-DD-EE-FF"
+      }
+    },
+    {
+      "server": "bobplayer-backend",
+      "key": "fake-token-key-123",
+      "tamperedToken": "AAAA",
+      "decoded": {
+        "ok": true,
+        "value": {
+          "device_id": "})",
+          "mac": null
+        }
+      }
+    },
+    {
+      "server": "cr-unified-backend",
+      "key": "fake-token-key-123",
+      "deviceId": "665f1c2e9b1e8a0012345678",
+      "mac": "00:1a:79:aa:bb:cc",
+      "token": "KAsyVHceKQEoA3hePBNrXX10IxYmIWgNIhE0X2MBBk1hdXNEKQstDWIeDF4qA2sDKhRnWH1eKAs=",
+      "decoded": {
+        "device_id": "665f1c2e9b1e8a0012345678",
+        "mac": "00:1a:79:aa:bb:cc"
+      }
+    },
+    {
+      "server": "cr-unified-backend",
+      "key": "fake-token-key-123",
+      "deviceId": "abc",
+      "mac": "AA-BB-CC-DD-EE-FF",
+      "token": "PzYhD2ExKSkpO2coKSxjdX5mNCQnMHsyIz4/KQ==",
+      "decoded": {
+        "device_id": "abc",
+        "mac": "AA-BB-CC-DD-EE-FF"
+      }
+    },
+    {
+      "server": "cr-unified-backend",
+      "key": "fake-token-key-123",
+      "tamperedToken": "AAAA",
+      "decoded": {
+        "ok": true,
+        "value": {
+          "device_id": "})",
+          "mac": null
+        }
+      }
+    }
+  ]
+}
