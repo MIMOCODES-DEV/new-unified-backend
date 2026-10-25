@@ -52,7 +52,7 @@ The V4 routes are written once in a loop over the app types, so 10 lines of code
 | One device row shared by several apps (IBO Player, Pro, TV) † | ✅ | — | — |
 | "V4 lock" — device that used V4 is refused by legacy routes | ✅ | (x) 4 routes † | ✅ |
 | Store-review bypass (lifetime for a specific test build on Samsung/LG/Vidaa/Windows) | ✅ | ✅ | (x) dead flags |
-| Old/expired device cleanup | (x) 6 months | (x) 120 days | (x) 400 days | → replaced by pending-devices TTL + correct cleanup |
+| Old/expired device cleanup | (x) 6 months | (x) 120 days | (x) 400 days | → replaced by trialDevices + one correct cleanup job (Phase 1, LIC-4) |
 | Suspect-device quarantine / restore | ✅ | — | — | → replaced by pending/quarantine design |
 
 ## 3. Playlists
@@ -211,7 +211,7 @@ New: one admin API for all brands, plus an audit log; fake-device/IP review beco
 | Global limit 30 req/s per IP | — | ✅ | — |
 | Client IP read from spoofable headers | ✅ | ✅ | ✅ |
 
-New: Redis rate limits, pending devices + TTL, quarantine, Cloudflare IP Lists with expiry, admin review — never deletion, IP trusted only from Cloudflare.
+New: Redis rate limits, trial devices kept apart from paid ones (one safe cleanup job), quarantine, Cloudflare IP Lists with expiry, admin review — never deletion, IP trusted only from Cloudflare.
 
 ## 11. Background jobs
 

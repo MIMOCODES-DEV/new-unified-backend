@@ -154,14 +154,16 @@ Cloudflare (origin locked)
 
 Two kinds of database (details in PLAN §5):
 - **Central DB:** `tenants`, `tenantSecrets`, `staffUsers`, `resellers`, `walletAccounts`, `walletLedger`, `activationCodes`, `coupons`, `deviceRegistry`, `licenseTransfers`, `paymentProviders`, i18n, `domainMigrations`, `abuse*`, `auditLog`.
-- **Tenant DB:** `devices` (incl. pending state), `playlists`, `customers`, `subscriptions`, `plans`, `packages`, `transactions`, `activationHistory`, `tenantConfig`, content, `contactMessages`, `captchas`, `appVersions`/`androidApps`.
+- **Tenant DB:** `trialDevices` (never paid), `devices` (paid at least once), `licenses` (one row per license, kept as history), `playlists`, `captchas`, `customers`, `subscriptions`, `plans`, `packages`, `transactions`, `tenantConfig`, content, `contactMessages`, `appVersions`/`androidApps`.
+- **Phase 1** (devices, licensing, playlists, recovery, provider domain moves) builds `trialDevices`, `devices`, `licenses`, `playlists`, `captchas` and the central `domainMigrations`; field lists in [docs/phase-1/README.md](phase-1/README.md).
 
 Conventions:
 - camelCase fields, real types (Date UTC, boolean, ObjectId, money as integer minor units + currency).
 - Schema = zod schema per document; repository maps document ⇄ domain entity (mapper).
 - Indexes are created by **versioned migrations** (`src/shared/database/migrations`), never `autoIndex`.
 - `createdAt`/`updatedAt` everywhere; `legacy: { source, id }` on migrated rows.
-- **Pending devices:** one `devices` collection with `state: 'pending' | 'active' | 'quarantined'` + partial TTL index on `pendingExpiresAt` (state = pending) → real unique index on `macAddress` per tenant.
+- **Trial vs paid devices:** a device that never paid is in `trialDevices`; paying moves it to `devices` with the same id, MAC and device key. Each collection has a unique index on `macAddress`; across the two, every create, move and MAC change goes through `DeviceIdentity` (devices module), which holds a Redis lock on the MAC (`RedisLock`, fails closed). Lookups take no lock. The device key is not unique.
+- **Playlists:** one collection, a `type` with only that part filled; `url` and the Xtream password are not encrypted, the PIN is (`pinEnc`).
 - Cross-DB operations (wallet ↔ tenant activation): ledger reservation + idempotency key + compensation (saga), swept by a worker job.
 
 ## 8. Cross-cutting conventions
