@@ -34,11 +34,14 @@ describe('health endpoints', () => {
     expect(res.json()).toEqual({ status: 'ok' });
   });
 
-  it('GET /ready reports Mongo and Redis are reachable', async () => {
+  it('GET /ready reports Mongo, Redis and brand databases are reachable', async () => {
     const res = await app.inject({ method: 'GET', url: '/ready' });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: 'ok', checks: { mongo: 'up', redis: 'up' } });
+    expect(res.json()).toEqual({
+      status: 'ok',
+      checks: { mongo: 'up', redis: 'up', tenantDbs: 'up' },
+    });
   });
 
   it('echoes a request id', async () => {

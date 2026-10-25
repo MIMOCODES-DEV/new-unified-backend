@@ -9,10 +9,14 @@ export interface TenantDbLocation {
   dbName: string;
 }
 
+/** A client unused for this long is closed; the next request for its brand reconnects. */
+const MAX_IDLE_MS = 10 * 60_000;
+
 /**
  * Hands out tenant databases. Repositories use TenantDb (shared/tenancy), which calls this with the
  * current brand — no module opens connections itself. Connections are pooled per cluster URI
- * (lazy, shared while connecting, dropped on failure); a `Db` handle is cheap and not cached.
+ * (lazy, shared while connecting, dropped on failure, closed when idle); a `Db` handle is cheap
+ * and not cached.
  */
 @Injectable()
 export class TenantDbRegistry {
@@ -24,5 +28,15 @@ export class TenantDbRegistry {
   async getDb(location: TenantDbLocation): Promise<Db> {
     const client = await this.pool.get(location.uri ?? this.config.env.MONGO_URI);
     return client.db(location.dbName);
+  }
+
+  /** Closes connections to clusters no brand used recently. The central cluster always stays open. */
+  closeIdle(): Promise<number> {
+    return this.pool.closeIdle(MAX_IDLE_MS, new Set([this.config.env.MONGO_URI]));
+  }
+
+  /** Whether every open cluster connection answers a ping. */
+  async isHealthy(): Promise<boolean> {
+    return (await this.pool.health()).down === 0;
   }
 }
