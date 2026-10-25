@@ -3,6 +3,10 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ClsModule } from 'nestjs-cls';
 import { HealthModule } from './interfaces/http/health/health.module.js';
 import { TenantHttpModule } from './interfaces/http/tenant/tenant-http.module.js';
+import { DevicesModule } from './modules/devices/index.js';
+import { DomainMigrationsModule } from './modules/domain-migrations/index.js';
+import { LicensingModule } from './modules/licensing/index.js';
+import { PlaylistsModule } from './modules/playlists/index.js';
 import { AccessGuard } from './shared/auth/access.guard.js';
 import { ConfigModule } from './shared/config/config.module.js';
 import { DatabaseModule } from './shared/database/database.module.js';
@@ -22,6 +26,10 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     RedisModule,
     HealthModule,
     TenantHttpModule,
+    DevicesModule,
+    LicensingModule,
+    PlaylistsModule,
+    DomainMigrationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AccessGuard },
