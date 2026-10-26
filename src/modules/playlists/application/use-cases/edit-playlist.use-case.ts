@@ -14,6 +14,7 @@ import {
   type InvalidPlaylistError,
   type PinRequiredError,
   PlaylistExistsError,
+  PlaylistNameTakenError,
   PlaylistNotFoundError,
   type WrongPinError,
 } from '../../domain/playlist.errors.js';
@@ -58,6 +59,7 @@ export class EditPlaylistUseCase {
       | InvalidPlaylistError
       | InvalidPinError
       | PlaylistExistsError
+      | PlaylistNameTakenError
       | PinRequiredError
       | WrongPinError
     >
@@ -100,6 +102,13 @@ export class EditPlaylistUseCase {
     const saved = await this.playlists.update(changed);
     if (saved === 'duplicate') {
       return err(new PlaylistExistsError('This device already has this playlist'));
+    }
+    if (saved === 'name_taken') {
+      return err(
+        new PlaylistNameTakenError('This device already has a playlist with this name', {
+          name: changed.name,
+        }),
+      );
     }
     if (saved === 'missing') {
       return err(new PlaylistNotFoundError('Playlist not found', { playlistId: input.playlistId }));

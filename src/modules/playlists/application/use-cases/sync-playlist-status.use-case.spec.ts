@@ -46,7 +46,7 @@ describe('SyncPlaylistStatusUseCase (PL-7)', () => {
   ): Promise<Playlist> => {
     const result = await add.execute({
       deviceId,
-      name: 'List',
+      name: playlists.freeName(deviceId),
       source,
       addedBy: { via: 'app', resellerId: null },
     });

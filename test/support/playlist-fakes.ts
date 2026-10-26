@@ -23,9 +23,27 @@ function sameKey(p: Playlist): string {
 export class InMemoryPlaylistRepository implements PlaylistRepository {
   readonly items = new Map<string, Playlist>();
 
-  private clashes(playlist: Playlist): boolean {
+  /** `base`, or `base 2`, `base 3`, … when the device already has that name (names are unique). */
+  freeName(deviceId: string, base = 'List'): string {
+    const taken = (name: string) =>
+      [...this.items.values()].some(
+        (p) => p.deviceId === deviceId && p.name.toLowerCase() === name.toLowerCase(),
+      );
+    let name = base;
+    for (let i = 2; taken(name); i++) name = `${base} ${i}`;
+    return name;
+  }
+
+  private clashes(playlist: Playlist): 'duplicate' | 'name_taken' | null {
+    const others = [...this.items.values()].filter((p) => p.id !== playlist.id);
     const key = sameKey(playlist);
-    return [...this.items.values()].some((p) => p.id !== playlist.id && sameKey(p) === key);
+    if (others.some((p) => sameKey(p) === key)) return 'duplicate';
+    // Same rule as the case-insensitive name_once_per_device index.
+    const name = playlist.name.toLowerCase();
+    const named = others.some(
+      (p) => p.deviceId === playlist.deviceId && p.name.toLowerCase() === name,
+    );
+    return named ? 'name_taken' : null;
   }
 
   async findById(id: string): Promise<Playlist | null> {
@@ -60,16 +78,18 @@ export class InMemoryPlaylistRepository implements PlaylistRepository {
     await tick();
     return [...this.items.values()].find((p) => p.legacy?.id === legacyId) ?? null;
   }
-  async insert(playlist: Playlist): Promise<'inserted' | 'duplicate'> {
+  async insert(playlist: Playlist): Promise<'inserted' | 'duplicate' | 'name_taken'> {
     await tick();
-    if (this.clashes(playlist)) return 'duplicate';
+    const clash = this.clashes(playlist);
+    if (clash) return clash;
     this.items.set(playlist.id, playlist);
     return 'inserted';
   }
-  async update(playlist: Playlist): Promise<'updated' | 'missing' | 'duplicate'> {
+  async update(playlist: Playlist): Promise<'updated' | 'missing' | 'duplicate' | 'name_taken'> {
     await tick();
     if (!this.items.has(playlist.id)) return 'missing';
-    if (this.clashes(playlist)) return 'duplicate';
+    const clash = this.clashes(playlist);
+    if (clash) return clash;
     this.items.set(playlist.id, playlist);
     return 'updated';
   }

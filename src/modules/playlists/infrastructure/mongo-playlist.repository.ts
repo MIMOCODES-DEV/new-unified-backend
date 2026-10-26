@@ -9,6 +9,7 @@ import {
   toPlaylistDocument,
   type PlaylistDocument,
 } from './playlist.document.js';
+import { PLAYLIST_NAME_INDEX } from './playlists.migrations.js';
 
 /** playlists in the current brand's database. The collection is looked up on every call. */
 @Injectable()
@@ -63,23 +64,25 @@ export class MongoPlaylistRepository extends PlaylistRepository {
     return doc ? toPlaylist(doc) : null;
   }
 
-  async insert(playlist: Playlist): Promise<'inserted' | 'duplicate'> {
+  async insert(playlist: Playlist): Promise<'inserted' | 'duplicate' | 'name_taken'> {
     try {
       await (await this.collection()).insertOne(toPlaylistDocument(playlist));
       return 'inserted';
     } catch (error) {
-      if (isDuplicateKey(error)) return 'duplicate';
+      const clash = duplicateOf(error);
+      if (clash) return clash;
       throw error;
     }
   }
 
-  async update(playlist: Playlist): Promise<'updated' | 'missing' | 'duplicate'> {
+  async update(playlist: Playlist): Promise<'updated' | 'missing' | 'duplicate' | 'name_taken'> {
     const doc = toPlaylistDocument(playlist);
     try {
       const result = await (await this.collection()).replaceOne({ _id: doc._id }, doc);
       return result.matchedCount > 0 ? 'updated' : 'missing';
     } catch (error) {
-      if (isDuplicateKey(error)) return 'duplicate';
+      const clash = duplicateOf(error);
+      if (clash) return clash;
       throw error;
     }
   }
@@ -93,7 +96,11 @@ export class MongoPlaylistRepository extends PlaylistRepository {
   }
 }
 
-/** The `<type>_once_per_device` indexes refused a second copy of a playlist. */
-function isDuplicateKey(error: unknown): boolean {
-  return error instanceof MongoServerError && error.code === 11000;
+/**
+ * Which unique index refused the write: `name_once_per_device` (the name is taken) or one of the
+ * `<type>_once_per_device` indexes (the same playlist again). Null for any other error.
+ */
+function duplicateOf(error: unknown): 'name_taken' | 'duplicate' | null {
+  if (!(error instanceof MongoServerError) || error.code !== 11000) return null;
+  return error.message.includes(PLAYLIST_NAME_INDEX) ? 'name_taken' : 'duplicate';
 }

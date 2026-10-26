@@ -59,7 +59,12 @@ describe('Playlists by MAC without a login (PL-6)', () => {
   });
 
   const addFor = (ip = '198.51.100.1', url = 'https://cdn.example/list.m3u') =>
-    addByMac.execute({ mac: TV, ip, name: 'From QR', source: { kind: 'link', url } });
+    addByMac.execute({
+      mac: TV,
+      ip,
+      name: playlists.freeName('device-1', 'From QR'),
+      source: { kind: 'link', url },
+    });
 
   describe('add (QR code, Stalker form, add by MAC)', () => {
     it('adds to the device with this MAC, recorded as added on the website', async () => {

@@ -39,7 +39,7 @@ describe('MoveProviderHostUseCase (PL-8)', () => {
   const addOne = async (source: PlaylistSource, deviceId = 'device-1') => {
     const result = await add.execute({
       deviceId,
-      name: 'List',
+      name: playlists.freeName(deviceId),
       source,
       addedBy: { via: 'app', resellerId: null },
     });
@@ -85,15 +85,15 @@ describe('MoveProviderHostUseCase (PL-8)', () => {
   });
 
   it('matches the host exactly, never part of another host, a path or a password', async () => {
-    const lookalikes = await Promise.all([
-      addOne({ kind: 'link', url: 'http://sub.old.example.com/a.m3u' }),
-      addOne({ kind: 'link', url: 'http://old.example.com.evil.net/a.m3u' }),
-      addOne({ kind: 'link', url: 'http://other.example.com/old.example.com/a.m3u' }),
-      addOne({
-        kind: 'link',
-        url: 'http://other.example.com/get.php?username=old.example.com&password=p',
-      }),
-    ]);
+    const lookalikes = [];
+    for (const url of [
+      'http://sub.old.example.com/a.m3u',
+      'http://old.example.com.evil.net/a.m3u',
+      'http://other.example.com/old.example.com/a.m3u',
+      'http://other.example.com/get.php?username=old.example.com&password=p',
+    ]) {
+      lookalikes.push(await addOne({ kind: 'link', url }));
+    }
 
     const report = await run();
 

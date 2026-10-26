@@ -203,7 +203,7 @@ One collection for all kinds. Each row has a `type`, and only the part for that 
 |---|---|---|---|
 | `_id` | String | new UUID | new id (old `_id` → `legacy.id`) |
 | `deviceId` | String | the device in `trialDevices` or `devices`; indexed | `device_id` (text, no index today) |
-| `name` | String | required, trimmed | `playlist_name` |
+| `name` | String | required, trimmed; **unique per device, case does not matter** (index `name_once_per_device`, decided 26 Oct) | `playlist_name` |
 | `type` | String | `m3u` \| `xtream` \| `stalker` \| `code` | `playlist_type` (general = m3u, xc = xtream, empty = m3u) |
 | `url` | String \| null | m3u and xtream: the link exactly as typed; **not encrypted** | `url` |
 | `xtream` | Object \| null | `{ server, username, password }`, parsed once when saved; **not encrypted** | `username`, `password`, or parsed from `url` |
@@ -223,6 +223,7 @@ One collection for all kinds. Each row has a `type`, and only the part for that 
 Rules:
 
 - No limit on playlists per device.
+- A playlist name is unique per device ("My List" and "my list" are the same name); the same name on another device is fine. Older duplicates were renamed "Name (2)", "Name (3)" by migration `0007`.
 - The status sync from the apps (old `PUT edit_playlist`) may change only `account` (status and expiry), for any playlist type.
 - The demo playlist is **not a row**: it comes from brand config `app.demoUrl` when a device has none.
 

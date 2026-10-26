@@ -12,13 +12,16 @@ export abstract class PlaylistRepository {
   abstract listOnHost(host: string, deviceIds: readonly string[] | null): Promise<Playlist[]>;
   /** By the old backend's `_id` (`legacy.id`). */
   abstract findByLegacyId(legacyId: string): Promise<Playlist | null>;
-  /** `duplicate` when the device already has this playlist (same link, portal or code). */
-  abstract insert(playlist: Playlist): Promise<'inserted' | 'duplicate'>;
+  /**
+   * `duplicate` when the device already has this playlist (same link, portal or code);
+   * `name_taken` when it already has a playlist with this name (case does not matter).
+   */
+  abstract insert(playlist: Playlist): Promise<'inserted' | 'duplicate' | 'name_taken'>;
   /**
    * Replaces the stored playlist: `missing` when it is not there, `duplicate` when the change would
-   * make it the same as another playlist of the device.
+   * make it the same as another playlist of the device, `name_taken` when another one has its name.
    */
-  abstract update(playlist: Playlist): Promise<'updated' | 'missing' | 'duplicate'>;
+  abstract update(playlist: Playlist): Promise<'updated' | 'missing' | 'duplicate' | 'name_taken'>;
   /** False when it was already gone. */
   abstract delete(id: string): Promise<boolean>;
   /** Removes every playlist of a device; returns how many. */

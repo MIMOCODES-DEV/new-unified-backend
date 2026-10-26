@@ -60,7 +60,7 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
     sync = new SyncPlaylistsUseCase(playlists, devices, add, edit, remove);
   });
 
-  const addLink = async (deviceId: string, url: string, name = 'List') => {
+  const addLink = async (deviceId: string, url: string, name = playlists.freeName(deviceId)) => {
     const result = await add.execute({
       deviceId,
       name,
@@ -686,6 +686,72 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
       });
 
       expect(!result.ok && result.error.code).toBe('playlists.not_found');
+    });
+  });
+
+  describe('one name per device', () => {
+    it('refuses a second playlist with the same name, whatever the case and spaces', async () => {
+      await addLink('device-1', M3U, 'Sports');
+
+      const again = await add.execute({
+        deviceId: 'device-1',
+        name: '  sPORTS ',
+        source: { kind: 'link', url: 'https://cdn.example/other.m3u' },
+        addedBy: app,
+      });
+
+      expect(!again.ok && again.error).toMatchObject({
+        code: 'playlists.name_taken',
+        details: { name: 'sPORTS' },
+      });
+      expect(await list.execute('device-1')).toHaveLength(1);
+      expect(devices.counts.get('device-1')).toBe(1);
+    });
+
+    it('allows the same name on another device', async () => {
+      await addLink('device-1', M3U, 'Sports');
+
+      expect((await addLink('device-2', M3U, 'Sports')).name).toBe('Sports');
+    });
+
+    it('refuses renaming a playlist to a name the device already has, and allows its own name', async () => {
+      await addLink('device-1', M3U, 'Sports');
+      const movies = await addLink('device-1', 'https://cdn.example/movies.m3u', 'Movies');
+
+      const clash = await edit.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: movies.id,
+        name: 'SPORTS',
+      });
+      const sameCase = await edit.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: movies.id,
+        name: 'MOVIES',
+      });
+
+      expect(!clash.ok && clash.error.code).toBe('playlists.name_taken');
+      expect(sameCase.ok && sameCase.value.name).toBe('MOVIES');
+    });
+
+    it('the bulk sync reports a taken name on its line and saves the rest', async () => {
+      await addLink('device-1', M3U, 'Sports');
+
+      const result = await sync.execute({
+        mac: mac('00:1a:2b:3c:4d:5e'),
+        playlists: [
+          { originId: 'a', name: 'sports', url: 'https://cdn.example/a.m3u' },
+          { originId: 'b', name: 'News', url: 'https://cdn.example/b.m3u' },
+        ],
+        removeIds: [],
+        addedBy: app,
+      });
+
+      expect(result.ok && result.value.playlists.map((p) => p.error)).toEqual([
+        'playlists.name_taken',
+        null,
+      ]);
     });
   });
 });

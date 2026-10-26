@@ -14,6 +14,7 @@ import {
   InvalidPinError,
   type InvalidPlaylistError,
   PlaylistExistsError,
+  PlaylistNameTakenError,
 } from '../../domain/playlist.errors.js';
 import { PlaylistPins } from '../playlist-pins.js';
 import { PlaylistDevices } from '../ports/playlist-devices.js';
@@ -32,7 +33,8 @@ export interface AddPlaylistInput {
 
 /**
  * PL-2: adds a playlist to a device. The same playlist (same link, Xtream login, portal or code)
- * cannot be added twice to one device. There is no limit on playlists per device. With a PIN it is
+ * cannot be added twice to one device, and its name is unique on the device (case does not
+ * matter). There is no limit on playlists per device. With a PIN it is
  * saved protected in the same write, never unprotected first (PL-3).
  */
 @Injectable()
@@ -46,7 +48,12 @@ export class AddPlaylistUseCase {
 
   async execute(
     input: AddPlaylistInput,
-  ): Promise<Result<Playlist, InvalidPlaylistError | InvalidPinError | PlaylistExistsError>> {
+  ): Promise<
+    Result<
+      Playlist,
+      InvalidPlaylistError | InvalidPinError | PlaylistExistsError | PlaylistNameTakenError
+    >
+  > {
     const name = playlistName(input.name);
     if (!name.ok) return name;
     const content = playlistContent(input.source);
@@ -75,8 +82,16 @@ export class AddPlaylistUseCase {
       createdAt: now,
       updatedAt: now,
     };
-    if ((await this.playlists.insert(playlist)) === 'duplicate') {
+    const saved = await this.playlists.insert(playlist);
+    if (saved === 'duplicate') {
       return err(new PlaylistExistsError('This device already has this playlist'));
+    }
+    if (saved === 'name_taken') {
+      return err(
+        new PlaylistNameTakenError('This device already has a playlist with this name', {
+          name: playlist.name,
+        }),
+      );
     }
     await this.devices.playlistCountChanged(input.deviceId, 1);
     return ok(playlist);

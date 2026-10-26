@@ -39,3 +39,8 @@ export class WrongPinError extends DomainError {
 export class TooManyRequestsError extends DomainError {
   readonly code = 'playlists.too_many_requests';
 }
+
+/** The device already has a playlist with this name (case does not matter). */
+export class PlaylistNameTakenError extends DomainError {
+  readonly code = 'playlists.name_taken';
+}

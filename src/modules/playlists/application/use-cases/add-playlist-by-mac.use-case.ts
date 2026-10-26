@@ -8,6 +8,7 @@ import {
   type InvalidPlaylistError,
   PlaylistDeviceNotFoundError,
   type PlaylistExistsError,
+  type PlaylistNameTakenError,
   TooManyRequestsError,
 } from '../../domain/playlist.errors.js';
 import { MacOnlyRateLimit } from '../ports/mac-only-rate-limit.js';
@@ -48,6 +49,7 @@ export class AddPlaylistByMacUseCase {
       | InvalidPlaylistError
       | InvalidPinError
       | PlaylistExistsError
+      | PlaylistNameTakenError
     >
   > {
     const decision = await this.limit.take(input.ip);

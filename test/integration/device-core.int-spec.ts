@@ -162,11 +162,23 @@ describe('Phase 1 device core on MongoDB and Redis', () => {
         await expect(playlists.insert(m3u('pl-2', 'device-1'))).resolves.toBe('duplicate');
         await expect(playlists.insert(m3u('pl-3', 'device-2'))).resolves.toBe('inserted');
         // Editing another playlist into a copy of pl-1 is refused the same way.
-        await playlists.insert({ ...m3u('pl-4', 'device-1'), url: 'http://other.example/list' });
+        await playlists.insert({
+          ...m3u('pl-4', 'device-1'),
+          name: 'Other',
+          url: 'http://other.example/list',
+        });
         await expect(
-          playlists.update({ ...m3u('pl-4', 'device-1'), url: m3u('pl-1', 'device-1').url }),
+          playlists.update({
+            ...m3u('pl-4', 'device-1'),
+            name: 'Other',
+            url: m3u('pl-1', 'device-1').url,
+          }),
         ).resolves.toBe('duplicate');
         await expect(playlists.update(m3u('pl-missing', 'device-1'))).resolves.toBe('missing');
+        // One name per device, whatever the case.
+        await expect(
+          playlists.insert({ ...m3u('pl-5', 'device-1'), name: 'LIST', url: 'http://n.example/x' }),
+        ).resolves.toBe('name_taken');
       });
     });
   });
@@ -213,7 +225,7 @@ describe('Phase 1 device core on MongoDB and Redis', () => {
     it('finds playlists on a host as text, never as a pattern (PL-8)', async () => {
       await context.run(A, async () => {
         const playlists = new MongoPlaylistRepository(new TenantDb(context, registry));
-        const on = (id: string, url: string) => ({ ...m3u(id, 'host-dev'), url });
+        const on = (id: string, url: string) => ({ ...m3u(id, 'host-dev'), name: id, url });
         await playlists.insert(on('h1', 'http://line.example.com:8080/a.m3u'));
         await playlists.insert(on('h2', 'https://user:pass@LINE.example.com/b.m3u'));
         await playlists.insert(on('h3', 'http://lineXexample.com/c.m3u'));
