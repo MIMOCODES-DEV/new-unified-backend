@@ -1,3 +1,4 @@
+import { backupUrls } from './backup-hosts.js';
 import type { Playlist, PlaylistProvider, StalkerPortal } from './playlist.js';
 import { playlistContent } from './playlist-content.js';
 import { xtreamPlaylistUrl } from './xtream-url.js';
@@ -27,13 +28,24 @@ export interface PlaylistReplyItem {
   readonly stalker: StalkerPortal | null;
   readonly code: string | null;
   readonly provider: PlaylistProvider | null;
+  /** cr's `backup_urls`: the link with its host swapped for each backup; empty when turned off. */
+  readonly backupUrls: readonly string[];
   readonly demo: boolean;
 }
 
 const LINK_ONLY = { username: null, password: null, stalker: null, code: null };
 
-/** One stored playlist in the reply profile. The PIN is never part of it. */
+/** One stored playlist in the reply profile, with its backup links. The PIN is never part of it. */
 export function shapePlaylist(playlist: Playlist, profile: ReplyProfile): PlaylistReplyItem {
+  const item = shapeLinks(playlist, profile);
+  const hosts = playlist.backup.enabled ? playlist.backup.hosts : [];
+  return { ...item, backupUrls: backupUrls(item.url, hosts) };
+}
+
+function shapeLinks(
+  playlist: Playlist,
+  profile: ReplyProfile,
+): Omit<PlaylistReplyItem, 'backupUrls'> {
   const common = {
     id: playlist.id,
     name: playlist.name,

@@ -216,4 +216,42 @@ describe('PlaylistReplyUseCase (PL-4)', () => {
       expect((await ask()).playlists[0]?.provider).toEqual(provider);
     });
   });
+
+  describe('backup links (PL-5)', () => {
+    it('xc: each backup gives the server with its host swapped', async () => {
+      await playlists.insert(
+        stored(
+          { kind: 'link', url: XTREAM },
+          { backup: { enabled: true, hosts: ['mirror.example.com'] } },
+        ),
+      );
+
+      expect((await ask()).playlists[0]?.backupUrls).toEqual(['http://mirror.example.com:8080/']);
+    });
+
+    it('general: each backup gives the whole get.php link with its host swapped', async () => {
+      brand.profile = 'general';
+      await playlists.insert(
+        stored(
+          { kind: 'link', url: XTREAM },
+          { backup: { enabled: true, hosts: ['https://mirror.example.com'] } },
+        ),
+      );
+
+      expect((await ask()).playlists[0]?.backupUrls).toEqual([
+        'https://mirror.example.com:8080/get.php?username=u1&password=p1&type=m3u_plus&output=ts',
+      ]);
+    });
+
+    it('no backup links while backups are off, even with hosts stored', async () => {
+      await playlists.insert(
+        stored(
+          { kind: 'link', url: M3U },
+          { backup: { enabled: false, hosts: ['mirror.example.com'] } },
+        ),
+      );
+
+      expect((await ask()).playlists[0]?.backupUrls).toEqual([]);
+    });
+  });
 });

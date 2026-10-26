@@ -9,6 +9,7 @@ export { DeletePlaylistUseCase } from './application/use-cases/delete-playlist.u
 export { ListPlaylistsUseCase } from './application/use-cases/list-playlists.use-case.js';
 export { SyncPlaylistsUseCase } from './application/use-cases/sync-playlists.use-case.js';
 export { SetPlaylistPinUseCase } from './application/use-cases/set-playlist-pin.use-case.js';
+export { SetPlaylistBackupUseCase } from './application/use-cases/set-playlist-backup.use-case.js';
 export { UnlockPlaylistUseCase } from './application/use-cases/unlock-playlist.use-case.js';
 export {
   DashboardPlaylistsUseCase,

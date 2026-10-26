@@ -14,6 +14,7 @@ import { EditPlaylistUseCase } from './edit-playlist.use-case.js';
 import { ListPlaylistsUseCase } from './list-playlists.use-case.js';
 import { DashboardPlaylistsUseCase } from './dashboard-playlists.use-case.js';
 import { UnlockPlaylistUseCase } from './unlock-playlist.use-case.js';
+import { SetPlaylistBackupUseCase } from './set-playlist-backup.use-case.js';
 import { SetPlaylistPinUseCase } from './set-playlist-pin.use-case.js';
 import { SyncPlaylistsUseCase } from './sync-playlists.use-case.js';
 
@@ -37,6 +38,7 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
   let list: ListPlaylistsUseCase;
   let sync: SyncPlaylistsUseCase;
   let setPin: SetPlaylistPinUseCase;
+  let setBackup: SetPlaylistBackupUseCase;
   let open: UnlockPlaylistUseCase;
   let dashboard: DashboardPlaylistsUseCase;
 
@@ -51,6 +53,7 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
     edit = new EditPlaylistUseCase(playlists, pins, clock);
     remove = new DeletePlaylistUseCase(playlists, devices, pins);
     setPin = new SetPlaylistPinUseCase(playlists, pins, clock);
+    setBackup = new SetPlaylistBackupUseCase(playlists, pins, clock);
     open = new UnlockPlaylistUseCase(playlists, pins);
     dashboard = new DashboardPlaylistsUseCase(playlists);
     list = new ListPlaylistsUseCase(playlists);
@@ -583,6 +586,106 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
       expect(!changeWithout.ok && changeWithout.error.code).toBe('playlists.pin_required');
       expect(change.ok && change.value.protected).toBe(true);
       expect(removeIt.ok && removeIt.value).toMatchObject({ protected: false, pinEnc: null });
+    });
+  });
+
+  describe('backup hosts (PL-5)', () => {
+    it('stores up to 8 hosts and turns them on', async () => {
+      const playlist = await addLink('device-1', M3U);
+
+      const result = await setBackup.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        by: 'app',
+        enabled: true,
+        hosts: ['Mirror1.example.com', 'mirror2.example.com:8080'],
+      });
+
+      expect(result.ok && result.value).toEqual({
+        enabled: true,
+        hosts: ['mirror1.example.com', 'mirror2.example.com:8080'],
+      });
+    });
+
+    it('turning backups off keeps the hosts', async () => {
+      const playlist = await addLink('device-1', M3U);
+      await setBackup.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        by: 'app',
+        enabled: true,
+        hosts: ['m.example.com'],
+      });
+
+      await setBackup.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        by: 'app',
+        enabled: false,
+      });
+
+      expect(playlists.items.get(playlist.id)?.backup).toEqual({
+        enabled: false,
+        hosts: ['m.example.com'],
+      });
+    });
+
+    it('refuses a bad host and changes nothing', async () => {
+      const playlist = await addLink('device-1', M3U);
+
+      const result = await setBackup.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        by: 'app',
+        enabled: true,
+        hosts: ['nope'],
+      });
+
+      expect(!result.ok && result.error.code).toBe('playlists.invalid_playlist');
+      expect(playlists.items.get(playlist.id)?.backup).toEqual({ enabled: false, hosts: [] });
+    });
+
+    it('the dashboard needs the PIN of a protected playlist', async () => {
+      const playlist = await addLink('device-1', M3U);
+      await setPin.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: playlist.id,
+        pin: '1234',
+      });
+
+      const without = await setBackup.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        by: 'dashboard',
+        enabled: true,
+        hosts: ['m.example.com'],
+      });
+      const withPin = await setBackup.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        by: 'dashboard',
+        pin: '1234',
+        enabled: true,
+        hosts: ['m.example.com'],
+      });
+
+      expect(!without.ok && without.error.code).toBe('playlists.pin_required');
+      expect(withPin.ok).toBe(true);
+    });
+
+    it('does not touch another device’s playlist', async () => {
+      const playlist = await addLink('device-2', M3U);
+
+      const result = await setBackup.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        by: 'app',
+        enabled: true,
+        hosts: ['m.example.com'],
+      });
+
+      expect(!result.ok && result.error.code).toBe('playlists.not_found');
     });
   });
 });

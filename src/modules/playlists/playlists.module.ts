@@ -19,6 +19,7 @@ import { ListPlaylistsUseCase } from './application/use-cases/list-playlists.use
 import { DashboardPlaylistsUseCase } from './application/use-cases/dashboard-playlists.use-case.js';
 import { PlaylistReplyUseCase } from './application/use-cases/playlist-reply.use-case.js';
 import { SetPlaylistPinUseCase } from './application/use-cases/set-playlist-pin.use-case.js';
+import { SetPlaylistBackupUseCase } from './application/use-cases/set-playlist-backup.use-case.js';
 import { SyncPlaylistsUseCase } from './application/use-cases/sync-playlists.use-case.js';
 import { UnlockPlaylistUseCase } from './application/use-cases/unlock-playlist.use-case.js';
 import { AesPinCipher } from './infrastructure/aes-pin.cipher.js';
@@ -34,6 +35,7 @@ const useCases = [
   UnlockPlaylistUseCase,
   DashboardPlaylistsUseCase,
   PlaylistReplyUseCase,
+  SetPlaylistBackupUseCase,
 ];
 
 export interface PlaylistsModuleOptions {
