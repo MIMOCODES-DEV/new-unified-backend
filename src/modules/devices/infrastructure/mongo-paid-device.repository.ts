@@ -58,6 +58,7 @@ export class MongoPaidDeviceRepository extends PaidDeviceRepository {
       { _id: id },
       {
         $set: {
+          platform: visit.platform,
           ip: visit.ip,
           appVersion: visit.appVersion,
           apiVersion: visit.apiVersion,

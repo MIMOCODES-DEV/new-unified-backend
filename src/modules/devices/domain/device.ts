@@ -105,6 +105,8 @@ export interface PaidDevice extends DeviceBase {
 
 /** What an app call updates on its device: who called, from where, when. */
 export interface DeviceVisit {
+  /** The caller's platform; differs from the stored one only when the device adopts it. */
+  readonly platform: Platform;
   readonly ip: string;
   readonly appVersion: string | null;
   readonly apiVersion: ApiVersion;

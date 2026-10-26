@@ -14,6 +14,11 @@ export class MacInUseError extends DomainError {
   readonly code = 'devices.mac_in_use';
 }
 
+/** A V4 device called as another platform: its stored platform is trusted, so the call is refused. */
+export class PlatformMismatchError extends DomainError {
+  readonly code = 'devices.platform_mismatch';
+}
+
 /** A device without a usable MAC sent neither an app device id nor a uid: nothing identifies it. */
 export class DeviceIdMissingError extends DomainError {
   readonly code = 'devices.device_id_missing';

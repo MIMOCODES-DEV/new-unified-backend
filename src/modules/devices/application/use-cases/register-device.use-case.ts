@@ -5,13 +5,14 @@ import type { MacAddress } from '../../../../shared/kernel/mac-address.js';
 import { err, ok, type Result } from '../../../../shared/kernel/result.js';
 import type {
   ApiVersion,
+  DeviceBase,
   DeviceVisit,
   FoundDevice,
   Platform,
   TrialDevice,
 } from '../../domain/device.js';
 import { isUsableMac, madeUpMac } from '../../domain/device-mac.js';
-import { DeviceIdMissingError } from '../../domain/device.errors.js';
+import { DeviceIdMissingError, PlatformMismatchError } from '../../domain/device.errors.js';
 import { trialEndsAt } from '../../domain/trial.js';
 import { DeviceIdentity } from '../device-identity.js';
 import { DeviceKeyGenerator } from '../ports/device-key-generator.js';
@@ -46,6 +47,9 @@ export interface RegisterDeviceOutput {
  *   id, then uid. A fallback MAC never creates or matches a device.
  * - Found: that device, trial or paid, with this visit (ip, versions, lastSeenAt) recorded.
  *   A trial that ended stays as it is: a device never gets a second trial.
+ *   Every app on one MAC (IBO Player, Pro, TV, …) is the same device; appVersion is the last caller.
+ * - DEV-3: called as another platform, a device that is not V4 yet takes the caller's platform
+ *   (old routes stored it badly); a V4 device keeps its own and the call is refused.
  * - Not found: a new trial device (new id and device key, trial of the brand's `trial.days`).
  *   Without a usable MAC it gets one made from its app device id (or uid).
  */
@@ -62,9 +66,10 @@ export class RegisterDeviceUseCase {
 
   async execute(
     input: RegisterDeviceInput,
-  ): Promise<Result<RegisterDeviceOutput, DeviceIdMissingError>> {
+  ): Promise<Result<RegisterDeviceOutput, DeviceIdMissingError | PlatformMismatchError>> {
     const now = this.clock.now();
     const visit: DeviceVisit = {
+      platform: input.platform,
       ip: input.ip,
       appVersion: input.appVersion,
       apiVersion: input.apiVersion,
@@ -73,14 +78,14 @@ export class RegisterDeviceUseCase {
     const mac = input.mac && isUsableMac(input.mac) ? input.mac : null;
 
     const known = mac ? await this.identity.findByMac(mac) : await this.findWithoutMac(input);
-    if (known) return ok({ found: await this.recordVisit(known, visit), created: false });
+    if (known) return this.visited(known, visit);
 
     const trialDays = await this.settings.trialDays();
     if (mac) {
       const claim = await this.identity.claimTrial(this.newTrial(input, mac, now, trialDays));
       if (claim.created) return ok(claim);
       // Another call made this device a moment ago, or a device already has this app device id.
-      return ok({ found: await this.recordVisit(claim.found, visit), created: false });
+      return this.visited(claim.found, visit);
     }
 
     const source = input.appDeviceId ?? input.uid;
@@ -93,12 +98,28 @@ export class RegisterDeviceUseCase {
       const madeUp = madeUpMac(source, attempt);
       const claim = await this.identity.claimTrial(this.newTrial(input, madeUp, now, trialDays));
       if (claim.created) return ok(claim);
-      if (isSameDevice(claim.found, input)) {
-        return ok({ found: await this.recordVisit(claim.found, visit), created: false });
-      }
+      if (isSameDevice(claim.found, input)) return this.visited(claim.found, visit);
       // The made-up MAC belongs to another device: try the next one.
     }
     throw new Error(`No free made-up MAC after ${MADE_UP_MAC_ATTEMPTS} attempts`);
+  }
+
+  /** An existing device was called: check the platform, then record the visit. */
+  private async visited(
+    found: FoundDevice,
+    visit: DeviceVisit,
+  ): Promise<Result<RegisterDeviceOutput, PlatformMismatchError>> {
+    const stored = found.device;
+    if (stored.platform !== visit.platform && !canAdoptPlatform(stored)) {
+      return err(
+        new PlatformMismatchError('This device is registered for another platform', {
+          deviceId: stored.id,
+          platform: stored.platform,
+          caller: visit.platform,
+        }),
+      );
+    }
+    return ok({ found: await this.recordVisit(found, visit), created: false });
   }
 
   /** A device that sent no usable MAC: by app device id, then uid. */
@@ -161,8 +182,17 @@ function isSameDevice(found: FoundDevice, input: RegisterDeviceInput): boolean {
     : found.device.uid === input.uid;
 }
 
+/**
+ * Whether a call as another platform may change the stored one: yes until the device is V4
+ * (old routes stored it badly, or the old row had none); a V4 device's platform is trusted.
+ */
+function canAdoptPlatform(device: DeviceBase): boolean {
+  return device.apiVersion === 'legacy' || device.platform === 'unknown';
+}
+
 function withVisit(found: FoundDevice, visit: DeviceVisit): FoundDevice {
   const fields = {
+    platform: visit.platform,
     ip: visit.ip,
     appVersion: visit.appVersion,
     apiVersion: visit.apiVersion,

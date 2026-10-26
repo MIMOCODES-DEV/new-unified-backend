@@ -58,6 +58,7 @@ export class MongoTrialDeviceRepository extends TrialDeviceRepository {
       { _id: id },
       {
         $set: {
+          platform: visit.platform,
           ip: visit.ip,
           appVersion: visit.appVersion,
           apiVersion: visit.apiVersion,

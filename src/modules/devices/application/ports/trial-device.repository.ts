@@ -10,7 +10,7 @@ export abstract class TrialDeviceRepository {
   /** By the old backend's `_id` (`legacy.id`). */
   abstract findByLegacyId(legacyId: string): Promise<TrialDevice | null>;
   abstract insert(device: TrialDevice): Promise<void>;
-  /** Sets lastSeenAt, ip, appVersion and apiVersion only; false when it is not there. */
+  /** Sets platform, lastSeenAt, ip, appVersion and apiVersion only; false when it is not there. */
   abstract recordVisit(id: string, visit: DeviceVisit): Promise<boolean>;
   /** Replaces the stored device; false when it is not there. */
   abstract update(device: TrialDevice): Promise<boolean>;

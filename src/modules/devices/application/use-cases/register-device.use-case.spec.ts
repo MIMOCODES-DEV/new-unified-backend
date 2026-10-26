@@ -232,4 +232,46 @@ describe('RegisterDeviceUseCase (DEV-1, DEV-2)', () => {
       expect(trials.items.size).toBe(1);
     });
   });
+
+  describe('one device for every app on a MAC (DEV-3)', () => {
+    it('gives IBO Player, Pro and TV on one MAC the same device; appVersion is the last caller', async () => {
+      const player = await run(call({ appVersion: 'iboplayer 1.9' }));
+      const pro = await run(call({ appVersion: 'iboproplayer 2.1' }));
+      const tv = await run(call({ appVersion: 'iboplayertv 3.0' }));
+
+      expect(new Set([player, pro, tv].map((r) => r.found.device.id)).size).toBe(1);
+      expect(trials.items.size).toBe(1);
+      expect(trials.items.get(player.found.device.id)?.appVersion).toBe('iboplayertv 3.0');
+    });
+
+    it('lets a device that is not V4 yet take the caller platform', async () => {
+      await trials.insert(trialDevice({ platform: 'android', apiVersion: 'legacy' }));
+
+      const result = await run(call({ platform: 'samsung' }));
+
+      expect(result.found.device.platform).toBe('samsung');
+      expect(trials.items.get('trial-1')?.platform).toBe('samsung');
+    });
+
+    it('fills in the platform of an old row that had none', async () => {
+      await paid.insert(
+        paidDevice({ macAddress: '00:1a:2b:3c:4d:5e', platform: 'unknown', apiVersion: 'v4' }),
+      );
+
+      const result = await run(call({ platform: 'lg', apiVersion: 'v4' }));
+
+      expect(result.found.device.platform).toBe('lg');
+    });
+
+    it('refuses a V4 device called as another platform and changes nothing', async () => {
+      await trials.insert(
+        trialDevice({ platform: 'android', apiVersion: 'v4', ip: '203.0.113.7' }),
+      );
+
+      const result = await register.execute(call({ platform: 'samsung', apiVersion: 'v4' }));
+
+      expect(!result.ok && result.error.code).toBe('devices.platform_mismatch');
+      expect(trials.items.get('trial-1')).toMatchObject({ platform: 'android', ip: '203.0.113.7' });
+    });
+  });
 });
