@@ -12,7 +12,8 @@ import { AddPlaylistUseCase } from './add-playlist.use-case.js';
 import { DeletePlaylistUseCase } from './delete-playlist.use-case.js';
 import { EditPlaylistUseCase } from './edit-playlist.use-case.js';
 import { ListPlaylistsUseCase } from './list-playlists.use-case.js';
-import { OpenPlaylistUseCase } from './open-playlist.use-case.js';
+import { DashboardPlaylistsUseCase } from './dashboard-playlists.use-case.js';
+import { UnlockPlaylistUseCase } from './unlock-playlist.use-case.js';
 import { SetPlaylistPinUseCase } from './set-playlist-pin.use-case.js';
 import { SyncPlaylistsUseCase } from './sync-playlists.use-case.js';
 
@@ -36,7 +37,8 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
   let list: ListPlaylistsUseCase;
   let sync: SyncPlaylistsUseCase;
   let setPin: SetPlaylistPinUseCase;
-  let open: OpenPlaylistUseCase;
+  let open: UnlockPlaylistUseCase;
+  let dashboard: DashboardPlaylistsUseCase;
 
   beforeEach(() => {
     playlists = new InMemoryPlaylistRepository();
@@ -49,7 +51,8 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
     edit = new EditPlaylistUseCase(playlists, pins, clock);
     remove = new DeletePlaylistUseCase(playlists, devices, pins);
     setPin = new SetPlaylistPinUseCase(playlists, pins, clock);
-    open = new OpenPlaylistUseCase(playlists, pins);
+    open = new UnlockPlaylistUseCase(playlists, pins);
+    dashboard = new DashboardPlaylistsUseCase(playlists);
     list = new ListPlaylistsUseCase(playlists);
     sync = new SyncPlaylistsUseCase(playlists, devices, add, edit, remove);
   });
@@ -144,6 +147,7 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
 
       const renamed = await edit.execute({
         deviceId: 'device-1',
+        by: 'app',
         playlistId: playlist.id,
         name: 'New',
       });
@@ -156,6 +160,7 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
 
       const changed = await edit.execute({
         deviceId: 'device-1',
+        by: 'app',
         playlistId: playlist.id,
         source: { kind: 'link', url: XTREAM },
       });
@@ -172,6 +177,7 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
 
       const result = await edit.execute({
         deviceId: 'device-1',
+        by: 'app',
         playlistId: playlist.id,
         name: 'Mine',
       });
@@ -186,6 +192,7 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
 
       const result = await edit.execute({
         deviceId: 'device-1',
+        by: 'app',
         playlistId: second.id,
         source: { kind: 'link', url: M3U },
       });
@@ -198,7 +205,11 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
     it('deletes the device’s playlist and counts it down', async () => {
       const playlist = await addLink('device-1', M3U);
 
-      const result = await remove.execute({ deviceId: 'device-1', playlistId: playlist.id });
+      const result = await remove.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: playlist.id,
+      });
 
       expect(result.ok).toBe(true);
       expect(playlists.items.size).toBe(0);
@@ -208,7 +219,11 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
     it('does not delete another device’s playlist', async () => {
       const playlist = await addLink('device-2', M3U);
 
-      const result = await remove.execute({ deviceId: 'device-1', playlistId: playlist.id });
+      const result = await remove.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: playlist.id,
+      });
 
       expect(!result.ok && result.error.code).toBe('playlists.not_found');
       expect(playlists.items.size).toBe(1);
@@ -218,8 +233,8 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
       const playlist = await addLink('device-1', M3U);
 
       await Promise.all([
-        remove.execute({ deviceId: 'device-1', playlistId: playlist.id }),
-        remove.execute({ deviceId: 'device-1', playlistId: playlist.id }),
+        remove.execute({ deviceId: 'device-1', by: 'app', playlistId: playlist.id }),
+        remove.execute({ deviceId: 'device-1', by: 'app', playlistId: playlist.id }),
       ]);
 
       expect(devices.counts.get('device-1')).toBe(0);
@@ -327,7 +342,12 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
   describe('PIN protection (PL-3)', () => {
     const protect = async (pin = '1234') => {
       const playlist = await addLink('device-1', M3U);
-      const result = await setPin.execute({ deviceId: 'device-1', playlistId: playlist.id, pin });
+      const result = await setPin.execute({
+        deviceId: 'device-1',
+        by: 'dashboard',
+        playlistId: playlist.id,
+        pin,
+      });
       if (!result.ok) throw result.error;
       return playlist.id;
     };
@@ -360,14 +380,21 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
     it('refuses to edit or delete a protected playlist without its PIN', async () => {
       const id = await protect('1234');
 
-      const editNone = await edit.execute({ deviceId: 'device-1', playlistId: id, name: 'X' });
+      const editNone = await edit.execute({
+        deviceId: 'device-1',
+        by: 'dashboard',
+        playlistId: id,
+        name: 'X',
+      });
       const deleteWrong = await remove.execute({
         deviceId: 'device-1',
+        by: 'dashboard',
         playlistId: id,
         pin: '0000',
       });
       const editRight = await edit.execute({
         deviceId: 'device-1',
+        by: 'dashboard',
         playlistId: id,
         name: 'X',
         pin: '1234',
@@ -382,9 +409,15 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
     it('changes the PIN only with the current one', async () => {
       const id = await protect('1234');
 
-      const without = await setPin.execute({ deviceId: 'device-1', playlistId: id, pin: '5555' });
+      const without = await setPin.execute({
+        deviceId: 'device-1',
+        by: 'dashboard',
+        playlistId: id,
+        pin: '5555',
+      });
       const withIt = await setPin.execute({
         deviceId: 'device-1',
+        by: 'dashboard',
         playlistId: id,
         pin: '5555',
         currentPin: '1234',
@@ -402,6 +435,7 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
 
       const result = await setPin.execute({
         deviceId: 'device-1',
+        by: 'dashboard',
         playlistId: id,
         pin: null,
         currentPin: '1234',
@@ -414,7 +448,12 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
     it.each(['123', '12345', 'abcd'])('refuses the PIN "%s"', async (pin) => {
       const playlist = await addLink('device-1', M3U);
 
-      const result = await setPin.execute({ deviceId: 'device-1', playlistId: playlist.id, pin });
+      const result = await setPin.execute({
+        deviceId: 'device-1',
+        by: 'dashboard',
+        playlistId: playlist.id,
+        pin,
+      });
 
       expect(!result.ok && result.error.code).toBe('playlists.invalid_pin');
     });
@@ -424,6 +463,7 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
 
       const result = await setPin.execute({
         deviceId: 'device-1',
+        by: 'dashboard',
         playlistId: playlist.id,
         pin: '1234',
       });
@@ -431,21 +471,48 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
       expect(!result.ok && result.error.code).toBe('playlists.not_found');
     });
 
-    it('the bulk sync neither changes nor removes a protected playlist, and says so', async () => {
+    it('the app changes and removes a protected playlist without the PIN', async () => {
       const id = await protect('1234');
+      const other = await addLink('device-1', 'https://cdn.example/second.m3u');
+      await setPin.execute({ deviceId: 'device-1', by: 'app', playlistId: other.id, pin: '5678' });
 
+      const renamed = await edit.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: id,
+        name: 'App name',
+      });
       const result = await sync.execute({
         mac: mac('00:1a:2b:3c:4d:5e'),
-        playlists: [{ originId: id, name: 'Renamed', url: M3U }],
-        removeIds: [id],
+        playlists: [{ originId: id, name: 'Synced', url: M3U }],
+        removeIds: [other.id],
         addedBy: app,
       });
 
-      expect(result.ok && result.value.playlists[0]?.error).toBe('playlists.pin_required');
-      expect(result.ok && result.value.notRemoved).toEqual([
-        { id, error: 'playlists.pin_required' },
-      ]);
-      expect(playlists.items.get(id)?.name).toBe('List');
+      expect(renamed.ok).toBe(true);
+      expect(result.ok && result.value.playlists[0]?.error).toBeNull();
+      expect(playlists.items.get(id)?.name).toBe('Synced');
+      expect(result.ok && result.value).toMatchObject({ removed: 1, notRemoved: [] });
+      expect(playlists.items.has(other.id)).toBe(false);
+    });
+
+    it('the dashboard list hides a protected playlist’s data until it is unlocked', async () => {
+      const id = await protect('1234');
+      const open2 = await addLink('device-1', 'https://cdn.example/open.m3u', 'Open');
+
+      const listed = await dashboard.execute('device-1');
+
+      expect(listed).toContainEqual({
+        id,
+        name: 'List',
+        type: 'm3u',
+        protected: true,
+        hidden: true,
+      });
+      expect(listed.find((p) => p.id === open2.id)).toMatchObject({
+        url: 'https://cdn.example/open.m3u',
+      });
+      expect(JSON.stringify(listed.find((p) => p.id === id))).not.toContain('cdn.example');
     });
 
     it('adds a playlist protected in one step, as the website add form does', async () => {
@@ -486,23 +553,27 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
 
       const set = await edit.execute({
         deviceId: 'device-1',
+        by: 'dashboard',
         playlistId: playlist.id,
         name: 'Kids',
         newPin: '1111',
       });
       const changeWithout = await edit.execute({
         deviceId: 'device-1',
+        by: 'dashboard',
         playlistId: playlist.id,
         newPin: '2222',
       });
       const change = await edit.execute({
         deviceId: 'device-1',
+        by: 'dashboard',
         playlistId: playlist.id,
         pin: '1111',
         newPin: '2222',
       });
       const removeIt = await edit.execute({
         deviceId: 'device-1',
+        by: 'dashboard',
         playlistId: playlist.id,
         pin: '2222',
         newPin: null,

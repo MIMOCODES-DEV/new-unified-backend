@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../shared/kernel/clock.js';
 import { err, ok, type Result } from '../../../../shared/kernel/result.js';
+import type { PlaylistActor } from '../../domain/playlist.js';
 import { isValidPlaylistPin } from '../../domain/playlist-content.js';
 import {
   InvalidPinError,
@@ -13,6 +14,8 @@ import { PlaylistRepository } from '../ports/playlist.repository.js';
 
 export interface SetPlaylistPinInput {
   deviceId: string;
+  /** On the dashboard, changing or removing a PIN needs the current one; the app does not. */
+  by: PlaylistActor;
   playlistId: string;
   /** 4 digits to protect the playlist (or change its PIN); null to remove the protection. */
   pin: string | null;
@@ -21,8 +24,8 @@ export interface SetPlaylistPinInput {
 }
 
 /**
- * PL-3: protects a playlist with a PIN, changes the PIN, or removes the protection. Changing or
- * removing it needs the current PIN. The PIN is stored encrypted with the brand's key.
+ * PL-3: protects a playlist with a PIN, changes the PIN, or removes the protection. On the
+ * dashboard, changing or removing it needs the current PIN. Stored encrypted with the brand's key.
  */
 @Injectable()
 export class SetPlaylistPinUseCase {
@@ -47,7 +50,7 @@ export class SetPlaylistPinUseCase {
     if (!current || current.deviceId !== input.deviceId) {
       return err(new PlaylistNotFoundError('Playlist not found', { playlistId: input.playlistId }));
     }
-    const allowed = await this.pins.check(current, input.currentPin);
+    const allowed = await this.pins.check(current, input.currentPin, input.by);
     if (!allowed.ok) return allowed;
 
     const isProtected = input.pin !== null;

@@ -2,6 +2,12 @@ export const PLAYLIST_TYPES = ['m3u', 'xtream', 'stalker', 'code'] as const;
 export type PlaylistType = (typeof PLAYLIST_TYPES)[number];
 
 export const ADDED_VIA = ['app', 'website', 'store', 'admin'] as const;
+
+/**
+ * Who changes or reads a playlist. The PIN only hides a protected playlist's data on the website
+ * dashboard: the device's own app never needs it.
+ */
+export type PlaylistActor = 'app' | 'dashboard';
 export type AddedVia = (typeof ADDED_VIA)[number];
 
 /** cr Android apps fall back to these when the playlist's host is down. */

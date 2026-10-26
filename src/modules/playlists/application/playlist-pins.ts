@@ -1,21 +1,25 @@
 import { timingSafeEqual } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { err, ok, type Result } from '../../../shared/kernel/result.js';
-import type { Playlist } from '../domain/playlist.js';
+import type { Playlist, PlaylistActor } from '../domain/playlist.js';
 import { PinRequiredError, WrongPinError } from '../domain/playlist.errors.js';
 import { PinCipher } from './ports/pin-cipher.js';
 
-/** PL-3: the PIN check every use case runs before opening or changing a protected playlist. */
+/**
+ * PL-3: the PIN of a protected playlist hides its data on the website dashboard. The dashboard
+ * needs it to show, change or delete that playlist; the device's own app never does.
+ */
 @Injectable()
 export class PlaylistPins {
   constructor(private readonly cipher: PinCipher) {}
 
-  /** Passes for an unprotected playlist, or a protected one with its PIN. */
+  /** Passes for the app, an unprotected playlist, or a protected one with its PIN. */
   async check(
     playlist: Playlist,
     pin: string | null | undefined,
+    by: PlaylistActor,
   ): Promise<Result<void, PinRequiredError | WrongPinError>> {
-    if (!playlist.protected || playlist.pinEnc === null) return ok(undefined);
+    if (by === 'app' || !playlist.protected || playlist.pinEnc === null) return ok(undefined);
     if (!pin)
       return err(new PinRequiredError('This playlist is protected', { playlistId: playlist.id }));
     const stored = Buffer.from(await this.cipher.decrypt(playlist.pinEnc));

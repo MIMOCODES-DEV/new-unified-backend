@@ -24,7 +24,7 @@ export interface SyncPlaylistsInput {
   addedBy: AddedBy;
 }
 
-/** A remove id that was not removed: a protected playlist needs its PIN. */
+/** A remove id that was not removed, and why. */
 export interface NotRemoved {
   id: string;
   error: string;
@@ -46,7 +46,8 @@ export interface SyncedPlaylist {
  * - any other item is added, and its new id is returned next to the app's id; an item the device
  *   already has returns the existing id, so sending the same list again changes nothing;
  * - `removeIds` are deleted.
- * A protected playlist is neither changed nor removed: the sync carries no PIN (PL-3).
+ * It is the device's own app, so protected playlists change like any other (the PIN only hides
+ * data on the dashboard).
  * Only the calling device's playlists are ever touched: another device's id is treated as new
  * (to add) or ignored (to remove). The old code changed and deleted any playlist by id.
  */
@@ -83,7 +84,7 @@ export class SyncPlaylistsUseCase {
     const notRemoved: NotRemoved[] = [];
     for (const playlistId of new Set(input.removeIds)) {
       if (!owned.has(playlistId)) continue;
-      const result = await this.remove.execute({ deviceId, playlistId });
+      const result = await this.remove.execute({ deviceId, playlistId, by: 'app' });
       if (result.ok) removed += 1;
       else notRemoved.push({ id: playlistId, error: result.error.code });
     }
@@ -108,6 +109,7 @@ export class SyncPlaylistsUseCase {
     if (item.originId && owned.has(item.originId)) {
       const edited = await this.edit.execute({
         deviceId,
+        by: 'app',
         playlistId: item.originId,
         name: item.name,
         source,

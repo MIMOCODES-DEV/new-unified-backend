@@ -6,6 +6,7 @@ import {
 } from './modules/devices/index.js';
 import {
   PLAYLIST_PIN_KEY_SECRET,
+  type PlaylistBrand,
   type PlaylistDevices,
   type PlaylistPinKey,
   PlaylistsModule,
@@ -33,8 +34,8 @@ export const DevicesWithBrandConfig = DevicesModule.forRootAsync({
 });
 
 /**
- * Playlists find devices by MAC, keep the trial devices' playlist counters in step, and encrypt
- * PINs with the brand secret `playlists.pinKey`.
+ * Playlists find devices by MAC, keep the trial devices' playlist counters in step, encrypt PINs
+ * with the brand secret `playlists.pinKey`, and shape replies by the brand's settings and config.
  */
 export const PlaylistsWithDevices = PlaylistsModule.forRootAsync({
   imports: [DevicesWithBrandConfig, TenantsModule],
@@ -55,6 +56,15 @@ export const PlaylistsWithDevices = PlaylistsModule.forRootAsync({
     inject: [GetTenantSecretUseCase, TenantContext],
     useFactory: (getSecret: GetTenantSecretUseCase, context: TenantContext): PlaylistPinKey => ({
       current: () => getSecret.execute(context.current.id, PLAYLIST_PIN_KEY_SECRET),
+    }),
+  },
+  brand: {
+    inject: [GetTenantConfigUseCase, TenantContext],
+    useFactory: (getConfig: GetTenantConfigUseCase, context: TenantContext): PlaylistBrand => ({
+      replyProfile: () => Promise.resolve(context.current.settings.playlistProfile),
+      rawForAndroid44: () =>
+        Promise.resolve(context.current.settings.features.rawPlaylistsForAndroid44),
+      demoUrl: async () => (await getConfig.execute(context.current)).app.demoUrl,
     }),
   },
 });

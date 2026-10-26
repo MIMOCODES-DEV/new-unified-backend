@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../shared/kernel/clock.js';
 import { err, ok, type Result } from '../../../../shared/kernel/result.js';
-import type { Playlist } from '../../domain/playlist.js';
+import type { Playlist, PlaylistActor } from '../../domain/playlist.js';
 import {
   epgUrl,
   isValidPlaylistPin,
@@ -22,12 +22,14 @@ import { PlaylistRepository } from '../ports/playlist.repository.js';
 
 export interface EditPlaylistInput {
   deviceId: string;
+  /** The dashboard needs the PIN of a protected playlist; the app does not. */
+  by: PlaylistActor;
   playlistId: string;
   /** Only what is given changes. */
   name?: string;
   source?: PlaylistSource;
   epgUrl?: string | null;
-  /** The PIN, when the playlist is protected. */
+  /** The PIN, when the dashboard changes a protected playlist. */
   pin?: string | null;
   /** A new PIN (4 digits) to protect it or change its PIN; null removes the protection. */
   newPin?: string | null;
@@ -35,9 +37,9 @@ export interface EditPlaylistInput {
 
 /**
  * PL-2: changes a playlist of the calling device: its name, what it points to, its EPG link.
- * Only these fields can change; another device's playlist is reported as not found. A protected
- * playlist needs its PIN, and the website's edit form can set or remove the PIN in the same write
- * (PL-3).
+ * Only these fields can change; another device's playlist is reported as not found. On the
+ * dashboard a protected playlist needs its PIN, and the edit form can set or remove the PIN in the
+ * same write (PL-3).
  */
 @Injectable()
 export class EditPlaylistUseCase {
@@ -64,7 +66,7 @@ export class EditPlaylistUseCase {
     if (!current || current.deviceId !== input.deviceId) {
       return err(new PlaylistNotFoundError('Playlist not found', { playlistId: input.playlistId }));
     }
-    const allowed = await this.pins.check(current, input.pin);
+    const allowed = await this.pins.check(current, input.pin, input.by);
     if (!allowed.ok) return allowed;
 
     let changed: Playlist = { ...current, updatedAt: this.clock.now() };

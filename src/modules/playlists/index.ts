@@ -9,6 +9,16 @@ export { DeletePlaylistUseCase } from './application/use-cases/delete-playlist.u
 export { ListPlaylistsUseCase } from './application/use-cases/list-playlists.use-case.js';
 export { SyncPlaylistsUseCase } from './application/use-cases/sync-playlists.use-case.js';
 export { SetPlaylistPinUseCase } from './application/use-cases/set-playlist-pin.use-case.js';
-export { OpenPlaylistUseCase } from './application/use-cases/open-playlist.use-case.js';
+export { UnlockPlaylistUseCase } from './application/use-cases/unlock-playlist.use-case.js';
+export {
+  DashboardPlaylistsUseCase,
+  type HiddenPlaylist,
+} from './application/use-cases/dashboard-playlists.use-case.js';
+export {
+  PlaylistReplyUseCase,
+  type PlaylistReply,
+} from './application/use-cases/playlist-reply.use-case.js';
+export { PlaylistBrand } from './application/ports/playlist-brand.js';
+export type { PlaylistReplyItem } from './domain/playlist-reply.js';
 export { PLAYLIST_PIN_KEY_SECRET, PlaylistPinKey } from './application/ports/playlist-pin-key.js';
 export type { PlaylistSource } from './domain/playlist-content.js';

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { PlaylistActor } from '../../domain/playlist.js';
 import { err, ok, type Result } from '../../../../shared/kernel/result.js';
 import {
   type PinRequiredError,
@@ -12,13 +13,14 @@ import { PlaylistRepository } from '../ports/playlist.repository.js';
 export interface DeletePlaylistInput {
   deviceId: string;
   playlistId: string;
-  /** The PIN, when the playlist is protected. */
+  /** The dashboard needs the PIN of a protected playlist; the app does not. */
+  by: PlaylistActor;
   pin?: string | null;
 }
 
 /**
- * PL-2: deletes a playlist of the calling device; another device's playlist is not found. A
- * protected playlist needs its PIN (PL-3).
+ * PL-2: deletes a playlist of the calling device; another device's playlist is not found. On the
+ * dashboard a protected playlist needs its PIN (PL-3).
  */
 @Injectable()
 export class DeletePlaylistUseCase {
@@ -35,7 +37,7 @@ export class DeletePlaylistUseCase {
     if (!current || current.deviceId !== input.deviceId) {
       return err(new PlaylistNotFoundError('Playlist not found', { playlistId: input.playlistId }));
     }
-    const allowed = await this.pins.check(current, input.pin);
+    const allowed = await this.pins.check(current, input.pin, input.by);
     if (!allowed.ok) return allowed;
     // Only the call that really deleted it counts it, when two deletes race.
     if (await this.playlists.delete(current.id)) {
