@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Collection } from 'mongodb';
+import { type Collection, MongoServerError } from 'mongodb';
 import { TenantDb } from '../../../shared/tenancy/tenant-db.js';
 import { PlaylistRepository } from '../application/ports/playlist.repository.js';
 import type { Playlist } from '../domain/playlist.js';
@@ -41,13 +41,25 @@ export class MongoPlaylistRepository extends PlaylistRepository {
     return doc ? toPlaylist(doc) : null;
   }
 
-  async insert(playlist: Playlist): Promise<void> {
-    await (await this.collection()).insertOne(toPlaylistDocument(playlist));
+  async insert(playlist: Playlist): Promise<'inserted' | 'duplicate'> {
+    try {
+      await (await this.collection()).insertOne(toPlaylistDocument(playlist));
+      return 'inserted';
+    } catch (error) {
+      if (isDuplicateKey(error)) return 'duplicate';
+      throw error;
+    }
   }
 
-  async update(playlist: Playlist): Promise<boolean> {
+  async update(playlist: Playlist): Promise<'updated' | 'missing' | 'duplicate'> {
     const doc = toPlaylistDocument(playlist);
-    return (await (await this.collection()).replaceOne({ _id: doc._id }, doc)).matchedCount > 0;
+    try {
+      const result = await (await this.collection()).replaceOne({ _id: doc._id }, doc);
+      return result.matchedCount > 0 ? 'updated' : 'missing';
+    } catch (error) {
+      if (isDuplicateKey(error)) return 'duplicate';
+      throw error;
+    }
   }
 
   async delete(id: string): Promise<boolean> {
@@ -57,4 +69,9 @@ export class MongoPlaylistRepository extends PlaylistRepository {
   async deleteByDevice(deviceId: string): Promise<number> {
     return (await (await this.collection()).deleteMany({ deviceId })).deletedCount;
   }
+}
+
+/** The `<type>_once_per_device` indexes refused a second copy of a playlist. */
+function isDuplicateKey(error: unknown): boolean {
+  return error instanceof MongoServerError && error.code === 11000;
 }

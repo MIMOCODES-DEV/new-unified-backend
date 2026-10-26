@@ -158,15 +158,36 @@ describe('Phase 1 device core on MongoDB and Redis', () => {
         const playlists = new MongoPlaylistRepository(new TenantDb(context, registry));
         await playlists.insert(m3u('pl-1', 'device-1'));
 
-        await expect(playlists.insert(m3u('pl-2', 'device-1'))).rejects.toMatchObject({
-          code: 11000,
-        });
-        await expect(playlists.insert(m3u('pl-3', 'device-2'))).resolves.toBeUndefined();
+        await expect(playlists.insert(m3u('pl-2', 'device-1'))).resolves.toBe('duplicate');
+        await expect(playlists.insert(m3u('pl-3', 'device-2'))).resolves.toBe('inserted');
+        // Editing another playlist into a copy of pl-1 is refused the same way.
+        await playlists.insert({ ...m3u('pl-4', 'device-1'), url: 'http://other.example/list' });
+        await expect(
+          playlists.update({ ...m3u('pl-4', 'device-1'), url: m3u('pl-1', 'device-1').url }),
+        ).resolves.toBe('duplicate');
+        await expect(playlists.update(m3u('pl-missing', 'device-1'))).resolves.toBe('missing');
       });
     });
   });
 
   describe('repositories (SCH-2)', () => {
+    it('counts playlists on a trial device in one write each, never below 0', async () => {
+      const device = trialDevice({ id: 'count-1', macAddress: '10:00:00:00:00:21' });
+      const at = new Date('2026-10-26T10:00:00Z');
+      await context.run(A, async () => {
+        await trials.insert(device);
+        // Five adds at once all count.
+        await Promise.all([1, 2, 3, 4, 5].map(() => trials.changePlaylistCount('count-1', 1, at)));
+        await trials.changePlaylistCount('count-1', -9, new Date(at.getTime() + 1000));
+
+        expect(await trials.findById('count-1')).toMatchObject({
+          playlistCount: 0,
+          firstPlaylistAt: at,
+        });
+        expect(await trials.changePlaylistCount('nobody', 1, at)).toBe(false);
+      });
+    });
+
     it('keeps each brand to its own database', async () => {
       const device = trialDevice({
         id: 'iso-1',

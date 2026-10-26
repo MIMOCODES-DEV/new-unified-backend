@@ -18,4 +18,9 @@ export abstract class TrialDeviceRepository {
   abstract update(device: TrialDevice): Promise<boolean>;
   /** False when it was already gone. */
   abstract delete(id: string): Promise<boolean>;
+  /**
+   * Adds `delta` to playlistCount (never below 0) in one write; a positive delta also sets
+   * firstPlaylistAt when it is still empty. False when the device is not a trial device.
+   */
+  abstract changePlaylistCount(id: string, delta: number, at: Date): Promise<boolean>;
 }

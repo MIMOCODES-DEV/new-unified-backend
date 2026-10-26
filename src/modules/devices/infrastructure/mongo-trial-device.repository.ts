@@ -80,6 +80,22 @@ export class MongoTrialDeviceRepository extends TrialDeviceRepository {
     return (await (await this.collection()).replaceOne({ _id: doc._id }, doc)).matchedCount > 0;
   }
 
+  async changePlaylistCount(id: string, delta: number, at: Date): Promise<boolean> {
+    // One pipeline update, so two playlists added at once both count.
+    const result = await (
+      await this.collection()
+    ).updateOne({ _id: id }, [
+      {
+        $set: {
+          playlistCount: { $max: [0, { $add: ['$playlistCount', delta] }] },
+          firstPlaylistAt: delta > 0 ? { $ifNull: ['$firstPlaylistAt', at] } : '$firstPlaylistAt',
+          updatedAt: at,
+        },
+      },
+    ]);
+    return result.matchedCount > 0;
+  }
+
   async delete(id: string): Promise<boolean> {
     return (await (await this.collection()).deleteOne({ _id: id })).deletedCount > 0;
   }

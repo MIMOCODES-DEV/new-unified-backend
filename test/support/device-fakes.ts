@@ -133,6 +133,18 @@ export class InMemoryTrialDeviceRepository implements TrialDeviceRepository {
     await tick();
     return this.items.delete(id);
   }
+  async changePlaylistCount(id: string, delta: number, at: Date): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    this.items.set(id, {
+      ...device,
+      playlistCount: Math.max(0, device.playlistCount + delta),
+      firstPlaylistAt: delta > 0 ? (device.firstPlaylistAt ?? at) : device.firstPlaylistAt,
+      updatedAt: at,
+    });
+    return true;
+  }
 }
 
 export class InMemoryPaidDeviceRepository implements PaidDeviceRepository {

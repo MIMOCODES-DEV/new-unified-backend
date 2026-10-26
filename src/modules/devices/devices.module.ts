@@ -20,6 +20,7 @@ import { IssueCaptchaUseCase } from './application/use-cases/issue-captcha.use-c
 import { IssueUidRecoveryCaptchaUseCase } from './application/use-cases/issue-uid-recovery-captcha.use-case.js';
 import { LoginV4DeviceUseCase } from './application/use-cases/login-v4-device.use-case.js';
 import { FindDeviceUseCase } from './application/use-cases/find-device.use-case.js';
+import { ChangePlaylistCountUseCase } from './application/use-cases/change-playlist-count.use-case.js';
 import { ChangeDeviceKeyUseCase } from './application/use-cases/change-device-key.use-case.js';
 import { RegisterDeviceUseCase } from './application/use-cases/register-device.use-case.js';
 import { SetParentPinUseCase } from './application/use-cases/set-parent-pin.use-case.js';
@@ -34,6 +35,7 @@ import { SvgCaptchaImage } from './infrastructure/svg-captcha.image.js';
 const useCases = [
   RegisterDeviceUseCase,
   FindDeviceUseCase,
+  ChangePlaylistCountUseCase,
   ChangeDeviceKeyUseCase,
   VerifyDeviceKeyUseCase,
   SetParentPinUseCase,
