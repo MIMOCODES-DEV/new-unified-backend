@@ -9,6 +9,9 @@ export { DeletePlaylistUseCase } from './application/use-cases/delete-playlist.u
 export { ListPlaylistsUseCase } from './application/use-cases/list-playlists.use-case.js';
 export { SyncPlaylistsUseCase } from './application/use-cases/sync-playlists.use-case.js';
 export { SetPlaylistPinUseCase } from './application/use-cases/set-playlist-pin.use-case.js';
+export { AddPlaylistByMacUseCase } from './application/use-cases/add-playlist-by-mac.use-case.js';
+export { DeletePlaylistsByMacUseCase } from './application/use-cases/delete-playlists-by-mac.use-case.js';
+export { MacOnlyRateLimit } from './application/ports/mac-only-rate-limit.js';
 export { SetPlaylistBackupUseCase } from './application/use-cases/set-playlist-backup.use-case.js';
 export { UnlockPlaylistUseCase } from './application/use-cases/unlock-playlist.use-case.js';
 export {

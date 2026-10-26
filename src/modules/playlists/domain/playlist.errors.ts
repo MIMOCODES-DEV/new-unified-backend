@@ -34,3 +34,8 @@ export class PinRequiredError extends DomainError {
 export class WrongPinError extends DomainError {
   readonly code = 'playlists.wrong_pin';
 }
+
+/** Too many calls from one IP; `details.retryAfterMs` says when to try again. */
+export class TooManyRequestsError extends DomainError {
+  readonly code = 'playlists.too_many_requests';
+}
