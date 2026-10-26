@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ClsModule } from 'nestjs-cls';
+import { DevHttpModule } from './interfaces/http/dev/dev-http.module.js';
 import { HealthModule } from './interfaces/http/health/health.module.js';
 import { TenantHttpModule } from './interfaces/http/tenant/tenant-http.module.js';
 import { DomainMigrationsModule } from './modules/domain-migrations/index.js';
@@ -26,6 +27,8 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     RedisModule,
     HealthModule,
     TenantHttpModule,
+    // Dev-only routes to try the device rules (404 in production).
+    DevHttpModule,
     DevicesWithBrandConfig,
     LicensingModule,
     PlaylistsModule,

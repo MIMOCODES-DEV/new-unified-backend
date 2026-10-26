@@ -25,7 +25,7 @@ export class IssueUidRecoveryCaptchaUseCase {
 
   async execute(
     input: IssueUidRecoveryCaptchaInput,
-  ): Promise<Result<{ token: string; svg: string }, DeviceNotFoundError>> {
+  ): Promise<Result<{ token: string; svg: string; text: string }, DeviceNotFoundError>> {
     const found = await this.identity.findByMac(input.mac);
     const uid = found?.device.uid;
     if (!uid) {
@@ -40,6 +40,7 @@ export class IssueUidRecoveryCaptchaUseCase {
       appDeviceId: null,
       platform: input.platform,
     });
-    return ok({ token, svg: this.image.draw(uid) });
+    // `text` is for dev tooling only; an app route never sends it.
+    return ok({ token, svg: this.image.draw(uid), text: uid });
   }
 }

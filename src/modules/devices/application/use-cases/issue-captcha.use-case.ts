@@ -21,7 +21,10 @@ export class IssueCaptchaUseCase {
     private readonly image: CaptchaImage,
   ) {}
 
-  async execute(input: IssueCaptchaInput): Promise<{ token: string; svg: string }> {
+  /**
+   * `text` is the answer, for dev tooling only: an app route sends `token` and `svg`, never `text`.
+   */
+  async execute(input: IssueCaptchaInput): Promise<{ token: string; svg: string; text: string }> {
     const { text, svg } = this.image.random(input.length);
     const { token } = await this.captchas.issue({
       kind: input.kind,
@@ -30,6 +33,6 @@ export class IssueCaptchaUseCase {
       appDeviceId: input.appDeviceId,
       platform: input.platform,
     });
-    return { token, svg };
+    return { token, svg, text };
   }
 }

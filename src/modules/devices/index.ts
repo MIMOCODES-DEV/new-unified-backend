@@ -2,5 +2,15 @@
 // Use cases and types are exported here as the Devices feature adds callers for them.
 export { DevicesModule, type DevicesModuleOptions } from './devices.module.js';
 export { DeviceSettings } from './application/ports/device-settings.js';
+export { API_VERSIONS, PLATFORMS, type ApiVersion, type Platform } from './domain/device.js';
+export { RegisterDeviceUseCase } from './application/use-cases/register-device.use-case.js';
+export { FindDeviceUseCase } from './application/use-cases/find-device.use-case.js';
+export { IssueCaptchaUseCase } from './application/use-cases/issue-captcha.use-case.js';
+export { IssueUidRecoveryCaptchaUseCase } from './application/use-cases/issue-uid-recovery-captcha.use-case.js';
+export { LoginV4DeviceUseCase } from './application/use-cases/login-v4-device.use-case.js';
+export { CheckCaptchaCodeUseCase } from './application/use-cases/check-captcha-code.use-case.js';
+export { VerifyDeviceKeyUseCase } from './application/use-cases/verify-device-key.use-case.js';
+export { ChangeDeviceKeyUseCase } from './application/use-cases/change-device-key.use-case.js';
+export { SetParentPinUseCase } from './application/use-cases/set-parent-pin.use-case.js';
 export { SeedDeviceExamples } from './application/seed-device-examples.js';
 export { devicesMigrations } from './infrastructure/devices.migrations.js';
