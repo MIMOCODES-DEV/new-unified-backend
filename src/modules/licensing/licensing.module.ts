@@ -10,9 +10,17 @@ import { LicenseRepository } from './application/ports/license.repository.js';
 import { LicensedDevices } from './application/ports/licensed-devices.js';
 import { SeedLicenseExamples } from './application/seed-license-examples.js';
 import { ActivateLicenseUseCase } from './application/use-cases/activate-license.use-case.js';
+import { DeviceLicenseUseCase } from './application/use-cases/device-license.use-case.js';
+import { LicenseHistoryUseCase } from './application/use-cases/license-history.use-case.js';
+import { RevokeLicenseUseCase } from './application/use-cases/revoke-license.use-case.js';
 import { MongoLicenseRepository } from './infrastructure/mongo-license.repository.js';
 
-const useCases = [ActivateLicenseUseCase];
+const useCases = [
+  ActivateLicenseUseCase,
+  RevokeLicenseUseCase,
+  DeviceLicenseUseCase,
+  LicenseHistoryUseCase,
+];
 
 export interface LicensingModuleOptions {
   /** Modules the factories need. */

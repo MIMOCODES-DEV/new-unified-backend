@@ -1,4 +1,16 @@
+import { DeviceIdentity } from '../../src/modules/devices/application/device-identity.js';
+import { ApplyLicenseUseCase } from '../../src/modules/devices/application/use-cases/apply-license.use-case.js';
+import { FindDeviceByIdUseCase } from '../../src/modules/devices/application/use-cases/find-device-by-id.use-case.js';
 import type { LicenseLock } from '../../src/modules/licensing/application/ports/license-lock.js';
+import {
+  LicensedDevices,
+  type PaidBy,
+} from '../../src/modules/licensing/application/ports/licensed-devices.js';
+import {
+  type InMemoryPaidDeviceRepository,
+  type InMemoryTrialDeviceRepository,
+  InProcessDeviceLock,
+} from './device-fakes.js';
 import type { LicenseRepository } from '../../src/modules/licensing/application/ports/license.repository.js';
 import type { License } from '../../src/modules/licensing/domain/license.js';
 
@@ -57,4 +69,39 @@ export class InProcessLicenseLock implements LicenseLock {
     );
     return result;
   }
+}
+
+/**
+ * Licensing connected to the real devices use cases on in-memory repositories, bound the way
+ * src/module-settings.ts binds them, so a trial device really moves to devices.
+ */
+export function devicesForLicensing(
+  trials: InMemoryTrialDeviceRepository,
+  paid: InMemoryPaidDeviceRepository,
+): LicensedDevices {
+  const identity = new DeviceIdentity(trials, paid, new InProcessDeviceLock());
+  const findDevice = new FindDeviceByIdUseCase(identity);
+  const applyLicense = new ApplyLicenseUseCase(identity, paid);
+  return new (class extends LicensedDevices {
+    async find(deviceId: string) {
+      const found = await findDevice.execute(deviceId);
+      if (!found.ok) return null;
+      const { paid: isPaid, device } = found.value;
+      return isPaid
+        ? {
+            id: device.id,
+            paid: true,
+            trialEndsAt: null,
+            currentLicenseId: device.currentLicenseId,
+          }
+        : { id: device.id, paid: false, trialEndsAt: device.trialEndsAt, currentLicenseId: null };
+    }
+    async markPaid(deviceId: string, paidBy: PaidBy) {
+      const applied = await applyLicense.execute({ deviceId, ...paidBy });
+      if (applied.ok) return 'done' as const;
+      return applied.error.code === 'devices.not_found'
+        ? ('not_found' as const)
+        : ('conflict' as const);
+    }
+  })();
 }

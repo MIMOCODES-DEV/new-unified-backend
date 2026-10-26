@@ -2,19 +2,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   InMemoryPaidDeviceRepository,
   InMemoryTrialDeviceRepository,
-  InProcessDeviceLock,
   paidDevice,
   trialDevice,
 } from '../../../../../test/support/device-fakes.js';
 import {
+  devicesForLicensing,
   InMemoryLicenseRepository,
   InProcessLicenseLock,
 } from '../../../../../test/support/license-fakes.js';
-import { DeviceIdentity } from '../../../devices/application/device-identity.js';
-import { ApplyLicenseUseCase } from '../../../devices/application/use-cases/apply-license.use-case.js';
-import { FindDeviceByIdUseCase } from '../../../devices/application/use-cases/find-device-by-id.use-case.js';
 import { FixedClock } from '../../../../shared/kernel/clock.js';
-import { LicensedDevices } from '../ports/licensed-devices.js';
 import { type ActivateLicenseInput, ActivateLicenseUseCase } from './activate-license.use-case.js';
 
 const now = new Date('2026-10-26T10:00:00Z');
@@ -30,32 +26,7 @@ describe('ActivateLicenseUseCase (LIC-2)', () => {
     trials = new InMemoryTrialDeviceRepository();
     paid = new InMemoryPaidDeviceRepository();
     licenses = new InMemoryLicenseRepository();
-    // The real devices use cases on in-memory repositories, bound as the process root binds them.
-    const identity = new DeviceIdentity(trials, paid, new InProcessDeviceLock());
-    const findDevice = new FindDeviceByIdUseCase(identity);
-    const applyLicense = new ApplyLicenseUseCase(identity, paid);
-    const devices = new (class extends LicensedDevices {
-      async find(deviceId: string) {
-        const found = await findDevice.execute(deviceId);
-        if (!found.ok) return null;
-        const { paid: isPaid, device } = found.value;
-        return isPaid
-          ? {
-              id: device.id,
-              paid: true,
-              trialEndsAt: null,
-              currentLicenseId: device.currentLicenseId,
-            }
-          : { id: device.id, paid: false, trialEndsAt: device.trialEndsAt, currentLicenseId: null };
-      }
-      async markPaid(deviceId: string, paidBy: Parameters<LicensedDevices['markPaid']>[1]) {
-        const applied = await applyLicense.execute({ deviceId, ...paidBy });
-        if (applied.ok) return 'done' as const;
-        return applied.error.code === 'devices.not_found'
-          ? ('not_found' as const)
-          : ('conflict' as const);
-      }
-    })();
+    const devices = devicesForLicensing(trials, paid);
     activate = new ActivateLicenseUseCase(
       licenses,
       devices,

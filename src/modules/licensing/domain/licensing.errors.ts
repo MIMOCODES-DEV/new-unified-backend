@@ -14,3 +14,12 @@ export class LicensedDeviceNotFoundError extends DomainError {
 export class DeviceConflictError extends DomainError {
   readonly code = 'licensing.device_conflict';
 }
+
+/** A trial device has no license to revoke. */
+export class NoLicenseError extends DomainError {
+  readonly code = 'licensing.no_license';
+}
+
+export class AlreadyRevokedError extends DomainError {
+  readonly code = 'licensing.already_revoked';
+}
