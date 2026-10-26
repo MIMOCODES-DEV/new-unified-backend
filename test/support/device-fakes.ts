@@ -2,6 +2,7 @@ import type { DeviceLock } from '../../src/modules/devices/application/ports/dev
 import type { PaidDeviceRepository } from '../../src/modules/devices/application/ports/paid-device.repository.js';
 import type { TrialDeviceRepository } from '../../src/modules/devices/application/ports/trial-device.repository.js';
 import type {
+  DeviceSettingsChange,
   DeviceVisit,
   PaidDevice,
   TrialDevice,
@@ -112,6 +113,13 @@ export class InMemoryTrialDeviceRepository implements TrialDeviceRepository {
     this.items.set(id, { ...device, ...rest, lastSeenAt: at, updatedAt: at });
     return true;
   }
+  async changeSettings(id: string, change: DeviceSettingsChange): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    this.items.set(id, { ...device, ...change });
+    return true;
+  }
   async update(device: TrialDevice): Promise<boolean> {
     await tick();
     if (!this.items.has(device.id)) return false;
@@ -166,6 +174,13 @@ export class InMemoryPaidDeviceRepository implements PaidDeviceRepository {
     if (!device) return false;
     const { at, ...rest } = visit;
     this.items.set(id, { ...device, ...rest, lastSeenAt: at, updatedAt: at });
+    return true;
+  }
+  async changeSettings(id: string, change: DeviceSettingsChange): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    this.items.set(id, { ...device, ...change });
     return true;
   }
   async update(device: PaidDevice): Promise<boolean> {

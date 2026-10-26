@@ -12,6 +12,7 @@ import type {
   TrialDevice,
 } from '../../domain/device.js';
 import { isUsableMac, madeUpMac } from '../../domain/device-mac.js';
+import { DEFAULT_PARENT_PIN } from '../../domain/owner-settings.js';
 import { DeviceIdMissingError, PlatformMismatchError } from '../../domain/device.errors.js';
 import { trialEndsAt } from '../../domain/trial.js';
 import { DeviceIdentity } from '../device-identity.js';
@@ -145,7 +146,7 @@ export class RegisterDeviceUseCase {
       deviceKey: this.keys.next(),
       uid: input.uid,
       stalkerEnabled: false,
-      parentPin: null,
+      parentPin: DEFAULT_PARENT_PIN,
       apiVersion: input.apiVersion,
       appVersion: input.appVersion,
       ip: input.ip,

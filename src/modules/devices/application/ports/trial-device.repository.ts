@@ -1,5 +1,5 @@
 import type { MacAddress } from '../../../../shared/kernel/mac-address.js';
-import type { DeviceVisit, TrialDevice } from '../../domain/device.js';
+import type { DeviceSettingsChange, DeviceVisit, TrialDevice } from '../../domain/device.js';
 
 /** The current brand's `trialDevices`: devices that never paid. */
 export abstract class TrialDeviceRepository {
@@ -12,6 +12,8 @@ export abstract class TrialDeviceRepository {
   abstract insert(device: TrialDevice): Promise<void>;
   /** Sets platform, lastSeenAt, ip, appVersion and apiVersion only; false when it is not there. */
   abstract recordVisit(id: string, visit: DeviceVisit): Promise<boolean>;
+  /** Sets the given owner fields only; false when it is not there. */
+  abstract changeSettings(id: string, change: DeviceSettingsChange): Promise<boolean>;
   /** Replaces the stored device; false when it is not there. */
   abstract update(device: TrialDevice): Promise<boolean>;
   /** False when it was already gone. */

@@ -13,16 +13,26 @@ import { DeviceSettings } from './application/ports/device-settings.js';
 import { PaidDeviceRepository } from './application/ports/paid-device.repository.js';
 import { TrialDeviceRepository } from './application/ports/trial-device.repository.js';
 import { SeedDeviceExamples } from './application/seed-device-examples.js';
+import { ChangeDeviceKeyUseCase } from './application/use-cases/change-device-key.use-case.js';
 import { RegisterDeviceUseCase } from './application/use-cases/register-device.use-case.js';
+import { SetParentPinUseCase } from './application/use-cases/set-parent-pin.use-case.js';
+import { VerifyDeviceKeyUseCase } from './application/use-cases/verify-device-key.use-case.js';
 import { MongoCaptchaRepository } from './infrastructure/mongo-captcha.repository.js';
 import { MongoPaidDeviceRepository } from './infrastructure/mongo-paid-device.repository.js';
 import { MongoTrialDeviceRepository } from './infrastructure/mongo-trial-device.repository.js';
 import { RandomDeviceKeyGenerator } from './infrastructure/random-device-key.generator.js';
 import { RedisDeviceLock } from './infrastructure/redis-device-lock.js';
 
+const useCases = [
+  RegisterDeviceUseCase,
+  ChangeDeviceKeyUseCase,
+  VerifyDeviceKeyUseCase,
+  SetParentPinUseCase,
+];
+
 const providers = [
   DeviceIdentity,
-  RegisterDeviceUseCase,
+  ...useCases,
   SeedDeviceExamples,
   { provide: Clock, useClass: SystemClock },
   { provide: TrialDeviceRepository, useClass: MongoTrialDeviceRepository },
@@ -51,7 +61,7 @@ export class DevicesModule {
       module: DevicesModule,
       imports: options.imports,
       providers: [...providers, { provide: DeviceSettings, ...options.settings }],
-      exports: [DeviceIdentity, RegisterDeviceUseCase, SeedDeviceExamples],
+      exports: [DeviceIdentity, ...useCases, SeedDeviceExamples],
     };
   }
 }

@@ -3,7 +3,7 @@ import type { Collection, Filter } from 'mongodb';
 import type { MacAddress } from '../../../shared/kernel/mac-address.js';
 import { TenantDb } from '../../../shared/tenancy/tenant-db.js';
 import { PaidDeviceRepository } from '../application/ports/paid-device.repository.js';
-import type { DeviceVisit, PaidDevice } from '../domain/device.js';
+import type { DeviceSettingsChange, DeviceVisit, PaidDevice } from '../domain/device.js';
 import {
   PAID_DEVICES_COLLECTION,
   toPaidDevice,
@@ -67,6 +67,11 @@ export class MongoPaidDeviceRepository extends PaidDeviceRepository {
         },
       },
     );
+    return result.matchedCount > 0;
+  }
+
+  async changeSettings(id: string, change: DeviceSettingsChange): Promise<boolean> {
+    const result = await (await this.collection()).updateOne({ _id: id }, { $set: { ...change } });
     return result.matchedCount > 0;
   }
 

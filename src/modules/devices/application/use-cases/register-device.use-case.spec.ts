@@ -93,7 +93,7 @@ describe('RegisterDeviceUseCase (DEV-1, DEV-2)', () => {
       trialEndsAt: new Date('2026-11-02T23:59:59.999Z'),
       playlistCount: 0,
       firstPlaylistAt: null,
-      parentPin: null,
+      parentPin: '0000',
       ip: '198.51.100.20',
       appVersion: '1.2.0',
     });

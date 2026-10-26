@@ -49,7 +49,10 @@ export interface DeviceBase {
   readonly uid: string | null;
   /** Turns Stalker portals on for this device. */
   readonly stalkerEnabled: boolean;
-  /** Kept as entered, not hashed: the apps get it back and check it themselves. */
+  /**
+   * Parental control: the PIN when it is on, null when it is off. Kept as entered, not hashed: the
+   * apps get it back and check it themselves. New devices start on, with `0000`.
+   */
   readonly parentPin: string | null;
   readonly apiVersion: ApiVersion;
   readonly appVersion: string | null;
@@ -111,6 +114,13 @@ export interface DeviceVisit {
   readonly appVersion: string | null;
   readonly apiVersion: ApiVersion;
   readonly at: Date;
+}
+
+/** Fields a device's owner can change; only the ones given are written. */
+export interface DeviceSettingsChange {
+  readonly deviceKey?: string;
+  readonly parentPin?: string | null;
+  readonly updatedAt: Date;
 }
 
 /** A device looked up by MAC (or id): which collection it is in decides whether it ever paid. */
