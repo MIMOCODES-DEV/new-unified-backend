@@ -21,6 +21,11 @@ describe('parseXtreamUrl', () => {
     ['https://line.example/play/list?username=u1&password=p1', 'https://line.example/'],
     ['http://line.example/panel/playlist?USERNAME=u1&Password=p1', 'http://line.example/panel/'],
     ['http://line.example/get.php/?username=u1&password=p1', 'http://line.example/'],
+    [
+      'http://79.143.180.88:25461//player_api.php?username=u1&password=p1',
+      'http://79.143.180.88:25461/',
+    ],
+    ['http://line.example/panel//get.php?username=u1&password=p1', 'http://line.example/panel/'],
   ])('reads %s', (link, server) => {
     expect(parseXtreamUrl(link)).toEqual({ server, username: 'u1', password: 'p1' });
   });
