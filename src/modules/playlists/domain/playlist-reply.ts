@@ -1,5 +1,5 @@
 import { backupUrls } from './backup-hosts.js';
-import type { Playlist, PlaylistProvider, StalkerPortal } from './playlist.js';
+import type { Playlist, PlaylistAccount, PlaylistProvider, StalkerPortal } from './playlist.js';
 import { playlistContent } from './playlist-content.js';
 import { xtreamPlaylistUrl } from './xtream-url.js';
 
@@ -28,6 +28,8 @@ export interface PlaylistReplyItem {
   readonly stalker: StalkerPortal | null;
   readonly code: string | null;
   readonly provider: PlaylistProvider | null;
+  /** The account status the app last reported (cr sends it back as status / expiration_date). */
+  readonly account: PlaylistAccount | null;
   /** cr's `backup_urls`: the link with its host swapped for each backup; empty when turned off. */
   readonly backupUrls: readonly string[];
   readonly demo: boolean;
@@ -53,6 +55,7 @@ function shapeLinks(
     epgUrl: playlist.epgUrl,
     protected: playlist.protected,
     provider: playlist.provider,
+    account: playlist.account,
     demo: false,
   };
   switch (playlist.type) {
@@ -92,6 +95,7 @@ export function demoPlaylist(demoUrl: string, profile: ReplyProfile): PlaylistRe
       deviceId: '',
       name: 'Demo',
       ...content.value,
+      account: null,
       epgUrl: null,
       backup: { enabled: false, hosts: [] },
       protected: false,

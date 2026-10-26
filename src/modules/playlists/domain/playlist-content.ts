@@ -105,7 +105,7 @@ export function playlistContent(
     case 'code': {
       const code = source.code.trim();
       if (!/^\d{1,32}$/.test(code)) return invalid('code', 'A playlist code is digits only');
-      return ok({ ...empty, type: 'code', code: { code, expiresAt: null, status: null } });
+      return ok({ ...empty, type: 'code', code: { code } });
     }
   }
 }

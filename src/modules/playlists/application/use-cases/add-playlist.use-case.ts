@@ -64,6 +64,7 @@ export class AddPlaylistUseCase {
       deviceId: input.deviceId,
       name: name.value,
       ...content.value,
+      account: null,
       epgUrl: epg.value,
       backup: { enabled: false, hosts: [] },
       protected: pin !== null,

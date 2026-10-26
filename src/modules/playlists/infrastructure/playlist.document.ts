@@ -36,11 +36,12 @@ export const playlistDocumentSchema = z
         mac: z.string().nullable(),
       })
       .nullable(),
-    code: z
+    code: z.object({ code: z.string().regex(/^\d+$/) }).nullable(),
+    account: z
       .object({
-        code: z.string().regex(/^\d+$/),
-        expiresAt: z.date().nullable(),
         status: z.string().nullable(),
+        expiresAt: z.date().nullable(),
+        checkedAt: z.date(),
       })
       .nullable(),
     epgUrl: z.string().nullable(),

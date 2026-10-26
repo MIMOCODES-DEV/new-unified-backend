@@ -111,7 +111,7 @@ describe('playlistContent (PL-1)', () => {
       url: null,
       xtream: null,
       stalker: null,
-      code: { code: '482915', expiresAt: null, status: null },
+      code: { code: '482915' },
     });
   });
 

@@ -15,6 +15,7 @@ function playlist(overrides: Partial<Playlist>): Playlist {
     xtream: null,
     stalker: null,
     code: null,
+    account: null,
     epgUrl: null,
     backup: { enabled: false, hosts: [] },
     protected: false,
@@ -35,7 +36,7 @@ const stalker = {
   fallbackUrl: null,
   mac: '00:1a:79:00:00:01',
 };
-const code = { code: '123456789', expiresAt: null, status: null };
+const code = { code: '123456789' };
 
 describe('playlist documents', () => {
   it.each([

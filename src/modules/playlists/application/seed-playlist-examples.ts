@@ -34,6 +34,7 @@ function playlistExamples(now: Date): Playlist[] {
     xtream: null,
     stalker: null,
     code: null,
+    account: null,
     epgUrl: null,
     backup: { enabled: false, hosts: [] },
     protected: false,
@@ -91,7 +92,8 @@ function playlistExamples(now: Date): Playlist[] {
       deviceId: 'example-paid-yearly',
       name: 'Example provider code',
       type: 'code',
-      code: { code: '123456789', expiresAt: new Date(now.getTime() + 30 * DAY), status: 'active' },
+      code: { code: '123456789' },
+      account: { status: 'Active', expiresAt: new Date(now.getTime() + 30 * DAY), checkedAt: now },
     }),
     playlist({
       id: 'example-playlist-lifetime',

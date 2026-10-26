@@ -38,6 +38,7 @@ function stored(source: PlaylistSource, overrides: Partial<Playlist> = {}): Play
     deviceId: 'device-1',
     name: `List ${n}`,
     ...content.value,
+    account: null,
     epgUrl: null,
     backup: { enabled: false, hosts: [] },
     protected: false,
@@ -202,6 +203,17 @@ describe('PlaylistReplyUseCase (PL-4)', () => {
       expect(app).toMatchObject({ protected: true });
       expect(app).not.toHaveProperty('pin');
       expect(roku).toMatchObject({ protected: true, pin: '4321' });
+    });
+
+    it('returns the account status the app last reported', async () => {
+      const account = {
+        status: 'Active',
+        expiresAt: new Date('2027-01-01T00:00:00Z'),
+        checkedAt: new Date('2026-10-26T10:00:00Z'),
+      };
+      await playlists.insert(stored({ kind: 'link', url: XTREAM }, { account }));
+
+      expect((await ask()).playlists[0]?.account).toEqual(account);
     });
 
     it('returns the provider branding with the playlist', async () => {

@@ -20,44 +20,77 @@ const sameOnceIndexes: IndexDescription[] = PLAYLIST_TYPES.map((type) => ({
   partialFilterExpression: { type },
 }));
 
+/** The current shape of a playlists row, for the validator. */
+const playlistsSchema = () =>
+  bson.object({
+    _id: bson.string(),
+    deviceId: bson.string(),
+    name: bson.string(),
+    type: bson.enum(PLAYLIST_TYPES),
+    url: nullableString(),
+    xtream: bson.nullable(bson.anyObject()),
+    stalker: bson.nullable(bson.anyObject()),
+    code: bson.nullable(bson.anyObject()),
+    account: bson.nullable(bson.anyObject()),
+    epgUrl: nullableString(),
+    backup: bson.object({ enabled: bson.bool(), hosts: bson.array(bson.string()) }),
+    protected: bson.bool(),
+    pinEnc: nullableString(),
+    provider: bson.nullable(bson.anyObject()),
+    addedBy: bson.object({ via: bson.enum(ADDED_VIA), resellerId: nullableString() }),
+    legacy: bson.nullable(bson.anyObject()),
+    createdAt: bson.date(),
+    updatedAt: bson.date(),
+  });
+
+const playlistsIndexes: IndexDescription[] = [
+  // Every playlist read is by device (the old backends scanned the whole collection).
+  { key: { deviceId: 1, createdAt: 1 }, name: 'device' },
+  ...sameOnceIndexes,
+  {
+    key: { 'legacy.id': 1 },
+    name: 'legacy_id',
+    partialFilterExpression: { 'legacy.id': { $type: 'string' } },
+  },
+];
+
 /** Brand-database migrations owned by the playlists module. */
 export const playlistsMigrations: readonly Migration[] = [
   {
     id: '0005-playlists',
     description: 'playlists: one collection for m3u, xtream, stalker and code playlists',
-    up: (db) =>
-      ensureCollection(
-        db,
-        PLAYLISTS_COLLECTION,
-        bson.object({
-          _id: bson.string(),
-          deviceId: bson.string(),
-          name: bson.string(),
-          type: bson.enum(PLAYLIST_TYPES),
-          url: nullableString(),
-          xtream: bson.nullable(bson.anyObject()),
-          stalker: bson.nullable(bson.anyObject()),
-          code: bson.nullable(bson.anyObject()),
-          epgUrl: nullableString(),
-          backup: bson.object({ enabled: bson.bool(), hosts: bson.array(bson.string()) }),
-          protected: bson.bool(),
-          pinEnc: nullableString(),
-          provider: bson.nullable(bson.anyObject()),
-          addedBy: bson.object({ via: bson.enum(ADDED_VIA), resellerId: nullableString() }),
-          legacy: bson.nullable(bson.anyObject()),
-          createdAt: bson.date(),
-          updatedAt: bson.date(),
-        }),
+    up: (db) => ensureCollection(db, PLAYLISTS_COLLECTION, playlistsSchema(), playlistsIndexes),
+  },
+  {
+    id: '0006-playlist-account',
+    description:
+      'playlists: the provider account status moves from code to account, for every playlist type',
+    up: async (db) => {
+      const playlists = db.collection(PLAYLISTS_COLLECTION);
+      // A code playlist that had a status or expiry keeps it, as its account.
+      await playlists.updateMany(
+        {
+          type: 'code',
+          $or: [{ 'code.status': { $type: 'string' } }, { 'code.expiresAt': { $type: 'date' } }],
+        },
         [
-          // Every playlist read is by device (the old backends scanned the whole collection).
-          { key: { deviceId: 1, createdAt: 1 }, name: 'device' },
-          ...sameOnceIndexes,
           {
-            key: { 'legacy.id': 1 },
-            name: 'legacy_id',
-            partialFilterExpression: { 'legacy.id': { $type: 'string' } },
+            $set: {
+              account: {
+                status: { $ifNull: ['$code.status', null] },
+                expiresAt: { $ifNull: ['$code.expiresAt', null] },
+                checkedAt: '$updatedAt',
+              },
+            },
           },
         ],
-      ),
+      );
+      await playlists.updateMany({ account: { $exists: false } }, { $set: { account: null } });
+      await playlists.updateMany(
+        { type: 'code' },
+        { $unset: { 'code.status': '', 'code.expiresAt': '' } },
+      );
+      await ensureCollection(db, PLAYLISTS_COLLECTION, playlistsSchema(), playlistsIndexes);
+    },
   },
 ];

@@ -52,6 +52,7 @@ function m3u(id: string, deviceId: string): Playlist {
     xtream: null,
     stalker: null,
     code: null,
+    account: null,
     epgUrl: null,
     backup: { enabled: false, hosts: [] },
     protected: false,

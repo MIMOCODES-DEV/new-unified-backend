@@ -27,11 +27,22 @@ export interface StalkerPortal {
   readonly mac: string | null;
 }
 
-/** A provider code (digits) typed instead of a link; CRPlayer reports expiresAt and status back. */
+/** A provider code (digits) typed instead of a link. */
 export interface ProviderCode {
   readonly code: string;
-  readonly expiresAt: Date | null;
+}
+
+/**
+ * What the provider said about the account behind a playlist, as the app last reported it
+ * (any type: Xtream `user_info`, a code's status). The dashboard can show "expires on …".
+ */
+export interface PlaylistAccount {
+  /** e.g. `Active`, `Expired`, `Banned`; null when the provider gave none. */
   readonly status: string | null;
+  /** null: the account never ends, or the provider did not say. */
+  readonly expiresAt: Date | null;
+  /** When the app reported it. */
+  readonly checkedAt: Date;
 }
 
 /** Hosts that replace the host of url when it is down; kept when turned off. */
@@ -68,6 +79,8 @@ export interface Playlist {
   readonly xtream: XtreamLogin | null;
   readonly stalker: StalkerPortal | null;
   readonly code: ProviderCode | null;
+  /** Null until the app reports the account status (PL-7). */
+  readonly account: PlaylistAccount | null;
   readonly epgUrl: string | null;
   readonly backup: PlaylistBackup;
   /** Opening it needs the PIN. */
