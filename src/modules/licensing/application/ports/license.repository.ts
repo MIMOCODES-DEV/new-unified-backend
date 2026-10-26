@@ -10,4 +10,6 @@ export abstract class LicenseRepository {
   abstract insert(license: License): Promise<void>;
   /** Replaces the stored license; false when it is not there. */
   abstract update(license: License): Promise<boolean>;
+  /** Only to undo an activation that could not finish. False when it was already gone. */
+  abstract delete(id: string): Promise<boolean>;
 }

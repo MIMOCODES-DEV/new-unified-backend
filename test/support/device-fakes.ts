@@ -150,6 +150,24 @@ export class InMemoryTrialDeviceRepository implements TrialDeviceRepository {
 export class InMemoryPaidDeviceRepository implements PaidDeviceRepository {
   readonly items = new Map<string, PaidDevice>();
 
+  async setCurrentLicense(
+    id: string,
+    licenseId: string,
+    resellerId: string | null,
+    at: Date,
+  ): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    this.items.set(id, {
+      ...device,
+      currentLicenseId: licenseId,
+      resellerId: resellerId ?? device.resellerId,
+      updatedAt: at,
+    });
+    return true;
+  }
+
   private async find(match: (d: PaidDevice) => boolean): Promise<PaidDevice | null> {
     await tick();
     return [...this.items.values()].find(match) ?? null;

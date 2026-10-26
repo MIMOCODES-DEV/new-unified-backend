@@ -16,4 +16,14 @@ export abstract class PaidDeviceRepository {
   abstract changeSettings(id: string, change: DeviceSettingsChange): Promise<boolean>;
   /** Replaces the stored device; false when it is not there. */
   abstract update(device: PaidDevice): Promise<boolean>;
+  /**
+   * Points the device at a new current license, and at the reseller who sold it when given.
+   * False when it is not there.
+   */
+  abstract setCurrentLicense(
+    id: string,
+    licenseId: string,
+    resellerId: string | null,
+    at: Date,
+  ): Promise<boolean>;
 }

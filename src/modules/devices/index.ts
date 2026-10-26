@@ -5,6 +5,8 @@ export { DeviceSettings } from './application/ports/device-settings.js';
 export { API_VERSIONS, PLATFORMS, type ApiVersion, type Platform } from './domain/device.js';
 export { RegisterDeviceUseCase } from './application/use-cases/register-device.use-case.js';
 export { FindDeviceUseCase } from './application/use-cases/find-device.use-case.js';
+export { FindDeviceByIdUseCase } from './application/use-cases/find-device-by-id.use-case.js';
+export { ApplyLicenseUseCase } from './application/use-cases/apply-license.use-case.js';
 export { ChangePlaylistCountUseCase } from './application/use-cases/change-playlist-count.use-case.js';
 export { IssueCaptchaUseCase } from './application/use-cases/issue-captcha.use-case.js';
 export { IssueUidRecoveryCaptchaUseCase } from './application/use-cases/issue-uid-recovery-captcha.use-case.js';

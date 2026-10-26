@@ -1,9 +1,16 @@
 import {
+  ApplyLicenseUseCase,
   ChangePlaylistCountUseCase,
   type DeviceSettings,
   DevicesModule,
+  FindDeviceByIdUseCase,
   FindDeviceUseCase,
 } from './modules/devices/index.js';
+import {
+  type LicensedDevices,
+  type LicenseLock,
+  LicensingModule,
+} from './modules/licensing/index.js';
 import {
   type MacOnlyRateLimit,
   PLAYLIST_PIN_KEY_SECRET,
@@ -17,8 +24,12 @@ import {
   GetTenantSecretUseCase,
   TenantsModule,
 } from './modules/tenants/index.js';
+import { RedisLock } from './shared/redis/redis-lock.js';
 import { RedisRateLimiter } from './shared/redis/redis-rate-limiter.js';
 import { TenantContext } from './shared/tenancy/tenant-context.js';
+
+/** An activation holds its device this long at most; a second one waits for it. */
+const LICENSE_LOCK = { ttlMs: 10_000, waitMs: 5_000 };
 
 /** Adding or deleting playlists by MAC alone: calls per IP and brand, per 10 minutes. */
 const MAC_ONLY_LIMIT = { limit: 10, windowMs: 10 * 60 * 1000 };
@@ -76,6 +87,39 @@ export const PlaylistsWithDevices = PlaylistsModule.forRootAsync({
     inject: [RedisRateLimiter, TenantContext],
     useFactory: (limiter: RedisRateLimiter, context: TenantContext): MacOnlyRateLimit => ({
       take: (ip) => limiter.take(`playlists:mac-only:${context.current.id}:${ip}`, MAC_ONLY_LIMIT),
+    }),
+  },
+});
+
+/** Licensing finds devices, moves a trial device to devices on payment, and locks per device. */
+export const LicensingWithDevices = LicensingModule.forRootAsync({
+  imports: [DevicesWithBrandConfig],
+  devices: {
+    inject: [FindDeviceByIdUseCase, ApplyLicenseUseCase],
+    useFactory: (
+      findDevice: FindDeviceByIdUseCase,
+      applyLicense: ApplyLicenseUseCase,
+    ): LicensedDevices => ({
+      find: async (deviceId) => {
+        const found = await findDevice.execute(deviceId);
+        if (!found.ok) return null;
+        const { paid, device } = found.value;
+        return paid
+          ? { id: device.id, paid, trialEndsAt: null, currentLicenseId: device.currentLicenseId }
+          : { id: device.id, paid, trialEndsAt: device.trialEndsAt, currentLicenseId: null };
+      },
+      markPaid: async (deviceId, paidBy) => {
+        const applied = await applyLicense.execute({ deviceId, ...paidBy });
+        if (applied.ok) return 'done';
+        return applied.error.code === 'devices.not_found' ? 'not_found' : 'conflict';
+      },
+    }),
+  },
+  lock: {
+    inject: [RedisLock, TenantContext],
+    useFactory: (lock: RedisLock, context: TenantContext): LicenseLock => ({
+      withDevice: (deviceId, fn) =>
+        lock.withLock(`licensing:device:${context.current.id}:${deviceId}`, LICENSE_LOCK, fn),
     }),
   },
 });

@@ -75,6 +75,27 @@ export class MongoPaidDeviceRepository extends PaidDeviceRepository {
     return result.matchedCount > 0;
   }
 
+  async setCurrentLicense(
+    id: string,
+    licenseId: string,
+    resellerId: string | null,
+    at: Date,
+  ): Promise<boolean> {
+    const result = await (
+      await this.collection()
+    ).updateOne(
+      { _id: id },
+      {
+        $set: {
+          currentLicenseId: licenseId,
+          ...(resellerId ? { resellerId } : {}),
+          updatedAt: at,
+        },
+      },
+    );
+    return result.matchedCount > 0;
+  }
+
   async update(device: PaidDevice): Promise<boolean> {
     const doc = toPaidDeviceDocument(device);
     return (await (await this.collection()).replaceOne({ _id: doc._id }, doc)).matchedCount > 0;
