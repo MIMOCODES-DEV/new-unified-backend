@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  FakePinCipher,
   FakePlaylistDevices,
   InMemoryPlaylistRepository,
 } from '../../../../../test/support/playlist-fakes.js';
 import { FixedClock } from '../../../../shared/kernel/clock.js';
 import { MacAddress } from '../../../../shared/kernel/mac-address.js';
 import type { AddedBy } from '../../domain/playlist.js';
+import { PlaylistPins } from '../playlist-pins.js';
 import { AddPlaylistUseCase } from './add-playlist.use-case.js';
 import { DeletePlaylistUseCase } from './delete-playlist.use-case.js';
 import { EditPlaylistUseCase } from './edit-playlist.use-case.js';
 import { ListPlaylistsUseCase } from './list-playlists.use-case.js';
+import { OpenPlaylistUseCase } from './open-playlist.use-case.js';
+import { SetPlaylistPinUseCase } from './set-playlist-pin.use-case.js';
 import { SyncPlaylistsUseCase } from './sync-playlists.use-case.js';
 
 const now = new Date('2026-10-26T10:00:00Z');
@@ -31,6 +35,8 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
   let remove: DeletePlaylistUseCase;
   let list: ListPlaylistsUseCase;
   let sync: SyncPlaylistsUseCase;
+  let setPin: SetPlaylistPinUseCase;
+  let open: OpenPlaylistUseCase;
 
   beforeEach(() => {
     playlists = new InMemoryPlaylistRepository();
@@ -38,9 +44,12 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
     devices.byMac.set('00:1a:2b:3c:4d:5e', 'device-1');
     devices.byMac.set('00:1a:2b:3c:4d:5f', 'device-2');
     const clock = new FixedClock(now);
-    add = new AddPlaylistUseCase(playlists, devices, clock);
-    edit = new EditPlaylistUseCase(playlists, clock);
-    remove = new DeletePlaylistUseCase(playlists, devices);
+    const pins = new PlaylistPins(new FakePinCipher());
+    add = new AddPlaylistUseCase(playlists, devices, pins, clock);
+    edit = new EditPlaylistUseCase(playlists, pins, clock);
+    remove = new DeletePlaylistUseCase(playlists, devices, pins);
+    setPin = new SetPlaylistPinUseCase(playlists, pins, clock);
+    open = new OpenPlaylistUseCase(playlists, pins);
     list = new ListPlaylistsUseCase(playlists);
     sync = new SyncPlaylistsUseCase(playlists, devices, add, edit, remove);
   });
@@ -312,6 +321,197 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
 
       expect(!result.ok && result.error.code).toBe('playlists.device_not_found');
       expect(playlists.items.size).toBe(0);
+    });
+  });
+
+  describe('PIN protection (PL-3)', () => {
+    const protect = async (pin = '1234') => {
+      const playlist = await addLink('device-1', M3U);
+      const result = await setPin.execute({ deviceId: 'device-1', playlistId: playlist.id, pin });
+      if (!result.ok) throw result.error;
+      return playlist.id;
+    };
+
+    it('protects a playlist and stores the PIN encrypted, never in clear', async () => {
+      const id = await protect('1234');
+
+      expect(playlists.items.get(id)).toMatchObject({ protected: true });
+      expect(playlists.items.get(id)?.pinEnc).not.toContain('1234');
+    });
+
+    it('opens a protected playlist only with its PIN', async () => {
+      const id = await protect('1234');
+
+      const none = await open.execute({ deviceId: 'device-1', playlistId: id });
+      const wrong = await open.execute({ deviceId: 'device-1', playlistId: id, pin: '9999' });
+      const right = await open.execute({ deviceId: 'device-1', playlistId: id, pin: '1234' });
+
+      expect(!none.ok && none.error.code).toBe('playlists.pin_required');
+      expect(!wrong.ok && wrong.error.code).toBe('playlists.wrong_pin');
+      expect(right.ok && right.value.id).toBe(id);
+    });
+
+    it('opens an unprotected playlist without a PIN', async () => {
+      const playlist = await addLink('device-1', M3U);
+
+      expect((await open.execute({ deviceId: 'device-1', playlistId: playlist.id })).ok).toBe(true);
+    });
+
+    it('refuses to edit or delete a protected playlist without its PIN', async () => {
+      const id = await protect('1234');
+
+      const editNone = await edit.execute({ deviceId: 'device-1', playlistId: id, name: 'X' });
+      const deleteWrong = await remove.execute({
+        deviceId: 'device-1',
+        playlistId: id,
+        pin: '0000',
+      });
+      const editRight = await edit.execute({
+        deviceId: 'device-1',
+        playlistId: id,
+        name: 'X',
+        pin: '1234',
+      });
+
+      expect(!editNone.ok && editNone.error.code).toBe('playlists.pin_required');
+      expect(!deleteWrong.ok && deleteWrong.error.code).toBe('playlists.wrong_pin');
+      expect(editRight.ok && editRight.value.name).toBe('X');
+      expect(playlists.items.has(id)).toBe(true);
+    });
+
+    it('changes the PIN only with the current one', async () => {
+      const id = await protect('1234');
+
+      const without = await setPin.execute({ deviceId: 'device-1', playlistId: id, pin: '5555' });
+      const withIt = await setPin.execute({
+        deviceId: 'device-1',
+        playlistId: id,
+        pin: '5555',
+        currentPin: '1234',
+      });
+
+      expect(!without.ok && without.error.code).toBe('playlists.pin_required');
+      expect(withIt.ok).toBe(true);
+      expect((await open.execute({ deviceId: 'device-1', playlistId: id, pin: '5555' })).ok).toBe(
+        true,
+      );
+    });
+
+    it('removes the protection with the current PIN', async () => {
+      const id = await protect('1234');
+
+      const result = await setPin.execute({
+        deviceId: 'device-1',
+        playlistId: id,
+        pin: null,
+        currentPin: '1234',
+      });
+
+      expect(result.ok && result.value.protected).toBe(false);
+      expect(playlists.items.get(id)).toMatchObject({ protected: false, pinEnc: null });
+    });
+
+    it.each(['123', '12345', 'abcd'])('refuses the PIN "%s"', async (pin) => {
+      const playlist = await addLink('device-1', M3U);
+
+      const result = await setPin.execute({ deviceId: 'device-1', playlistId: playlist.id, pin });
+
+      expect(!result.ok && result.error.code).toBe('playlists.invalid_pin');
+    });
+
+    it('does not let a device protect another device’s playlist', async () => {
+      const playlist = await addLink('device-2', M3U);
+
+      const result = await setPin.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        pin: '1234',
+      });
+
+      expect(!result.ok && result.error.code).toBe('playlists.not_found');
+    });
+
+    it('the bulk sync neither changes nor removes a protected playlist, and says so', async () => {
+      const id = await protect('1234');
+
+      const result = await sync.execute({
+        mac: mac('00:1a:2b:3c:4d:5e'),
+        playlists: [{ originId: id, name: 'Renamed', url: M3U }],
+        removeIds: [id],
+        addedBy: app,
+      });
+
+      expect(result.ok && result.value.playlists[0]?.error).toBe('playlists.pin_required');
+      expect(result.ok && result.value.notRemoved).toEqual([
+        { id, error: 'playlists.pin_required' },
+      ]);
+      expect(playlists.items.get(id)?.name).toBe('List');
+    });
+
+    it('adds a playlist protected in one step, as the website add form does', async () => {
+      const result = await add.execute({
+        deviceId: 'device-1',
+        name: 'Kids',
+        source: { kind: 'link', url: M3U },
+        pin: '4321',
+        addedBy: { via: 'website', resellerId: null },
+      });
+
+      expect(result.ok && result.value.protected).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.pinEnc).not.toContain('4321');
+      expect((await open.execute({ deviceId: 'device-1', playlistId: result.value.id })).ok).toBe(
+        false,
+      );
+      expect(
+        (await open.execute({ deviceId: 'device-1', playlistId: result.value.id, pin: '4321' })).ok,
+      ).toBe(true);
+    });
+
+    it('refuses to add with a bad PIN and saves nothing', async () => {
+      const result = await add.execute({
+        deviceId: 'device-1',
+        name: 'Kids',
+        source: { kind: 'link', url: M3U },
+        pin: '12',
+        addedBy: app,
+      });
+
+      expect(!result.ok && result.error.code).toBe('playlists.invalid_pin');
+      expect(playlists.items.size).toBe(0);
+    });
+
+    it('sets, changes and removes the PIN from the edit form in one step', async () => {
+      const playlist = await addLink('device-1', M3U);
+
+      const set = await edit.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        name: 'Kids',
+        newPin: '1111',
+      });
+      const changeWithout = await edit.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        newPin: '2222',
+      });
+      const change = await edit.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        pin: '1111',
+        newPin: '2222',
+      });
+      const removeIt = await edit.execute({
+        deviceId: 'device-1',
+        playlistId: playlist.id,
+        pin: '2222',
+        newPin: null,
+      });
+
+      expect(set.ok && set.value).toMatchObject({ name: 'Kids', protected: true });
+      expect(!changeWithout.ok && changeWithout.error.code).toBe('playlists.pin_required');
+      expect(change.ok && change.value.protected).toBe(true);
+      expect(removeIt.ok && removeIt.value).toMatchObject({ protected: false, pinEnc: null });
     });
   });
 });

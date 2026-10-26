@@ -24,6 +24,12 @@ export interface SyncPlaylistsInput {
   addedBy: AddedBy;
 }
 
+/** A remove id that was not removed: a protected playlist needs its PIN. */
+export interface NotRemoved {
+  id: string;
+  error: string;
+}
+
 /** One line per item sent: the saved id next to the app's id, or why it was not saved. */
 export interface SyncedPlaylist {
   originId: string | null;
@@ -40,6 +46,7 @@ export interface SyncedPlaylist {
  * - any other item is added, and its new id is returned next to the app's id; an item the device
  *   already has returns the existing id, so sending the same list again changes nothing;
  * - `removeIds` are deleted.
+ * A protected playlist is neither changed nor removed: the sync carries no PIN (PL-3).
  * Only the calling device's playlists are ever touched: another device's id is treated as new
  * (to add) or ignored (to remove). The old code changed and deleted any playlist by id.
  */
@@ -56,7 +63,10 @@ export class SyncPlaylistsUseCase {
   async execute(
     input: SyncPlaylistsInput,
   ): Promise<
-    Result<{ playlists: SyncedPlaylist[]; removed: number }, PlaylistDeviceNotFoundError>
+    Result<
+      { playlists: SyncedPlaylist[]; removed: number; notRemoved: NotRemoved[] },
+      PlaylistDeviceNotFoundError
+    >
   > {
     const deviceId = await this.devices.findIdByMac(input.mac);
     if (!deviceId) {
@@ -70,11 +80,14 @@ export class SyncPlaylistsUseCase {
     }
 
     let removed = 0;
+    const notRemoved: NotRemoved[] = [];
     for (const playlistId of new Set(input.removeIds)) {
       if (!owned.has(playlistId)) continue;
-      if ((await this.remove.execute({ deviceId, playlistId })).ok) removed += 1;
+      const result = await this.remove.execute({ deviceId, playlistId });
+      if (result.ok) removed += 1;
+      else notRemoved.push({ id: playlistId, error: result.error.code });
     }
-    return ok({ playlists: synced, removed });
+    return ok({ playlists: synced, removed, notRemoved });
   }
 
   private async syncOne(

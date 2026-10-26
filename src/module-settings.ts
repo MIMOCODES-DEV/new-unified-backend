@@ -4,8 +4,17 @@ import {
   DevicesModule,
   FindDeviceUseCase,
 } from './modules/devices/index.js';
-import { type PlaylistDevices, PlaylistsModule } from './modules/playlists/index.js';
-import { GetTenantConfigUseCase, TenantsModule } from './modules/tenants/index.js';
+import {
+  PLAYLIST_PIN_KEY_SECRET,
+  type PlaylistDevices,
+  type PlaylistPinKey,
+  PlaylistsModule,
+} from './modules/playlists/index.js';
+import {
+  GetTenantConfigUseCase,
+  GetTenantSecretUseCase,
+  TenantsModule,
+} from './modules/tenants/index.js';
 import { TenantContext } from './shared/tenancy/tenant-context.js';
 
 /**
@@ -23,9 +32,12 @@ export const DevicesWithBrandConfig = DevicesModule.forRootAsync({
   },
 });
 
-/** Playlists find devices by MAC and keep the trial devices' playlist counters in step. */
+/**
+ * Playlists find devices by MAC, keep the trial devices' playlist counters in step, and encrypt
+ * PINs with the brand secret `playlists.pinKey`.
+ */
 export const PlaylistsWithDevices = PlaylistsModule.forRootAsync({
-  imports: [DevicesWithBrandConfig],
+  imports: [DevicesWithBrandConfig, TenantsModule],
   devices: {
     inject: [FindDeviceUseCase, ChangePlaylistCountUseCase],
     useFactory: (
@@ -37,6 +49,12 @@ export const PlaylistsWithDevices = PlaylistsModule.forRootAsync({
         return found.ok ? found.value.device.id : null;
       },
       playlistCountChanged: (deviceId, delta) => changeCount.execute({ deviceId, delta }),
+    }),
+  },
+  pinKey: {
+    inject: [GetTenantSecretUseCase, TenantContext],
+    useFactory: (getSecret: GetTenantSecretUseCase, context: TenantContext): PlaylistPinKey => ({
+      current: () => getSecret.execute(context.current.id, PLAYLIST_PIN_KEY_SECRET),
     }),
   },
 });

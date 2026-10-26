@@ -4,15 +4,20 @@ import { err, ok, type Result } from '../../../../shared/kernel/result.js';
 import type { Playlist } from '../../domain/playlist.js';
 import {
   epgUrl,
+  isValidPlaylistPin,
   playlistContent,
   playlistName,
   type PlaylistSource,
 } from '../../domain/playlist-content.js';
 import {
+  InvalidPinError,
   type InvalidPlaylistError,
+  type PinRequiredError,
   PlaylistExistsError,
   PlaylistNotFoundError,
+  type WrongPinError,
 } from '../../domain/playlist.errors.js';
+import { PlaylistPins } from '../playlist-pins.js';
 import { PlaylistRepository } from '../ports/playlist.repository.js';
 
 export interface EditPlaylistInput {
@@ -22,26 +27,45 @@ export interface EditPlaylistInput {
   name?: string;
   source?: PlaylistSource;
   epgUrl?: string | null;
+  /** The PIN, when the playlist is protected. */
+  pin?: string | null;
+  /** A new PIN (4 digits) to protect it or change its PIN; null removes the protection. */
+  newPin?: string | null;
 }
 
 /**
  * PL-2: changes a playlist of the calling device: its name, what it points to, its EPG link.
- * Only these fields can change; another device's playlist is reported as not found.
+ * Only these fields can change; another device's playlist is reported as not found. A protected
+ * playlist needs its PIN, and the website's edit form can set or remove the PIN in the same write
+ * (PL-3).
  */
 @Injectable()
 export class EditPlaylistUseCase {
   constructor(
     private readonly playlists: PlaylistRepository,
+    private readonly pins: PlaylistPins,
     private readonly clock: Clock,
   ) {}
 
   async execute(
     input: EditPlaylistInput,
-  ): Promise<Result<Playlist, PlaylistNotFoundError | InvalidPlaylistError | PlaylistExistsError>> {
+  ): Promise<
+    Result<
+      Playlist,
+      | PlaylistNotFoundError
+      | InvalidPlaylistError
+      | InvalidPinError
+      | PlaylistExistsError
+      | PinRequiredError
+      | WrongPinError
+    >
+  > {
     const current = await this.playlists.findById(input.playlistId);
     if (!current || current.deviceId !== input.deviceId) {
       return err(new PlaylistNotFoundError('Playlist not found', { playlistId: input.playlistId }));
     }
+    const allowed = await this.pins.check(current, input.pin);
+    if (!allowed.ok) return allowed;
 
     let changed: Playlist = { ...current, updatedAt: this.clock.now() };
     if (input.name !== undefined) {
@@ -58,6 +82,17 @@ export class EditPlaylistUseCase {
       const epg = epgUrl(input.epgUrl);
       if (!epg.ok) return epg;
       changed = { ...changed, epgUrl: epg.value };
+    }
+    if (input.newPin !== undefined) {
+      const newPin = input.newPin ? input.newPin : null;
+      if (newPin !== null && !isValidPlaylistPin(newPin)) {
+        return err(new InvalidPinError('A playlist PIN is 4 digits'));
+      }
+      changed = {
+        ...changed,
+        protected: newPin !== null,
+        pinEnc: newPin === null ? null : await this.pins.encrypt(newPin),
+      };
     }
 
     const saved = await this.playlists.update(changed);

@@ -1,3 +1,4 @@
+import { PinCipher } from '../../src/modules/playlists/application/ports/pin-cipher.js';
 import { PlaylistDevices } from '../../src/modules/playlists/application/ports/playlist-devices.js';
 import type { PlaylistRepository } from '../../src/modules/playlists/application/ports/playlist.repository.js';
 import type { Playlist } from '../../src/modules/playlists/domain/playlist.js';
@@ -77,5 +78,15 @@ export class FakePlaylistDevices extends PlaylistDevices {
   playlistCountChanged(deviceId: string, delta: number): Promise<void> {
     this.counts.set(deviceId, (this.counts.get(deviceId) ?? 0) + delta);
     return Promise.resolve();
+  }
+}
+
+/** Reversible stand-in for the brand-key cipher: enough to tell PINs apart in tests. */
+export class FakePinCipher extends PinCipher {
+  encrypt(pin: string): Promise<string> {
+    return Promise.resolve(`enc(${[...pin].reverse().join('')})`);
+  }
+  decrypt(pinEnc: string): Promise<string> {
+    return Promise.resolve([...pinEnc.slice(4, -1)].reverse().join(''));
   }
 }

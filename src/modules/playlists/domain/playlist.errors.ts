@@ -19,3 +19,18 @@ export class PlaylistExistsError extends DomainError {
 export class PlaylistDeviceNotFoundError extends DomainError {
   readonly code = 'playlists.device_not_found';
 }
+
+/** A playlist PIN is 4 digits. */
+export class InvalidPinError extends DomainError {
+  readonly code = 'playlists.invalid_pin';
+}
+
+/** The playlist is protected: opening or changing it needs its PIN. */
+export class PinRequiredError extends DomainError {
+  readonly code = 'playlists.pin_required';
+}
+
+/** The PIN sent is not the playlist's PIN. */
+export class WrongPinError extends DomainError {
+  readonly code = 'playlists.wrong_pin';
+}

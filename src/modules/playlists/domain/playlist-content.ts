@@ -128,3 +128,8 @@ export function epgUrl(
   const url = httpUrl(text);
   return url ? ok(url) : invalid('epgUrl', 'The EPG link must be an http or https URL');
 }
+
+/** A playlist PIN: 4 digits, like the parental PIN the apps' PIN screen asks for. */
+export function isValidPlaylistPin(pin: string): boolean {
+  return /^\d{4}$/.test(pin);
+}
