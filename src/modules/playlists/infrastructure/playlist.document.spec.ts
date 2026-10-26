@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Playlist } from '../domain/playlist.js';
+import { playlistContent, type PlaylistSource } from '../domain/playlist-content.js';
 import { toPlaylist, toPlaylistDocument } from './playlist.document.js';
 
 const at = new Date('2026-10-25T10:00:00Z');
@@ -74,5 +75,20 @@ describe('playlist documents', () => {
     expect(() =>
       toPlaylistDocument(playlist({ backup: { enabled: true, hosts: hosts(9) } })),
     ).toThrow();
+  });
+
+  it.each<PlaylistSource>([
+    { kind: 'link', url: 'http://provider.example/get.php?username=u&password=p' },
+    { kind: 'link', url: 'http://cdn.example/list.m3u' },
+    { kind: 'xtream', server: 'http://provider.example:8080', username: 'u', password: 'p' },
+    { kind: 'stalker', portalUrl: 'http://portal.example/c/' },
+    { kind: 'code', code: '123456' },
+  ])('stores what playlistContent makes from %j', (source) => {
+    const content = playlistContent(source);
+    if (!content.ok) throw content.error;
+
+    const stored = toPlaylist(toPlaylistDocument(playlist(content.value)));
+
+    expect(stored).toMatchObject(content.value);
   });
 });
