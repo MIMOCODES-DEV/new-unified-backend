@@ -1,4 +1,7 @@
+import { CaptchaImage } from '../../src/modules/devices/application/ports/captcha-image.js';
+import type { CaptchaRepository } from '../../src/modules/devices/application/ports/captcha.repository.js';
 import type { DeviceLock } from '../../src/modules/devices/application/ports/device-lock.js';
+import type { Captcha, CaptchaKind } from '../../src/modules/devices/domain/captcha.js';
 import type { PaidDeviceRepository } from '../../src/modules/devices/application/ports/paid-device.repository.js';
 import type { TrialDeviceRepository } from '../../src/modules/devices/application/ports/trial-device.repository.js';
 import type {
@@ -213,5 +216,70 @@ export class InProcessDeviceLock implements DeviceLock {
       result.catch(() => undefined),
     );
     return result;
+  }
+}
+
+export class InMemoryCaptchaRepository implements CaptchaRepository {
+  readonly items = new Map<string, Captcha>();
+
+  async findByToken(token: string): Promise<Captcha | null> {
+    await tick();
+    return [...this.items.values()].find((c) => c.token === token) ?? null;
+  }
+  async findSolved(mac: MacAddress, kind: CaptchaKind): Promise<Captcha | null> {
+    await tick();
+    const solved = [...this.items.values()]
+      .filter((c) => c.macAddress === mac.value && c.kind === kind && c.verifiedAt !== null)
+      .sort((a, b) => b.verifiedAt!.getTime() - a.verifiedAt!.getTime());
+    return solved[0] ?? null;
+  }
+  async findOpen(mac: MacAddress, kind: CaptchaKind, now: Date): Promise<Captcha | null> {
+    await tick();
+    const open = [...this.items.values()]
+      .filter(
+        (c) =>
+          c.macAddress === mac.value &&
+          c.kind === kind &&
+          c.verifiedAt === null &&
+          c.expiresAt !== null &&
+          c.expiresAt > now,
+      )
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return open[0] ?? null;
+  }
+  async insert(captcha: Captcha): Promise<void> {
+    await tick();
+    this.items.set(captcha.id, captcha);
+  }
+  async update(captcha: Captcha): Promise<boolean> {
+    await tick();
+    if (!this.items.has(captcha.id)) return false;
+    this.items.set(captcha.id, captcha);
+    return true;
+  }
+  async markSolved(id: string, at: Date): Promise<boolean> {
+    await tick();
+    const captcha = this.items.get(id);
+    if (!captcha || captcha.verifiedAt !== null) return false;
+    this.items.set(id, { ...captcha, verifiedAt: at, expiresAt: null });
+    return true;
+  }
+  async delete(id: string): Promise<boolean> {
+    await tick();
+    return this.items.delete(id);
+  }
+}
+
+/** Draws nothing: the text is fixed (or given), and the SVG is a marker the test can read. */
+export class FakeCaptchaImage extends CaptchaImage {
+  constructor(public text = 'AB7K') {
+    super();
+  }
+  random(length: number): { text: string; svg: string } {
+    const text = this.text.slice(0, length);
+    return { text, svg: `<svg>${text}</svg>` };
+  }
+  draw(text: string): string {
+    return `<svg>${text}</svg>`;
   }
 }

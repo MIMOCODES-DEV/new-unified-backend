@@ -5,7 +5,9 @@ import {
   type ModuleMetadata,
 } from '@nestjs/common';
 import { Clock, SystemClock } from '../../shared/kernel/clock.js';
+import { Captchas } from './application/captchas.js';
 import { DeviceIdentity } from './application/device-identity.js';
+import { CaptchaImage } from './application/ports/captcha-image.js';
 import { CaptchaRepository } from './application/ports/captcha.repository.js';
 import { DeviceKeyGenerator } from './application/ports/device-key-generator.js';
 import { DeviceLock } from './application/ports/device-lock.js';
@@ -13,6 +15,10 @@ import { DeviceSettings } from './application/ports/device-settings.js';
 import { PaidDeviceRepository } from './application/ports/paid-device.repository.js';
 import { TrialDeviceRepository } from './application/ports/trial-device.repository.js';
 import { SeedDeviceExamples } from './application/seed-device-examples.js';
+import { CheckCaptchaCodeUseCase } from './application/use-cases/check-captcha-code.use-case.js';
+import { IssueCaptchaUseCase } from './application/use-cases/issue-captcha.use-case.js';
+import { IssueUidRecoveryCaptchaUseCase } from './application/use-cases/issue-uid-recovery-captcha.use-case.js';
+import { LoginV4DeviceUseCase } from './application/use-cases/login-v4-device.use-case.js';
 import { ChangeDeviceKeyUseCase } from './application/use-cases/change-device-key.use-case.js';
 import { RegisterDeviceUseCase } from './application/use-cases/register-device.use-case.js';
 import { SetParentPinUseCase } from './application/use-cases/set-parent-pin.use-case.js';
@@ -22,16 +28,22 @@ import { MongoPaidDeviceRepository } from './infrastructure/mongo-paid-device.re
 import { MongoTrialDeviceRepository } from './infrastructure/mongo-trial-device.repository.js';
 import { RandomDeviceKeyGenerator } from './infrastructure/random-device-key.generator.js';
 import { RedisDeviceLock } from './infrastructure/redis-device-lock.js';
+import { SvgCaptchaImage } from './infrastructure/svg-captcha.image.js';
 
 const useCases = [
   RegisterDeviceUseCase,
   ChangeDeviceKeyUseCase,
   VerifyDeviceKeyUseCase,
   SetParentPinUseCase,
+  IssueCaptchaUseCase,
+  IssueUidRecoveryCaptchaUseCase,
+  CheckCaptchaCodeUseCase,
+  LoginV4DeviceUseCase,
 ];
 
 const providers = [
   DeviceIdentity,
+  Captchas,
   ...useCases,
   SeedDeviceExamples,
   { provide: Clock, useClass: SystemClock },
@@ -40,6 +52,7 @@ const providers = [
   { provide: CaptchaRepository, useClass: MongoCaptchaRepository },
   { provide: DeviceLock, useClass: RedisDeviceLock },
   { provide: DeviceKeyGenerator, useClass: RandomDeviceKeyGenerator },
+  { provide: CaptchaImage, useClass: SvgCaptchaImage },
 ];
 
 export interface DevicesModuleOptions {

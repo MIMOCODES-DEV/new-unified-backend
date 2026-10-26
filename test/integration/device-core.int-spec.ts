@@ -223,6 +223,31 @@ describe('Phase 1 device core on MongoDB and Redis', () => {
         expect((await licenses.listByDevice('device-9')).map((l) => l.id)).toEqual(['lic-1']);
         expect((await licenses.findBySource('device-9', 'tx-1'))?.id).toBe('lic-1');
         expect((await captchas.findSolved(mac('10:00:00:00:00:09'), 'v4'))?.token).toBe('tok-1');
+
+        // An open captcha: found while open, solved only once, then kept with no expiry.
+        await captchas.insert({
+          id: 'cap-2',
+          token: 'tok-2',
+          kind: 'v4',
+          macAddress: '10:00:00:00:00:0a',
+          appDeviceId: null,
+          platform: 'lg',
+          answerHash: 'hash',
+          verifiedAt: null,
+          expiresAt: new Date(at.getTime() + 5 * 60_000),
+          createdAt: at,
+        });
+        const tv = mac('10:00:00:00:00:0a');
+        expect((await captchas.findOpen(tv, 'v4', at))?.id).toBe('cap-2');
+        expect(await captchas.findOpen(tv, 'v4', new Date(at.getTime() + 6 * 60_000))).toBeNull();
+        expect(await captchas.markSolved('cap-2', at)).toBe(true);
+        expect(await captchas.markSolved('cap-2', at)).toBe(false);
+        expect(await captchas.findByToken('tok-2')).toMatchObject({
+          verifiedAt: at,
+          expiresAt: null,
+        });
+        expect(await captchas.delete('cap-2')).toBe(true);
+        expect(await captchas.delete('cap-2')).toBe(false);
       });
     });
 

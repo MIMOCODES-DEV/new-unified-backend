@@ -38,3 +38,31 @@ export class DeviceKeyMismatchError extends DomainError {
 export class DeviceIdMissingError extends DomainError {
   readonly code = 'devices.device_id_missing';
 }
+
+/** The captcha answer is wrong, or the captcha expired, was already answered or is for another device. */
+export class InvalidCaptchaError extends DomainError {
+  readonly code = 'devices.invalid_captcha';
+}
+
+/** A device that never solved a captcha must send one (V4 registration). */
+export class CaptchaRequiredError extends DomainError {
+  readonly code = 'devices.captcha_required';
+}
+
+/**
+ * The V4 app sent another uid than the stored one (its data was wiped, or another app copies the
+ * MAC). The app must solve the uid recovery captcha, which shows the stored uid.
+ */
+export class UidMismatchError extends DomainError {
+  readonly code = 'devices.uid_mismatch';
+}
+
+/** A V4 uid is 6 letters or digits. */
+export class InvalidUidError extends DomainError {
+  readonly code = 'devices.invalid_uid';
+}
+
+/** V4 login needs a real MAC, because a captcha is solved for a MAC. */
+export class UsableMacRequiredError extends DomainError {
+  readonly code = 'devices.usable_mac_required';
+}

@@ -116,10 +116,11 @@ export interface DeviceVisit {
   readonly at: Date;
 }
 
-/** Fields a device's owner can change; only the ones given are written. */
+/** Fields changed outside a visit (owner settings, V4 uid); only the ones given are written. */
 export interface DeviceSettingsChange {
   readonly deviceKey?: string;
   readonly parentPin?: string | null;
+  readonly uid?: string;
   readonly updatedAt: Date;
 }
 

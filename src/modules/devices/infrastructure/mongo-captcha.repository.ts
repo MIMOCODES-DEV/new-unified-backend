@@ -37,8 +37,29 @@ export class MongoCaptchaRepository extends CaptchaRepository {
     return doc ? toCaptcha(doc) : null;
   }
 
+  async findOpen(mac: MacAddress, kind: CaptchaKind, now: Date): Promise<Captcha | null> {
+    const doc = await (
+      await this.collection()
+    ).findOne(
+      { macAddress: mac.value, kind, verifiedAt: null, expiresAt: { $gt: now } },
+      { sort: { createdAt: -1 } },
+    );
+    return doc ? toCaptcha(doc) : null;
+  }
+
   async insert(captcha: Captcha): Promise<void> {
     await (await this.collection()).insertOne(toCaptchaDocument(captcha));
+  }
+
+  async markSolved(id: string, at: Date): Promise<boolean> {
+    const result = await (
+      await this.collection()
+    ).updateOne({ _id: id, verifiedAt: null }, { $set: { verifiedAt: at, expiresAt: null } });
+    return result.modifiedCount > 0;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    return (await (await this.collection()).deleteOne({ _id: id })).deletedCount > 0;
   }
 
   async update(captcha: Captcha): Promise<boolean> {
