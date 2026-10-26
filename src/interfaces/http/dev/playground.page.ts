@@ -55,6 +55,15 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
   .entry pre { margin: 6px 0 0; background: var(--code); padding: 8px; border-radius: 6px; font-size: 12px; overflow: auto; max-height: 260px; white-space: pre-wrap; word-break: break-all; }
   .empty { color: var(--muted); font-size: 13px; }
   .brand { display: flex; gap: 8px; align-items: center; }
+  h3.sub { font-size: 13px; margin: 14px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  textarea { font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; width: 100%; min-height: 90px; }
+  .cards { display: flex; flex-direction: column; gap: 8px; }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 13px; }
+  .card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .card .top { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+  .card .name { font-weight: 600; }
+  .card .line { color: var(--muted); word-break: break-all; }
+  .check { flex-direction: row; align-items: center; gap: 6px; min-width: 0; flex: 0 0 auto; }
 </style>
 </head>
 <body>
@@ -85,6 +94,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
         <button data-tab="v4">V4 login (DEV-4)</button>
         <button data-tab="tv">Old TV code (DEV-4)</button>
         <button data-tab="owner">Key and PIN (DEV-5)</button>
+        <button data-tab="playlists">Playlists (PL-1 to PL-8)</button>
       </div>
 
       <div class="tab active" id="tab-register">
@@ -147,6 +157,96 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
           <button id="o-pin-off">Turn off</button>
         </div>
       </div>
+
+      <div class="tab" id="tab-playlists">
+        <p class="hint">Playlists of the device with the MAC above; register it first (Old app tab). The list on the right shows them.</p>
+        <h3 class="sub">Add (PL-1, PL-3, PL-6)</h3>
+        <div class="row">
+          <label>Kind<select id="p-kind">
+            <option value="link">Link (M3U, or Xtream when it looks like one)</option>
+            <option value="xtream">Xtream as 3 fields</option>
+            <option value="stalker">Stalker portal</option>
+            <option value="code">Provider code</option>
+          </select></label>
+          <label>Name<input id="p-name" value="My list"></label>
+        </div>
+        <div class="row" data-kind="link"><label>Link<input id="p-url" value="http://line.example.com:8080/get.php?username=demo&amp;password=demo&amp;type=m3u_plus"></label></div>
+        <div class="row" data-kind="xtream" hidden>
+          <label>Server<input id="p-server" value="http://line.example.com:8080"></label>
+          <label>Username<input id="p-user" value="demo"></label>
+          <label>Password<input id="p-pass" value="demo"></label>
+        </div>
+        <div class="row" data-kind="stalker" hidden>
+          <label>Portal link<input id="p-portal" value="http://portal.example.com/c/"></label>
+          <label>Portal name<input id="p-portal-name" placeholder="optional"></label>
+          <label>Fallback portal<input id="p-fallback" placeholder="optional"></label>
+          <label>Portal MAC<input id="p-portal-mac" placeholder="optional"></label>
+        </div>
+        <div class="row" data-kind="code" hidden><label>Code (digits)<input id="p-code" value="482915"></label></div>
+        <div class="row">
+          <label>EPG link<input id="p-epg" placeholder="optional"></label>
+          <label>PIN<input id="p-pin" placeholder="optional: 4 digits protects it"></label>
+        </div>
+        <div class="row">
+          <button class="primary" id="p-add">Add from the app</button>
+          <button id="p-add-web">Add from the website</button>
+          <button id="p-add-mac" title="QR code page, Stalker form, add by MAC: no login, limited per IP">Add without login</button>
+        </div>
+
+        <h3 class="sub">Selected playlist (click one on the right)</h3>
+        <div class="row">
+          <label>Acting as<select id="p-by">
+            <option value="app">The TV app: no PIN needed</option>
+            <option value="dashboard">The website dashboard: PIN needed when protected</option>
+          </select></label>
+          <label>Its current PIN<input id="p-curpin" placeholder="dashboard only"></label>
+        </div>
+        <div class="row">
+          <label>New name<input id="p-newname"></label><button id="p-rename">Rename</button>
+          <label>New link<input id="p-newurl"></label><button id="p-relink">Change link</button>
+        </div>
+        <div class="row">
+          <label>New PIN<input id="p-newpin" placeholder="empty removes it"></label>
+          <button id="p-setpin">Set / remove PIN</button>
+          <button id="p-unlock">Unlock on dashboard</button>
+          <button id="p-delete">Delete</button>
+        </div>
+        <div class="row">
+          <label>Backup hosts (PL-5)<input id="p-hosts" placeholder="mirror1.example.com, mirror2.example.com:8080"></label>
+          <label class="check"><input type="checkbox" id="p-backup-on" checked> on</label>
+          <button id="p-backup">Save backups</button>
+        </div>
+        <div class="row">
+          <label>Account status (PL-7)<input id="p-status" value="Active"></label>
+          <label>Expires<input id="p-exp" placeholder="2027-01-01 or Unix seconds"></label>
+          <button id="p-report">Report as the app</button>
+        </div>
+
+        <h3 class="sub">Whole device (PL-2, PL-6)</h3>
+        <label>Bulk sync as the app sends it (update_playlist)<textarea id="p-sync">{
+  "playlists": [
+    { "originId": "non_saved_1", "name": "Synced A", "url": "http://cdn.example.com/a.m3u" },
+    { "originId": "non_saved_2", "name": "Synced B", "url": "http://line.example.com/get.php?username=u&amp;password=p" }
+  ],
+  "removeIds": []
+}</textarea></label>
+        <div class="row" style="margin-top:8px">
+          <button id="p-sync-send">Send sync</button>
+          <button id="p-delete-mac" title="Keeps protected playlists; limited per IP">Delete all without login</button>
+        </div>
+
+        <h3 class="sub">Provider moved host (PL-8)</h3>
+        <div class="row">
+          <label>Old host<input id="p-from" value="line.example.com"></label>
+          <label>New host<input id="p-to" value="line2.example.com"></label>
+          <label>At most<input id="p-limit" placeholder="all"></label>
+          <label class="check"><input type="checkbox" id="p-only-mac"> only this MAC</label>
+        </div>
+        <div class="row">
+          <button id="p-count">Count</button>
+          <button id="p-move">Move</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -154,6 +254,23 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     <div class="panel">
       <h2>Device</h2>
       <div id="device"><p class="empty">No device for this MAC yet.</p></div>
+    </div>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;align-items:end">
+        <h2 style="margin:0">Playlists</h2>
+        <label style="flex:0 1 220px">Show<select id="pv-view">
+          <option value="stored">As stored</option>
+          <option value="reply">As the app gets them (PL-4)</option>
+          <option value="dashboard">As the dashboard lists them</option>
+        </select></label>
+      </div>
+      <div class="row" id="pv-reply-options" hidden>
+        <label>Platform<select id="pv-platform"></select></label>
+        <label>App version<input id="pv-version" value="1.0.0"></label>
+        <label class="check"><input type="checkbox" id="pv-stalker" checked> Stalker on</label>
+        <label class="check"><input type="checkbox" id="pv-pins"> with PINs (Roku, iOS)</label>
+      </div>
+      <div class="cards" id="playlists"><p class="empty">No device for this MAC yet.</p></div>
     </div>
     <div class="panel">
       <div class="row" style="justify-content:space-between;align-items:center">
@@ -211,12 +328,13 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
   });
 
   // Requests
-  function call(method, path, body) {
+  function call(method, path, body, base) {
+    base = base || '/dev/devices';
     var opts = { method: method, headers: {} };
     if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-    return fetch('/dev/devices' + path, opts).then(function (res) {
+    return fetch(base + path, opts).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (json) {
-        log(method, path, body, res.status, json);
+        log(method, base + path, body, res.status, json);
         return { status: res.status, json: json };
       });
     });
@@ -229,7 +347,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     var cls = status < 300 ? 'ok' : status < 500 ? 'warn' : 'bad';
     var label = json && json.error ? json.error.code : String(status);
     var head = document.createElement('div'); head.className = 'head';
-    var left = document.createElement('span'); left.textContent = method + ' /dev/devices' + path;
+    var left = document.createElement('span'); left.textContent = method + ' ' + path;
     var pill = document.createElement('span'); pill.className = 'pill ' + cls; pill.textContent = status + ' ' + (json && json.error ? label : 'ok');
     head.appendChild(left); head.appendChild(pill); e.appendChild(head);
     var pre = document.createElement('pre');
@@ -358,7 +476,149 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     var id = deviceId(); if (id) call('POST', '/' + id + '/parent-pin', { pin: null }).then(lookUp);
   });
 
+  // Playlists
+  var pl = { selected: null, items: [] };
+  PLATFORMS.forEach(function (p) { var o = document.createElement('option'); o.textContent = p; $('pv-platform').appendChild(o); });
+  function plCall(method, path, body) { return call(method, path, body, '/dev/playlists'); }
+  function macPath() { return '/' + encodeURIComponent(mac() || ''); }
+  function both() { refreshPlaylists(); lookUp(); }
+
+  $('p-kind').addEventListener('change', function () {
+    document.querySelectorAll('[data-kind]').forEach(function (row) { row.hidden = row.dataset.kind !== $('p-kind').value; });
+  });
+  $('pv-view').addEventListener('change', function () {
+    $('pv-reply-options').hidden = $('pv-view').value !== 'reply';
+    refreshPlaylists();
+  });
+  ['pv-platform', 'pv-version', 'pv-stalker', 'pv-pins'].forEach(function (id) { $(id).addEventListener('change', refreshPlaylists); });
+
+  function plSource() {
+    switch ($('p-kind').value) {
+      case 'xtream': return { kind: 'xtream', server: $('p-server').value, username: $('p-user').value, password: $('p-pass').value };
+      case 'stalker': return { kind: 'stalker', portalUrl: $('p-portal').value, portalName: orNull($('p-portal-name').value), fallbackUrl: orNull($('p-fallback').value), mac: orNull($('p-portal-mac').value) };
+      case 'code': return { kind: 'code', code: $('p-code').value };
+      default: return { kind: 'link', url: $('p-url').value };
+    }
+  }
+  function plAdd(path, extra) {
+    return plCall('POST', macPath() + path, Object.assign({
+      name: $('p-name').value, source: plSource(), epgUrl: orNull($('p-epg').value), pin: orNull($('p-pin').value)
+    }, extra)).then(both);
+  }
+  $('p-add').addEventListener('click', function () { plAdd('/add', { via: 'app' }); });
+  $('p-add-web').addEventListener('click', function () { plAdd('/add', { via: 'website' }); });
+  $('p-add-mac').addEventListener('click', function () { plAdd('/by-mac/add', {}); });
+
+  function selected() {
+    if (!pl.selected) { alert('Click a playlist in the list on the right first.'); return null; }
+    return pl.selected;
+  }
+  function acting() { return { by: $('p-by').value, pin: orNull($('p-curpin').value) }; }
+  function onSelected(path, body) {
+    var id = selected(); if (!id) return;
+    plCall('POST', macPath() + '/' + id + path, body).then(both);
+  }
+  $('p-rename').addEventListener('click', function () { onSelected('/edit', Object.assign(acting(), { name: $('p-newname').value })); });
+  $('p-relink').addEventListener('click', function () { onSelected('/edit', Object.assign(acting(), { source: { kind: 'link', url: $('p-newurl').value } })); });
+  $('p-setpin').addEventListener('click', function () {
+    var a = acting();
+    onSelected('/pin', { by: a.by, pin: orNull($('p-newpin').value), currentPin: a.pin });
+  });
+  $('p-unlock').addEventListener('click', function () { onSelected('/unlock', { pin: orNull($('p-curpin').value) }); });
+  $('p-delete').addEventListener('click', function () {
+    var id = selected(); if (!id) return;
+    plCall('POST', macPath() + '/' + id + '/delete', acting()).then(function () { pl.selected = null; both(); });
+  });
+  $('p-backup').addEventListener('click', function () {
+    var hosts = $('p-hosts').value.split(/[\s,]+/).filter(function (h) { return h; });
+    onSelected('/backup', Object.assign(acting(), { enabled: $('p-backup-on').checked, hosts: hosts }));
+  });
+  $('p-report').addEventListener('click', function () {
+    var exp = $('p-exp').value.trim();
+    onSelected('/status', { status: orNull($('p-status').value), expiresAt: exp === '' ? undefined : exp });
+  });
+  $('p-sync-send').addEventListener('click', function () {
+    var body;
+    try { body = JSON.parse($('p-sync').value); } catch (e) { alert('The sync is not valid JSON: ' + e.message); return; }
+    plCall('POST', macPath() + '/sync', body).then(both);
+  });
+  $('p-delete-mac').addEventListener('click', function () { plCall('POST', macPath() + '/by-mac/delete').then(both); });
+  function moveHost(countOnly) {
+    var limit = parseInt($('p-limit').value, 10);
+    var body = { from: $('p-from').value, to: $('p-to').value, countOnly: countOnly };
+    if (limit > 0) body.limit = limit;
+    if ($('p-only-mac').checked && mac()) body.macs = [mac()];
+    plCall('POST', '/move-host', body).then(function () { if (!countOnly) both(); });
+  }
+  $('p-count').addEventListener('click', function () { moveHost(true); });
+  $('p-move').addEventListener('click', function () { moveHost(false); });
+
+  function refreshPlaylists() {
+    var box = $('playlists');
+    if (!mac()) { box.innerHTML = '<p class="empty">Type a MAC first.</p>'; return; }
+    var view = $('pv-view').value, path = macPath();
+    if (view === 'dashboard') path += '/dashboard';
+    if (view === 'reply') {
+      path += '/reply?platform=' + encodeURIComponent($('pv-platform').value) +
+        '&appVersion=' + encodeURIComponent($('pv-version').value) +
+        '&stalkerEnabled=' + $('pv-stalker').checked + '&includePins=' + $('pv-pins').checked;
+    }
+    fetch('/dev/playlists' + path).then(function (r) { return r.json(); }).then(function (json) {
+      if (json && json.error) {
+        box.innerHTML = '<p class="empty">' + esc(json.error.code === 'devices.not_found' ? 'No device for this MAC yet.' : json.error.message) + '</p>';
+        return;
+      }
+      var items = Array.isArray(json) ? json : json.playlists;
+      pl.items = items;
+      if (!items.length) { box.innerHTML = '<p class="empty">No playlists.</p>'; return; }
+      box.innerHTML = '';
+      if (!Array.isArray(json)) {
+        var own = document.createElement('p'); own.className = 'hint'; own.style.margin = '0';
+        own.textContent = 'hasOwnPlaylist: ' + json.hasOwnPlaylist;
+        box.appendChild(own);
+      }
+      items.forEach(function (p) { box.appendChild(card(p)); });
+    });
+  }
+  function card(p) {
+    var el = document.createElement('div');
+    el.className = 'card' + (p.id && p.id === pl.selected ? ' selected' : '');
+    var pills = '<span class="pill">' + esc(p.type) + '</span>';
+    if (p.demo) pills += '<span class="pill warn">demo</span>';
+    if (p.protected) pills += '<span class="pill warn">protected' + (p.hidden ? ', hidden' : '') + '</span>';
+    if (p.backup && p.backup.enabled) pills += '<span class="pill ok">backups on</span>';
+    if (p.account) pills += '<span class="pill ok">' + esc((p.account.status || 'no status') + (p.account.expiresAt ? ' until ' + p.account.expiresAt.slice(0, 10) : '')) + '</span>';
+    var lines = [];
+    if (p.url) lines.push(p.url);
+    if (p.username) lines.push('username ' + p.username + ', password ' + p.password);
+    if (p.xtream && !p.username) lines.push('xtream: ' + p.xtream.server + ' / ' + p.xtream.username);
+    if (p.stalker) lines.push('portal ' + p.stalker.portalUrl + (p.stalker.mac ? ' (MAC ' + p.stalker.mac + ')' : ''));
+    if (p.code && typeof p.code === 'object') lines.push('code ' + p.code.code);
+    if (typeof p.code === 'string') lines.push('code ' + p.code);
+    if (p.backup && p.backup.hosts && p.backup.hosts.length) lines.push('backup hosts: ' + p.backup.hosts.join(', '));
+    if (p.backupUrls && p.backupUrls.length) lines.push('backup links: ' + p.backupUrls.join('  '));
+    if (p.pin !== undefined) lines.push('PIN sent to the app: ' + p.pin);
+    if (p.pinEnc) lines.push('pinEnc: ' + p.pinEnc.slice(0, 24) + '…');
+    el.innerHTML = '<div class="top"><span class="name">' + esc(p.name) + '</span>' + pills + '</div>' +
+      lines.map(function (l) { return '<div class="line">' + esc(l) + '</div>'; }).join('');
+    if (p.id) {
+      el.addEventListener('click', function () {
+        pl.selected = p.id;
+        $('p-newname').value = p.name;
+        if (p.url) $('p-newurl').value = p.url;
+        if (p.backup) { $('p-hosts').value = p.backup.hosts.join(', '); $('p-backup-on').checked = p.backup.enabled; }
+        document.querySelectorAll('#playlists .card').forEach(function (c) { c.classList.remove('selected'); });
+        el.classList.add('selected');
+      });
+    }
+    return el;
+  }
+  $('mac').addEventListener('change', function () { pl.selected = null; refreshPlaylists(); });
+  ['randomMac', 'fallbackMac', 'refresh'].forEach(function (id) { $(id).addEventListener('click', function () { pl.selected = null; refreshPlaylists(); }); });
+  $('register').addEventListener('click', function () { setTimeout(refreshPlaylists, 300); });
+
   lookUp();
+  refreshPlaylists();
 })();
 </script>
 </body>
