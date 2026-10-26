@@ -92,6 +92,12 @@ export class InMemoryTrialDeviceRepository implements TrialDeviceRepository {
     if ([...this.items.values()].some((d) => d.macAddress === device.macAddress)) {
       throw new Error('E11000 duplicate key: trialDevices.macAddress');
     }
+    if (
+      device.appDeviceId &&
+      [...this.items.values()].some((d) => d.appDeviceId === device.appDeviceId)
+    ) {
+      throw new Error('E11000 duplicate key: trialDevices.appDeviceId');
+    }
     this.items.set(device.id, device);
   }
   async update(device: TrialDevice): Promise<boolean> {
@@ -133,6 +139,12 @@ export class InMemoryPaidDeviceRepository implements PaidDeviceRepository {
     await tick();
     if ([...this.items.values()].some((d) => d.macAddress === device.macAddress)) {
       throw new Error('E11000 duplicate key: devices.macAddress');
+    }
+    if (
+      device.appDeviceId &&
+      [...this.items.values()].some((d) => d.appDeviceId === device.appDeviceId)
+    ) {
+      throw new Error('E11000 duplicate key: devices.appDeviceId');
     }
     this.items.set(device.id, device);
   }

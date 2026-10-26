@@ -25,6 +25,19 @@ describe('RedisLock on Redis', () => {
     await infra?.stop();
   });
 
+  it('waits for a client that is still connecting instead of refusing', async () => {
+    const fresh = new Redis(infra.redisUrl);
+    try {
+      expect(fresh.status).not.toBe('ready');
+
+      await expect(
+        new RedisLock(fresh).withLock('t:fresh', { ttlMs: 5_000 }, () => Promise.resolve('ran')),
+      ).resolves.toBe('ran');
+    } finally {
+      await fresh.quit();
+    }
+  });
+
   it('refuses a second caller while the lock is held', async () => {
     let release!: () => void;
     const holding = lock.withLock(
