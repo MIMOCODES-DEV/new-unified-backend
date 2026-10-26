@@ -8,10 +8,15 @@ import {
 } from '../../../../../test/support/device-fakes.js';
 import { FixedClock } from '../../../../shared/kernel/clock.js';
 import { MacAddress } from '../../../../shared/kernel/mac-address.js';
+import { madeUpMac } from '../../domain/device-mac.js';
 import { DeviceIdentity } from '../device-identity.js';
 import { DeviceKeyGenerator } from '../ports/device-key-generator.js';
 import { DeviceSettings } from '../ports/device-settings.js';
-import { type RegisterDeviceInput, RegisterDeviceUseCase } from './register-device.use-case.js';
+import {
+  type RegisterDeviceInput,
+  type RegisterDeviceOutput,
+  RegisterDeviceUseCase,
+} from './register-device.use-case.js';
 
 const now = new Date('2026-10-26T10:00:00Z');
 
@@ -47,7 +52,7 @@ class CountingKeys extends DeviceKeyGenerator {
   }
 }
 
-describe('RegisterDeviceUseCase (DEV-1)', () => {
+describe('RegisterDeviceUseCase (DEV-1, DEV-2)', () => {
   let trials: InMemoryTrialDeviceRepository;
   let paid: InMemoryPaidDeviceRepository;
   let settings: Settings;
@@ -68,8 +73,15 @@ describe('RegisterDeviceUseCase (DEV-1)', () => {
     );
   });
 
+  /** Runs the use case and fails the test on an error result. */
+  const run = async (input: RegisterDeviceInput): Promise<RegisterDeviceOutput> => {
+    const result = await register.execute(input);
+    if (!result.ok) throw result.error;
+    return result.value;
+  };
+
   it('makes a trial device for an unknown MAC, with the brand trial length', async () => {
-    const result = await register.execute(call());
+    const result = await run(call());
 
     expect(result.created).toBe(true);
     expect(result.found.paid).toBe(false);
@@ -91,7 +103,7 @@ describe('RegisterDeviceUseCase (DEV-1)', () => {
   it('uses the brand setting for the trial length', async () => {
     settings.days = 3;
 
-    const result = await register.execute(call());
+    const result = await run(call());
 
     expect(!result.found.paid && result.found.device.trialEndsAt).toEqual(
       new Date('2026-10-29T23:59:59.999Z'),
@@ -99,10 +111,8 @@ describe('RegisterDeviceUseCase (DEV-1)', () => {
   });
 
   it('returns the same device on the next call and records the visit', async () => {
-    const first = await register.execute(call());
-    const second = await register.execute(
-      call({ ip: '198.51.100.99', appVersion: '1.3.0', apiVersion: 'v4' }),
-    );
+    const first = await run(call());
+    const second = await run(call({ ip: '198.51.100.99', appVersion: '1.3.0', apiVersion: 'v4' }));
 
     expect(second.created).toBe(false);
     expect(second.found.device.id).toBe(first.found.device.id);
@@ -118,7 +128,7 @@ describe('RegisterDeviceUseCase (DEV-1)', () => {
     const ended = trialDevice({ trialEndsAt: new Date('2026-10-01T23:59:59.999Z') });
     await trials.insert(ended);
 
-    const result = await register.execute(call());
+    const result = await run(call());
 
     expect(result.created).toBe(false);
     expect(result.found.device.id).toBe(ended.id);
@@ -129,7 +139,7 @@ describe('RegisterDeviceUseCase (DEV-1)', () => {
   it('returns a paid device as paid, without a trial', async () => {
     await paid.insert(paidDevice({ macAddress: '00:1a:2b:3c:4d:5e' }));
 
-    const result = await register.execute(call());
+    const result = await run(call());
 
     expect(result.created).toBe(false);
     expect(result.found.paid).toBe(true);
@@ -138,10 +148,88 @@ describe('RegisterDeviceUseCase (DEV-1)', () => {
   });
 
   it('makes one device when many calls for a new MAC arrive together', async () => {
-    const results = await Promise.all(Array.from({ length: 10 }, () => register.execute(call())));
+    const results = await Promise.all(Array.from({ length: 10 }, () => run(call())));
 
     expect(results.filter((r) => r.created)).toHaveLength(1);
     expect(new Set(results.map((r) => r.found.device.id)).size).toBe(1);
     expect(trials.items.size).toBe(1);
+  });
+
+  describe('without a usable MAC (DEV-2)', () => {
+    it('makes up a MAC from the app device id and finds the device again by that id', async () => {
+      const first = await run(call({ mac: null, appDeviceId: 'app-123' }));
+      const second = await run(call({ mac: null, appDeviceId: 'app-123', ip: '198.51.100.99' }));
+
+      expect(first.created).toBe(true);
+      expect(first.found.device).toMatchObject({
+        macAddress: madeUpMac('app-123').value,
+        appDeviceId: 'app-123',
+      });
+      expect(second.created).toBe(false);
+      expect(second.found.device.id).toBe(first.found.device.id);
+      expect(second.found.device.ip).toBe('198.51.100.99');
+    });
+
+    it.each(['52:54:00:12:34:57', '52:54:00:12:34:58', '52:54:00:12:34:59', '00:00:00:00:00:00'])(
+      'never shares a device between two apps on the fallback MAC %s',
+      async (fallback) => {
+        const a = await run(call({ mac: mac(fallback), appDeviceId: 'app-a' }));
+        const b = await run(call({ mac: mac(fallback), appDeviceId: 'app-b' }));
+
+        expect(a.created && b.created).toBe(true);
+        expect(a.found.device.id).not.toBe(b.found.device.id);
+        expect([a, b].map((r) => r.found.device.macAddress)).not.toContain(fallback);
+      },
+    );
+
+    it('does not match a device stored under a fallback MAC', async () => {
+      await trials.insert(trialDevice({ id: 'shared', macAddress: '52:54:00:12:34:57' }));
+
+      const result = await run(call({ mac: mac('52:54:00:12:34:57'), appDeviceId: 'app-a' }));
+
+      expect(result.created).toBe(true);
+      expect(result.found.device.id).not.toBe('shared');
+    });
+
+    it('finds a device by uid when there is no MAC and no app device id', async () => {
+      await paid.insert(paidDevice({ uid: 'uid-9' }));
+
+      const result = await run(call({ mac: null, uid: 'uid-9' }));
+
+      expect(result.created).toBe(false);
+      expect(result.found.paid && result.found.device.id).toBe('paid-1');
+    });
+
+    it('makes a device from the uid when that is all it has', async () => {
+      const result = await run(call({ mac: null, uid: 'uid-9' }));
+
+      expect(result.created).toBe(true);
+      expect(result.found.device.macAddress).toBe(madeUpMac('uid-9').value);
+    });
+
+    it('refuses a call with no usable MAC, no app device id and no uid', async () => {
+      const result = await register.execute(call({ mac: mac('52:54:00:12:34:57') }));
+
+      expect(!result.ok && result.error.code).toBe('devices.device_id_missing');
+      expect(trials.items.size).toBe(0);
+    });
+
+    it('takes the next made-up MAC when another device already has the first one', async () => {
+      await trials.insert(trialDevice({ id: 'other', macAddress: madeUpMac('app-123').value }));
+
+      const result = await run(call({ mac: null, appDeviceId: 'app-123' }));
+
+      expect(result.created).toBe(true);
+      expect(result.found.device.macAddress).toBe(madeUpMac('app-123', 1).value);
+    });
+
+    it('makes one device when many calls with one app device id arrive together', async () => {
+      const results = await Promise.all(
+        Array.from({ length: 10 }, () => run(call({ mac: null, appDeviceId: 'app-123' }))),
+      );
+
+      expect(results.filter((r) => r.created)).toHaveLength(1);
+      expect(trials.items.size).toBe(1);
+    });
   });
 });

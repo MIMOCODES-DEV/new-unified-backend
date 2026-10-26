@@ -13,3 +13,8 @@ export class AppDeviceIdInUseError extends DomainError {
 export class MacInUseError extends DomainError {
   readonly code = 'devices.mac_in_use';
 }
+
+/** A device without a usable MAC sent neither an app device id nor a uid: nothing identifies it. */
+export class DeviceIdMissingError extends DomainError {
+  readonly code = 'devices.device_id_missing';
+}

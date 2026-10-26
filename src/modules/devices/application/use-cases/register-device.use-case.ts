@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../shared/kernel/clock.js';
 import type { MacAddress } from '../../../../shared/kernel/mac-address.js';
+import { err, ok, type Result } from '../../../../shared/kernel/result.js';
 import type {
   ApiVersion,
   DeviceVisit,
@@ -9,6 +10,8 @@ import type {
   Platform,
   TrialDevice,
 } from '../../domain/device.js';
+import { isUsableMac, madeUpMac } from '../../domain/device-mac.js';
+import { DeviceIdMissingError } from '../../domain/device.errors.js';
 import { trialEndsAt } from '../../domain/trial.js';
 import { DeviceIdentity } from '../device-identity.js';
 import { DeviceKeyGenerator } from '../ports/device-key-generator.js';
@@ -16,8 +19,12 @@ import { DeviceSettings } from '../ports/device-settings.js';
 import { PaidDeviceRepository } from '../ports/paid-device.repository.js';
 import { TrialDeviceRepository } from '../ports/trial-device.repository.js';
 
+/** Made-up MACs tried for one device before giving up; a clash is already very unlikely. */
+const MADE_UP_MAC_ATTEMPTS = 5;
+
 export interface RegisterDeviceInput {
-  mac: MacAddress;
+  /** Null when the app could not read one. A fallback MAC counts as none. */
+  mac: MacAddress | null;
   platform: Platform;
   appDeviceId: string | null;
   /** V4 apps only. */
@@ -34,10 +41,13 @@ export interface RegisterDeviceOutput {
 }
 
 /**
- * DEV-1: an app call finds its device by MAC, or makes one with a trial.
- * - Unknown MAC: a new trial device (new id and device key, trial of the brand's `trial.days`).
- * - Known MAC: that device, trial or paid, with this visit (ip, versions, lastSeenAt) recorded.
+ * DEV-1, DEV-2: an app call finds its device, or makes one with a trial.
+ * - Found by MAC; without a usable MAC (none, or a fallback MAC many devices share), by app device
+ *   id, then uid. A fallback MAC never creates or matches a device.
+ * - Found: that device, trial or paid, with this visit (ip, versions, lastSeenAt) recorded.
  *   A trial that ended stays as it is: a device never gets a second trial.
+ * - Not found: a new trial device (new id and device key, trial of the brand's `trial.days`).
+ *   Without a usable MAC it gets one made from its app device id (or uid).
  */
 @Injectable()
 export class RegisterDeviceUseCase {
@@ -50,7 +60,9 @@ export class RegisterDeviceUseCase {
     private readonly clock: Clock,
   ) {}
 
-  async execute(input: RegisterDeviceInput): Promise<RegisterDeviceOutput> {
+  async execute(
+    input: RegisterDeviceInput,
+  ): Promise<Result<RegisterDeviceOutput, DeviceIdMissingError>> {
     const now = this.clock.now();
     const visit: DeviceVisit = {
       ip: input.ip,
@@ -58,21 +70,55 @@ export class RegisterDeviceUseCase {
       apiVersion: input.apiVersion,
       at: now,
     };
+    const mac = input.mac && isUsableMac(input.mac) ? input.mac : null;
 
-    const known = await this.identity.findByMac(input.mac);
-    if (known) return { found: await this.recordVisit(known, visit), created: false };
+    const known = mac ? await this.identity.findByMac(mac) : await this.findWithoutMac(input);
+    if (known) return ok({ found: await this.recordVisit(known, visit), created: false });
 
     const trialDays = await this.settings.trialDays();
-    const claim = await this.identity.claimTrial(this.newTrial(input, now, trialDays));
-    if (claim.created) return claim;
-    // Another call made this device a moment ago, or a device already has this app device id.
-    return { found: await this.recordVisit(claim.found, visit), created: false };
+    if (mac) {
+      const claim = await this.identity.claimTrial(this.newTrial(input, mac, now, trialDays));
+      if (claim.created) return ok(claim);
+      // Another call made this device a moment ago, or a device already has this app device id.
+      return ok({ found: await this.recordVisit(claim.found, visit), created: false });
+    }
+
+    const source = input.appDeviceId ?? input.uid;
+    if (!source) {
+      return err(
+        new DeviceIdMissingError('A device without a usable MAC must send an app device id or uid'),
+      );
+    }
+    for (let attempt = 0; attempt < MADE_UP_MAC_ATTEMPTS; attempt++) {
+      const madeUp = madeUpMac(source, attempt);
+      const claim = await this.identity.claimTrial(this.newTrial(input, madeUp, now, trialDays));
+      if (claim.created) return ok(claim);
+      if (isSameDevice(claim.found, input)) {
+        return ok({ found: await this.recordVisit(claim.found, visit), created: false });
+      }
+      // The made-up MAC belongs to another device: try the next one.
+    }
+    throw new Error(`No free made-up MAC after ${MADE_UP_MAC_ATTEMPTS} attempts`);
   }
 
-  private newTrial(input: RegisterDeviceInput, now: Date, trialDays: number): TrialDevice {
+  /** A device that sent no usable MAC: by app device id, then uid. */
+  private async findWithoutMac(input: RegisterDeviceInput): Promise<FoundDevice | null> {
+    const byAppDeviceId = input.appDeviceId
+      ? await this.identity.findByAppDeviceId(input.appDeviceId)
+      : null;
+    if (byAppDeviceId) return byAppDeviceId;
+    return input.uid ? this.identity.findByUid(input.uid) : null;
+  }
+
+  private newTrial(
+    input: RegisterDeviceInput,
+    mac: MacAddress,
+    now: Date,
+    trialDays: number,
+  ): TrialDevice {
     return {
       id: randomUUID(),
-      macAddress: input.mac.value,
+      macAddress: mac.value,
       appDeviceId: input.appDeviceId,
       platform: input.platform,
       deviceKey: this.keys.next(),
@@ -106,6 +152,13 @@ export class RegisterDeviceUseCase {
     await this.paid.recordVisit(moved.device.id, visit);
     return withVisit(moved, visit);
   }
+}
+
+/** Whether a device found by a made-up MAC is the one calling, not another with the same MAC. */
+function isSameDevice(found: FoundDevice, input: RegisterDeviceInput): boolean {
+  return input.appDeviceId
+    ? found.device.appDeviceId === input.appDeviceId
+    : found.device.uid === input.uid;
 }
 
 function withVisit(found: FoundDevice, visit: DeviceVisit): FoundDevice {

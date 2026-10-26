@@ -60,6 +60,14 @@ export class DeviceIdentity {
     return trial ? { paid: false, device: trial } : null;
   }
 
+  /** A device with this uid (V4 apps), in whichever collection it is. devices is read first. */
+  async findByUid(uid: string): Promise<FoundDevice | null> {
+    const paid = await this.paid.findByUid(uid);
+    if (paid) return { paid: true, device: paid };
+    const trial = await this.trials.findByUid(uid);
+    return trial ? { paid: false, device: trial } : null;
+  }
+
   /**
    * Saves a new trial device, unless its MAC or app device id already belongs to a device: then
    * that device is returned and nothing is written. Two sign-ups for one MAC at once create one device.
