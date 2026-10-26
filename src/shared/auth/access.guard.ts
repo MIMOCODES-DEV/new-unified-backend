@@ -35,6 +35,11 @@ export class AccessGuard implements CanActivate {
     if (access.kind === 'public') {
       return true;
     }
+    // Old app routes prove who is calling inside the request (encrypted envelope, signature,
+    // device token); each route checks that itself, as the old backends did.
+    if (access.kind === 'legacy-device') {
+      return true;
+    }
 
     throw new NotImplementedException(`Access kind "${access.kind}" is not implemented yet`);
   }

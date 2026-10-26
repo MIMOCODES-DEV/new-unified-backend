@@ -18,6 +18,15 @@ export const envSchema = z.object({
     .string()
     .refine((v) => Buffer.from(v, 'base64').length === 32, 'must be 32 bytes, base64-encoded')
     .optional(),
+  /**
+   * Keys the old apps ship with (their routes only work when set). The V4 device token key, and the
+   * AES and signing secrets of the signed TV v3 and v2 routes.
+   */
+  LEGACY_DEVICE_TOKEN_KEY: z.string().min(8).optional(),
+  LEGACY_TV_V3_AES_KEY: z.string().min(8).optional(),
+  LEGACY_TV_V3_SIGNING_KEY: z.string().min(8).optional(),
+  LEGACY_V2_AES_KEY: z.string().min(8).optional(),
+  LEGACY_V2_SIGNING_KEY: z.string().min(8).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -22,6 +22,7 @@ import { LoginV4DeviceUseCase } from './application/use-cases/login-v4-device.us
 import { FindDeviceUseCase } from './application/use-cases/find-device.use-case.js';
 import { ApplyLicenseUseCase } from './application/use-cases/apply-license.use-case.js';
 import { FindDeviceByIdUseCase } from './application/use-cases/find-device-by-id.use-case.js';
+import { HasSolvedCaptchaUseCase } from './application/use-cases/has-solved-captcha.use-case.js';
 import { ChangePlaylistCountUseCase } from './application/use-cases/change-playlist-count.use-case.js';
 import { ChangeDeviceKeyUseCase } from './application/use-cases/change-device-key.use-case.js';
 import { RegisterDeviceUseCase } from './application/use-cases/register-device.use-case.js';
@@ -40,6 +41,7 @@ const useCases = [
   ChangePlaylistCountUseCase,
   FindDeviceByIdUseCase,
   ApplyLicenseUseCase,
+  HasSolvedCaptchaUseCase,
   ChangeDeviceKeyUseCase,
   VerifyDeviceKeyUseCase,
   SetParentPinUseCase,
