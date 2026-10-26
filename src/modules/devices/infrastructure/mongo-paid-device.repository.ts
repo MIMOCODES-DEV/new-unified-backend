@@ -3,7 +3,7 @@ import type { Collection, Filter } from 'mongodb';
 import type { MacAddress } from '../../../shared/kernel/mac-address.js';
 import { TenantDb } from '../../../shared/tenancy/tenant-db.js';
 import { PaidDeviceRepository } from '../application/ports/paid-device.repository.js';
-import type { PaidDevice } from '../domain/device.js';
+import type { DeviceVisit, PaidDevice } from '../domain/device.js';
 import {
   PAID_DEVICES_COLLECTION,
   toPaidDevice,
@@ -49,6 +49,24 @@ export class MongoPaidDeviceRepository extends PaidDeviceRepository {
 
   async insert(device: PaidDevice): Promise<void> {
     await (await this.collection()).insertOne(toPaidDeviceDocument(device));
+  }
+
+  async recordVisit(id: string, visit: DeviceVisit): Promise<boolean> {
+    const result = await (
+      await this.collection()
+    ).updateOne(
+      { _id: id },
+      {
+        $set: {
+          ip: visit.ip,
+          appVersion: visit.appVersion,
+          apiVersion: visit.apiVersion,
+          lastSeenAt: visit.at,
+          updatedAt: visit.at,
+        },
+      },
+    );
+    return result.matchedCount > 0;
   }
 
   async update(device: PaidDevice): Promise<boolean> {

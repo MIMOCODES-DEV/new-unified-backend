@@ -3,7 +3,7 @@ import type { Collection, Filter } from 'mongodb';
 import type { MacAddress } from '../../../shared/kernel/mac-address.js';
 import { TenantDb } from '../../../shared/tenancy/tenant-db.js';
 import { TrialDeviceRepository } from '../application/ports/trial-device.repository.js';
-import type { TrialDevice } from '../domain/device.js';
+import type { DeviceVisit, TrialDevice } from '../domain/device.js';
 import {
   TRIAL_DEVICES_COLLECTION,
   toTrialDevice,
@@ -49,6 +49,24 @@ export class MongoTrialDeviceRepository extends TrialDeviceRepository {
 
   async insert(device: TrialDevice): Promise<void> {
     await (await this.collection()).insertOne(toTrialDeviceDocument(device));
+  }
+
+  async recordVisit(id: string, visit: DeviceVisit): Promise<boolean> {
+    const result = await (
+      await this.collection()
+    ).updateOne(
+      { _id: id },
+      {
+        $set: {
+          ip: visit.ip,
+          appVersion: visit.appVersion,
+          apiVersion: visit.apiVersion,
+          lastSeenAt: visit.at,
+          updatedAt: visit.at,
+        },
+      },
+    );
+    return result.matchedCount > 0;
   }
 
   async update(device: TrialDevice): Promise<boolean> {

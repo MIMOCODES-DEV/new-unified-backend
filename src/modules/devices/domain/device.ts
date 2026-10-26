@@ -103,6 +103,14 @@ export interface PaidDevice extends DeviceBase {
   readonly recovery: DeviceRecovery | null;
 }
 
+/** What an app call updates on its device: who called, from where, when. */
+export interface DeviceVisit {
+  readonly ip: string;
+  readonly appVersion: string | null;
+  readonly apiVersion: ApiVersion;
+  readonly at: Date;
+}
+
 /** A device looked up by MAC (or id): which collection it is in decides whether it ever paid. */
 export type FoundDevice =
   | { readonly paid: false; readonly device: TrialDevice }

@@ -1,7 +1,11 @@
 import type { DeviceLock } from '../../src/modules/devices/application/ports/device-lock.js';
 import type { PaidDeviceRepository } from '../../src/modules/devices/application/ports/paid-device.repository.js';
 import type { TrialDeviceRepository } from '../../src/modules/devices/application/ports/trial-device.repository.js';
-import type { PaidDevice, TrialDevice } from '../../src/modules/devices/domain/device.js';
+import type {
+  DeviceVisit,
+  PaidDevice,
+  TrialDevice,
+} from '../../src/modules/devices/domain/device.js';
 import type { MacAddress } from '../../src/shared/kernel/mac-address.js';
 
 const at = new Date('2026-10-25T10:00:00Z');
@@ -100,6 +104,14 @@ export class InMemoryTrialDeviceRepository implements TrialDeviceRepository {
     }
     this.items.set(device.id, device);
   }
+  async recordVisit(id: string, visit: DeviceVisit): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    const { at, ...rest } = visit;
+    this.items.set(id, { ...device, ...rest, lastSeenAt: at, updatedAt: at });
+    return true;
+  }
   async update(device: TrialDevice): Promise<boolean> {
     await tick();
     if (!this.items.has(device.id)) return false;
@@ -147,6 +159,14 @@ export class InMemoryPaidDeviceRepository implements PaidDeviceRepository {
       throw new Error('E11000 duplicate key: devices.appDeviceId');
     }
     this.items.set(device.id, device);
+  }
+  async recordVisit(id: string, visit: DeviceVisit): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    const { at, ...rest } = visit;
+    this.items.set(id, { ...device, ...rest, lastSeenAt: at, updatedAt: at });
+    return true;
   }
   async update(device: PaidDevice): Promise<boolean> {
     await tick();
