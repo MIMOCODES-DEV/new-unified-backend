@@ -14,6 +14,7 @@
     "cli": "node --env-file-if-exists=.env --import @swc-node/register/esm-register src/main.cli.ts",
     "e2e:devices": "node tools/dev/e2e-devices.mjs",
     "e2e:playlists": "node tools/dev/e2e-playlists.mjs",
+    "e2e:licenses": "node tools/dev/e2e-licenses.mjs",
     "seed": "pnpm cli migrate:central && pnpm cli tenants:seed --dev && pnpm cli migrate:tenants && pnpm cli playlists:pin-keys && pnpm cli seed:examples",
     "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && swc src -d dist --strip-leading-paths --config-file .swcrc --ignore \"**/*.spec.ts\"",
     "start:api": "node dist/main.api.js",

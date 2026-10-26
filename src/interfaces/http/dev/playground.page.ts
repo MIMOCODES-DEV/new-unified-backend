@@ -95,6 +95,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
         <button data-tab="tv">Old TV code (DEV-4)</button>
         <button data-tab="owner">Key and PIN (DEV-5)</button>
         <button data-tab="playlists">Playlists (PL-1 to PL-8)</button>
+        <button data-tab="license">License (LIC-1 to LIC-3)</button>
       </div>
 
       <div class="tab active" id="tab-register">
@@ -156,6 +157,29 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
           <button id="o-pin-on">Turn on / change PIN</button>
           <button id="o-pin-off">Turn off</button>
         </div>
+      </div>
+
+      <div class="tab" id="tab-license">
+        <p class="hint">Activating moves a trial device to devices. A year starts where the running trial or year ends; lifetime never ends. The state is worked out from the dates, never stored.</p>
+        <div class="row">
+          <label>Type<select id="l-type"><option value="yearly">Yearly (1 credit)</option><option value="lifetime">Lifetime (2 credits)</option></select></label>
+          <label>Paid by<select id="l-source">
+            <option>admin</option><option>reseller</option><option>code</option><option>coupon</option>
+            <option>payment</option><option>store</option><option>transfer</option><option>plan</option>
+          </select></label>
+          <label>Who (actor id)<input id="l-actor" placeholder="optional"></label>
+        </div>
+        <div class="row">
+          <label>Source id (transaction, code, …)<input id="l-source-id"></label>
+          <button id="l-new-source" title="A new source id: a new payment">New id</button>
+          <label>Reseller id<input id="l-reseller" placeholder="optional"></label>
+          <label class="check"><input type="checkbox" id="l-multi"> multi-device order</label>
+        </div>
+        <div class="row">
+          <button class="primary" id="l-activate">Activate</button>
+          <button id="l-revoke">Revoke current license</button>
+        </div>
+        <p class="hint">Send the same source id twice: it activates once. Use New id for a second payment.</p>
       </div>
 
       <div class="tab" id="tab-playlists">
@@ -254,6 +278,10 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     <div class="panel">
       <h2>Device</h2>
       <div id="device"><p class="empty">No device for this MAC yet.</p></div>
+    </div>
+    <div class="panel">
+      <h2>License</h2>
+      <div id="license"><p class="empty">No device for this MAC yet.</p></div>
     </div>
     <div class="panel">
       <div class="row" style="justify-content:space-between;align-items:end">
@@ -481,7 +509,53 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
   PLATFORMS.forEach(function (p) { var o = document.createElement('option'); o.textContent = p; $('pv-platform').appendChild(o); });
   function plCall(method, path, body) { return call(method, path, body, '/dev/playlists'); }
   function macPath() { return '/' + encodeURIComponent(mac() || ''); }
-  function both() { refreshPlaylists(); lookUp(); }
+  function both() { refreshPlaylists(); lookUp(); refreshLicense(); }
+
+  // License
+  function newSourceId() { $('l-source-id').value = 'src-' + Math.random().toString(36).slice(2, 8); }
+  newSourceId();
+  $('l-new-source').addEventListener('click', newSourceId);
+  $('l-activate').addEventListener('click', function () {
+    call('POST', macPath() + '/activate', {
+      type: $('l-type').value, source: $('l-source').value, actorId: orNull($('l-actor').value),
+      sourceId: orNull($('l-source-id').value), multiActivate: $('l-multi').checked,
+      resellerId: orNull($('l-reseller').value)
+    }, '/dev/licenses').then(both);
+  });
+  $('l-revoke').addEventListener('click', function () { call('POST', macPath() + '/revoke', undefined, '/dev/licenses').then(both); });
+
+  var STATE_PILL = { trial: 'ok', yearly: 'ok', lifetime: 'ok', expired: 'bad', revoked: 'bad' };
+  function when(iso) { return iso ? new Date(iso).toUTCString().replace(' GMT', ' UTC') : 'never'; }
+  function refreshLicense() {
+    var box = $('license');
+    if (!mac()) { box.innerHTML = '<p class="empty">Type a MAC first.</p>'; return; }
+    Promise.all([
+      fetch('/dev/licenses' + macPath()).then(function (r) { return r.json(); }),
+      fetch('/dev/licenses' + macPath() + '/history').then(function (r) { return r.json(); })
+    ]).then(function (both) {
+      var st = both[0], hist = both[1];
+      if (st && st.error) { box.innerHTML = '<p class="empty">No device for this MAC yet.</p>'; return; }
+      var html = '<div class="kv">' +
+        '<div>State</div><div><span class="pill ' + STATE_PILL[st.state] + '">' + esc(st.state) + '</span>' + (st.active ? ' can play' : ' cannot play') + '</div>' +
+        '<div>Ends</div><div>' + esc(when(st.endsAt)) + '</div>' +
+        (st.license ? '<div>Current license</div><div><code>' + esc(st.license.id) + '</code></div>' : '') +
+        '</div>';
+      if (Array.isArray(hist) && hist.length) {
+        html += '<h3 class="sub">History, oldest first</h3><div class="cards">' + hist.map(function (e) {
+          var l = e.license;
+          return '<div class="card"><div class="top"><span class="name">' + esc(l.type) + '</span>' +
+            '<span class="pill ' + STATE_PILL[e.state] + '">' + esc(e.state) + '</span>' +
+            (e.current ? '<span class="pill">current</span>' : '') +
+            (l.multiActivate ? '<span class="pill warn">multi-device</span>' : '') + '</div>' +
+            '<div class="line">by ' + esc(l.activatedBy.source) + (l.activatedBy.actorId ? ' (' + esc(l.activatedBy.actorId) + ')' : '') +
+            ' on ' + esc(when(l.createdAt)) + ', ' + l.creditCost + ' credit' + (l.creditCost > 1 ? 's' : '') + '</div>' +
+            '<div class="line">ends ' + esc(when(l.expiresAt)) + (l.sourceId ? ', source ' + esc(l.sourceId) : '') + '</div>' +
+            (l.revoked ? '<div class="line">revoked ' + esc(when(l.revokedAt)) + '</div>' : '') + '</div>';
+        }).join('') + '</div>';
+      }
+      box.innerHTML = html;
+    });
+  }
 
   $('p-kind').addEventListener('change', function () {
     document.querySelectorAll('[data-kind]').forEach(function (row) { row.hidden = row.dataset.kind !== $('p-kind').value; });
@@ -613,12 +687,13 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     }
     return el;
   }
-  $('mac').addEventListener('change', function () { pl.selected = null; refreshPlaylists(); });
-  ['randomMac', 'fallbackMac', 'refresh'].forEach(function (id) { $(id).addEventListener('click', function () { pl.selected = null; refreshPlaylists(); }); });
-  $('register').addEventListener('click', function () { setTimeout(refreshPlaylists, 300); });
+  $('mac').addEventListener('change', function () { pl.selected = null; refreshPlaylists(); refreshLicense(); });
+  ['randomMac', 'fallbackMac', 'refresh'].forEach(function (id) { $(id).addEventListener('click', function () { pl.selected = null; refreshPlaylists(); refreshLicense(); }); });
+  $('register').addEventListener('click', function () { setTimeout(function () { refreshPlaylists(); refreshLicense(); }, 300); });
 
   lookUp();
   refreshPlaylists();
+  refreshLicense();
 })();
 </script>
 </body>
