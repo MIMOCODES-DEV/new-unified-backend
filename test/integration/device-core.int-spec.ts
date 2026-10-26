@@ -210,6 +210,24 @@ describe('Phase 1 device core on MongoDB and Redis', () => {
       await expect(trials.findById('iso-1')).rejects.toThrow('No tenant in context');
     });
 
+    it('finds playlists on a host as text, never as a pattern (PL-8)', async () => {
+      await context.run(A, async () => {
+        const playlists = new MongoPlaylistRepository(new TenantDb(context, registry));
+        const on = (id: string, url: string) => ({ ...m3u(id, 'host-dev'), url });
+        await playlists.insert(on('h1', 'http://line.example.com:8080/a.m3u'));
+        await playlists.insert(on('h2', 'https://user:pass@LINE.example.com/b.m3u'));
+        await playlists.insert(on('h3', 'http://lineXexample.com/c.m3u'));
+        await playlists.insert(on('h4', 'http://sub.line.example.com/d.m3u'));
+        await playlists.insert(on('h5', 'http://other.example.com/line.example.com'));
+
+        const found = await playlists.listOnHost('line.example.com', ['host-dev']);
+        const none = await playlists.listOnHost('line.example.com', ['someone-else']);
+
+        expect(found.map((p) => p.id).sort()).toEqual(['h1', 'h2']);
+        expect(none).toEqual([]);
+      });
+    });
+
     it('reads and writes licenses, playlists and captchas for the current brand', async () => {
       const tenantDb = new TenantDb(context, registry);
       await context.run(B, async () => {

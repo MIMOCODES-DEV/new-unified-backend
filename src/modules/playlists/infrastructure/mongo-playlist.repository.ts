@@ -36,6 +36,28 @@ export class MongoPlaylistRepository extends PlaylistRepository {
     return docs.map(toPlaylist);
   }
 
+  async listOnHost(host: string, deviceIds: readonly string[] | null): Promise<Playlist[]> {
+    // The host is text, escaped and anchored right after the scheme (and any login), never a
+    // pattern the caller controls.
+    const escaped = host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const onHost = new RegExp(`^https?://(?:[^/@]*@)?${escaped}(?::\\d+)?(?:[/?#]|$)`, 'i');
+    const docs = await (
+      await this.collection()
+    )
+      .find({
+        ...(deviceIds ? { deviceId: { $in: [...deviceIds] } } : {}),
+        $or: [
+          { url: onHost },
+          { 'xtream.server': onHost },
+          { 'stalker.portalUrl': onHost },
+          { 'stalker.fallbackUrl': onHost },
+        ],
+      })
+      .sort({ createdAt: 1 })
+      .toArray();
+    return docs.map(toPlaylist);
+  }
+
   async findByLegacyId(legacyId: string): Promise<Playlist | null> {
     const doc = await (await this.collection()).findOne({ 'legacy.id': legacyId });
     return doc ? toPlaylist(doc) : null;

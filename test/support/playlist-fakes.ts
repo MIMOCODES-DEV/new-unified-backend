@@ -38,6 +38,24 @@ export class InMemoryPlaylistRepository implements PlaylistRepository {
       .filter((p) => p.deviceId === deviceId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
+  async listOnHost(host: string, deviceIds: readonly string[] | null): Promise<Playlist[]> {
+    await tick();
+    const hostOf = (link: string | null | undefined) => {
+      try {
+        return link ? new URL(link).hostname : null;
+      } catch {
+        return null;
+      }
+    };
+    return [...this.items.values()]
+      .filter((p) => !deviceIds || deviceIds.includes(p.deviceId))
+      .filter((p) =>
+        [p.url, p.xtream?.server, p.stalker?.portalUrl, p.stalker?.fallbackUrl].some(
+          (link) => hostOf(link) === host,
+        ),
+      )
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
   async findByLegacyId(legacyId: string): Promise<Playlist | null> {
     await tick();
     return [...this.items.values()].find((p) => p.legacy?.id === legacyId) ?? null;

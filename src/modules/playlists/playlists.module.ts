@@ -20,6 +20,7 @@ import { DeletePlaylistsByMacUseCase } from './application/use-cases/delete-play
 import { EditPlaylistUseCase } from './application/use-cases/edit-playlist.use-case.js';
 import { ListPlaylistsUseCase } from './application/use-cases/list-playlists.use-case.js';
 import { DashboardPlaylistsUseCase } from './application/use-cases/dashboard-playlists.use-case.js';
+import { MoveProviderHostUseCase } from './application/use-cases/move-provider-host.use-case.js';
 import { PlaylistReplyUseCase } from './application/use-cases/playlist-reply.use-case.js';
 import { SetPlaylistPinUseCase } from './application/use-cases/set-playlist-pin.use-case.js';
 import { SetPlaylistBackupUseCase } from './application/use-cases/set-playlist-backup.use-case.js';
@@ -43,6 +44,7 @@ const useCases = [
   AddPlaylistByMacUseCase,
   DeletePlaylistsByMacUseCase,
   SyncPlaylistStatusUseCase,
+  MoveProviderHostUseCase,
 ];
 
 export interface PlaylistsModuleOptions {
