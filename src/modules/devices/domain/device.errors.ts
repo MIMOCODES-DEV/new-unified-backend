@@ -66,3 +66,8 @@ export class InvalidUidError extends DomainError {
 export class UsableMacRequiredError extends DomainError {
   readonly code = 'devices.usable_mac_required';
 }
+
+/** The device used a newer app API (V4); an older entry point is refused (the V4 lock). */
+export class OlderApiRefusedError extends DomainError {
+  readonly code = 'devices.older_api_refused';
+}

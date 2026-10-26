@@ -40,6 +40,9 @@ class Settings extends DeviceSettings {
   trialDays() {
     return Promise.resolve(7);
   }
+  reviewBuilds() {
+    return Promise.resolve([]);
+  }
 }
 
 class Keys extends DeviceKeyGenerator {

@@ -31,6 +31,23 @@ export const tenantConfigSchema = z.strictObject({
       apkUrl: httpUrl.nullable().default(null),
     })
     .prefault({}),
+  review: z
+    .strictObject({
+      /**
+       * App builds in store review (Samsung, LG, …), answered as lifetime so the reviewer sees a
+       * working app. Exact platform + version; staff remove a build when its review is done.
+       */
+      builds: z
+        .array(
+          z.strictObject({
+            platform: z.string().regex(/^[a-z_]+$/),
+            version: z.string().trim().min(1).max(32),
+          }),
+        )
+        .max(50)
+        .default([]),
+    })
+    .prefault({}),
   payments: z
     .strictObject({
       /** Which payment providers the brand shows, by provider code (`paypal`, `stripe`, …). */

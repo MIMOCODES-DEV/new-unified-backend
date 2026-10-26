@@ -9,6 +9,7 @@ import {
 import { FixedClock } from '../../../../shared/kernel/clock.js';
 import { MacAddress } from '../../../../shared/kernel/mac-address.js';
 import { madeUpMac } from '../../domain/device-mac.js';
+import type { ReviewBuild } from '../../domain/review-build.js';
 import { DeviceIdentity } from '../device-identity.js';
 import { DeviceKeyGenerator } from '../ports/device-key-generator.js';
 import { DeviceSettings } from '../ports/device-settings.js';
@@ -39,8 +40,12 @@ const call = (overrides: Partial<RegisterDeviceInput> = {}): RegisterDeviceInput
 
 class Settings extends DeviceSettings {
   days = 7;
+  builds: ReviewBuild[] = [];
   trialDays() {
     return Promise.resolve(this.days);
+  }
+  reviewBuilds() {
+    return Promise.resolve(this.builds);
   }
 }
 
@@ -272,6 +277,49 @@ describe('RegisterDeviceUseCase (DEV-1, DEV-2)', () => {
 
       expect(!result.ok && result.error.code).toBe('devices.platform_mismatch');
       expect(trials.items.get('trial-1')).toMatchObject({ platform: 'android', ip: '203.0.113.7' });
+    });
+  });
+
+  describe('V4 lock and store-review builds (DEV-6)', () => {
+    it('refuses an old entry point for a device that used V4, and changes nothing', async () => {
+      await trials.insert(trialDevice({ apiVersion: 'v4', ip: '203.0.113.7' }));
+
+      const result = await register.execute(call({ apiVersion: 'legacy' }));
+
+      expect(!result.ok && result.error.code).toBe('devices.older_api_refused');
+      expect(trials.items.get('trial-1')).toMatchObject({ apiVersion: 'v4', ip: '203.0.113.7' });
+    });
+
+    it('lets a legacy device move up to V4', async () => {
+      await trials.insert(trialDevice({ apiVersion: 'legacy' }));
+
+      const result = await run(call({ apiVersion: 'v4' }));
+
+      expect(result.found.device.apiVersion).toBe('v4');
+    });
+
+    it('flags a call from a build in review, matched on exact platform and version', async () => {
+      settings.builds = [{ platform: 'samsung', version: '1.2.0' }];
+
+      const review = await run(call({ platform: 'samsung', appVersion: '1.2.0' }));
+      const newer = await run(call({ platform: 'samsung', appVersion: '1.2.1' }));
+
+      expect(review.reviewBuild).toBe(true);
+      expect(newer.reviewBuild).toBe(false);
+    });
+
+    it('flags nothing with no review builds (the default)', async () => {
+      const result = await run(call());
+
+      expect(result.reviewBuild).toBe(false);
+    });
+
+    it('does not flag the same version on another platform', async () => {
+      settings.builds = [{ platform: 'samsung', version: '1.2.0' }];
+
+      const result = await run(call({ platform: 'lg', appVersion: '1.2.0' }));
+
+      expect(result.reviewBuild).toBe(false);
     });
   });
 });

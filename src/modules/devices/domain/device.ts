@@ -25,8 +25,14 @@ export const PLATFORMS = [
 ] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
+/** Oldest first: a device that used a version is never served by an older one (DEV-6). */
 export const API_VERSIONS = ['legacy', 'v4', 'v5'] as const;
 export type ApiVersion = (typeof API_VERSIONS)[number];
+
+/** Whether `caller` is older than `stored`: such a call must be refused. */
+export function isOlderApi(caller: ApiVersion, stored: ApiVersion): boolean {
+  return API_VERSIONS.indexOf(caller) < API_VERSIONS.indexOf(stored);
+}
 
 /** Where a row came from in the old backends: old brand, old `_id`, raw old fields kept for reference. */
 export interface LegacyRef {

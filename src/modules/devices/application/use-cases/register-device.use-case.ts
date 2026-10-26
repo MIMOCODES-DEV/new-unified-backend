@@ -3,17 +3,23 @@ import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../shared/kernel/clock.js';
 import type { MacAddress } from '../../../../shared/kernel/mac-address.js';
 import { err, ok, type Result } from '../../../../shared/kernel/result.js';
-import type {
-  ApiVersion,
-  DeviceBase,
-  DeviceVisit,
-  FoundDevice,
-  Platform,
-  TrialDevice,
+import {
+  type ApiVersion,
+  type DeviceBase,
+  type DeviceVisit,
+  type FoundDevice,
+  isOlderApi,
+  type Platform,
+  type TrialDevice,
 } from '../../domain/device.js';
 import { isUsableMac, madeUpMac } from '../../domain/device-mac.js';
 import { DEFAULT_PARENT_PIN } from '../../domain/owner-settings.js';
-import { DeviceIdMissingError, PlatformMismatchError } from '../../domain/device.errors.js';
+import {
+  DeviceIdMissingError,
+  OlderApiRefusedError,
+  PlatformMismatchError,
+} from '../../domain/device.errors.js';
+import { isReviewBuild } from '../../domain/review-build.js';
 import { trialEndsAt } from '../../domain/trial.js';
 import { DeviceIdentity } from '../device-identity.js';
 import { DeviceKeyGenerator } from '../ports/device-key-generator.js';
@@ -40,7 +46,17 @@ export interface RegisterDeviceOutput {
   found: FoundDevice;
   /** True when this call made the device (and started its trial). */
   created: boolean;
+  /**
+   * The call comes from an app build in store review (brand config `review.builds`): the route
+   * answers it as lifetime. Never stored on the device or its license.
+   */
+  reviewBuild: boolean;
 }
+
+export type RegisterDeviceError =
+  DeviceIdMissingError | PlatformMismatchError | OlderApiRefusedError;
+
+type Found = Omit<RegisterDeviceOutput, 'reviewBuild'>;
 
 /**
  * DEV-1, DEV-2: an app call finds its device, or makes one with a trial.
@@ -53,6 +69,8 @@ export interface RegisterDeviceOutput {
  *   (old routes stored it badly); a V4 device keeps its own and the call is refused.
  * - Not found: a new trial device (new id and device key, trial of the brand's `trial.days`).
  *   Without a usable MAC it gets one made from its app device id (or uid).
+ * - DEV-6: a device that used a newer API (V4) is refused by an older entry point (the V4 lock),
+ *   and a call from a build in store review is flagged so the route answers it as lifetime.
  */
 @Injectable()
 export class RegisterDeviceUseCase {
@@ -67,7 +85,19 @@ export class RegisterDeviceUseCase {
 
   async execute(
     input: RegisterDeviceInput,
-  ): Promise<Result<RegisterDeviceOutput, DeviceIdMissingError | PlatformMismatchError>> {
+  ): Promise<Result<RegisterDeviceOutput, RegisterDeviceError>> {
+    const found = await this.findOrCreate(input);
+    if (!found.ok) return found;
+    const builds = await this.settings.reviewBuilds();
+    return ok({
+      ...found.value,
+      reviewBuild: isReviewBuild(builds, input.platform, input.appVersion),
+    });
+  }
+
+  private async findOrCreate(
+    input: RegisterDeviceInput,
+  ): Promise<Result<Found, RegisterDeviceError>> {
     const now = this.clock.now();
     const visit: DeviceVisit = {
       platform: input.platform,
@@ -109,8 +139,17 @@ export class RegisterDeviceUseCase {
   private async visited(
     found: FoundDevice,
     visit: DeviceVisit,
-  ): Promise<Result<RegisterDeviceOutput, PlatformMismatchError>> {
+  ): Promise<Result<Found, PlatformMismatchError | OlderApiRefusedError>> {
     const stored = found.device;
+    if (isOlderApi(visit.apiVersion, stored.apiVersion)) {
+      return err(
+        new OlderApiRefusedError('This device uses a newer app; this entry point is refused', {
+          deviceId: stored.id,
+          apiVersion: stored.apiVersion,
+          caller: visit.apiVersion,
+        }),
+      );
+    }
     if (stored.platform !== visit.platform && !canAdoptPlatform(stored)) {
       return err(
         new PlatformMismatchError('This device is registered for another platform', {

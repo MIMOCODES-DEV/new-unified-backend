@@ -12,6 +12,7 @@ export const DevicesWithBrandConfig = DevicesModule.forRootAsync({
     inject: [GetTenantConfigUseCase, TenantContext],
     useFactory: (getConfig: GetTenantConfigUseCase, context: TenantContext): DeviceSettings => ({
       trialDays: async () => (await getConfig.execute(context.current)).trial.days,
+      reviewBuilds: async () => (await getConfig.execute(context.current)).review.builds,
     }),
   },
 });

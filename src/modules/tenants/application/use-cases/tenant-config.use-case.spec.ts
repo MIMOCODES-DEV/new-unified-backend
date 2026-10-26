@@ -49,6 +49,7 @@ describe('tenant config', () => {
     expect(config.trial.days).toBe(7);
     expect(config.currency.main).toBe('EUR');
     expect(config.payments.visible).toEqual({});
+    expect(config.review.builds).toEqual([]);
   });
 
   it('merges a change into the stored config and keeps brands apart', async () => {
@@ -70,6 +71,8 @@ describe('tenant config', () => {
     [{ currency: { main: 'euro' } }],
     [{ contact: { email: 'not-an-email' } }],
     [{ app: { apkUrl: 'ftp://files' } }],
+    [{ review: { builds: [{ platform: 'Samsung', version: '1.2.0' }] } }],
+    [{ review: { builds: [{ platform: 'samsung' }] } }],
     [{ unknownSection: true }],
   ])('refuses the invalid change %j and stores nothing', async (patch) => {
     const result = await process().update.execute({ slug: 'ibo', patch });

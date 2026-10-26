@@ -10,6 +10,7 @@ import {
   type DeviceNotFoundError,
   type InvalidCaptchaError,
   InvalidUidError,
+  type OlderApiRefusedError,
   type PlatformMismatchError,
   UidMismatchError,
   UsableMacRequiredError,
@@ -45,7 +46,8 @@ export type LoginV4DeviceError =
   | UidMismatchError
   | DeviceIdMissingError
   | DeviceNotFoundError
-  | PlatformMismatchError;
+  | PlatformMismatchError
+  | OlderApiRefusedError;
 
 const UID = /^[A-Z0-9]{6}$/;
 
