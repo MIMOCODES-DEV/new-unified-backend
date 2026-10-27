@@ -4,7 +4,7 @@ The phases of the rebuild, what each one delivers, its tasks and expected output
 is the only page that tracks status.** Each phase has its own page with its tasks, schema, APIs and diagrams
 (in `docs/phases/`), and its own branch, built on the one before.
 
-> This branch: `phase/1-foundation`. It contains Phases 1 to 1; the later phases are described here but not built in it.
+> This branch: `phase/2-database`. It contains Phases 1 to 2; the later phases are described here but not built in it.
 
 Team: **Ali** (device side) and **Omar** (money and people side). A separate team builds the websites and the
 admin / reseller apps against our APIs.
@@ -14,8 +14,8 @@ admin / reseller apps against our APIs.
 | Phase | Branch | What it delivers | Status |
 |---|---|---|---|
 | [**Phase 1 · Foundation**](phases/phase-1-foundation.md) | `phase/1-foundation` | the service, brands from the host, a database per brand, settings and secrets, evidence from the old backends | ✓ done |
-| **Phase 2 · Database** | `phase/2-database` | the six device core collections, repositories, the Redis lock, one MAC one device | next (not in this branch) |
-| **Phase 3 · Core features** | `phase/3-core-features` | devices, playlists, licenses, the V4 app routes, dev routes and playground | planned (not in this branch) |
+| [**Phase 2 · Database**](phases/phase-2-database.md) | `phase/2-database` | the six device core collections, repositories, the Redis lock, one MAC one device | ✓ done |
+| **Phase 3 · Core features** | `phase/3-core-features` | devices, playlists, licenses, the V4 app routes, dev routes and playground | next (not in this branch) |
 | **Phase 4 · Moves and cleanup** | `phase/4-moves-and-cleanup` | MAC switch, recovery, provider domain moves, cleanup of old trial devices | planned (not in this branch) |
 | **Phase 5 · Accounts and staff** | `phase/5-accounts-and-staff` | customers (per brand), staff users, roles and permissions | planned |
 | Later phases | — | old-app routes, money, payments, store, … ([below](#later-phases)) | not planned yet |
@@ -39,7 +39,7 @@ typecheck, knip, unit and integration tests, build (and its end-to-end scripts).
 | Phase | Tasks | Who | Expected output | Checked |
 |---|---|---|---|---|
 | 1 · Foundation | F-1 … F-11 | Omar (Ali: request id) | a request on a brand host is served for that brand only; unknown host 421; CI green | [unit 140 · integration 16](phases/phase-1-foundation-tests.md) |
-| 2 · Database | SCH-1, SCH-2, LOCK, UNQ | Ali | migrations create every collection and index; ten parallel sign-ups make one device | unit 181 · integration 35 |
+| 2 · Database | SCH-1, SCH-2, LOCK, UNQ | Ali | migrations create every collection and index; ten parallel sign-ups make one device | [unit 181 · integration 35](phases/phase-2-database-tests.md) |
 | 3 · Core features | DEV-1 … DEV-6, PL-1 … PL-8, LIC-1 … LIC-3 | Omar | merge point "Devices and licenses work": register, activate from two sources, extend, revoke | unit 455 · integration 43 · e2e 110 |
 | 4 · Moves and cleanup | DEV-7, REC-1 … REC-3, DOM-1, DOM-2, LIC-4 | Ali | merge point "Device core works", then CORE on two brands | unit 513 · integration 51 · e2e 142 |
 | 5 · Accounts and staff | ACC-1, ACC-2, CUS-1 … CUS-4, PRM-1, PRM-2, STF-1 … STF-3 | to agree | merge point "Accounts work" | — |
