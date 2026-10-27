@@ -1,11 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { MacAddress } from '../../../shared/kernel/mac-address.js';
 import { err, ok, type Result } from '../../../shared/kernel/result.js';
-import type { FoundDevice, PaidDevice, TrialDevice } from '../domain/device.js';
-import { DeviceNotFoundError, MacInUseError } from '../domain/device.errors.js';
+import type {
+  DeviceSettingsChange,
+  FoundDevice,
+  PaidDevice,
+  TrialDevice,
+} from '../domain/device.js';
+import {
+  AppDeviceIdInUseError,
+  DeviceNotFoundError,
+  MacInUseError,
+} from '../domain/device.errors.js';
 import { DeviceLock } from './ports/device-lock.js';
 import { PaidDeviceRepository } from './ports/paid-device.repository.js';
 import { TrialDeviceRepository } from './ports/trial-device.repository.js';
+
+/** changeLockedMac found the device on a MAC other than the one locked. */
+const MAC_MOVED = Symbol('MAC_MOVED');
 
 /** What paying adds to a device when it moves from trialDevices to devices. */
 export interface PaidDeviceFields {
@@ -45,14 +57,40 @@ export class DeviceIdentity {
     return trial ? { paid: false, device: trial } : null;
   }
 
+  /** The device with this app device id, in whichever collection it is. devices is read first. */
+  async findByAppDeviceId(appDeviceId: string): Promise<FoundDevice | null> {
+    const paid = await this.paid.findByAppDeviceId(appDeviceId);
+    if (paid) return { paid: true, device: paid };
+    const trial = await this.trials.findByAppDeviceId(appDeviceId);
+    return trial ? { paid: false, device: trial } : null;
+  }
+
+  /** The device the old backend knew by this `_id` (`legacy.id`), in whichever collection it is. */
+  async findByLegacyId(legacyId: string): Promise<FoundDevice | null> {
+    const paid = await this.paid.findByLegacyId(legacyId);
+    if (paid) return { paid: true, device: paid };
+    const trial = await this.trials.findByLegacyId(legacyId);
+    return trial ? { paid: false, device: trial } : null;
+  }
+
+  /** A device with this uid (V4 apps), in whichever collection it is. devices is read first. */
+  async findByUid(uid: string): Promise<FoundDevice | null> {
+    const paid = await this.paid.findByUid(uid);
+    if (paid) return { paid: true, device: paid };
+    const trial = await this.trials.findByUid(uid);
+    return trial ? { paid: false, device: trial } : null;
+  }
+
   /**
-   * Saves a new trial device, unless its MAC already belongs to a device: then that device is
-   * returned and nothing is written. Two sign-ups for one MAC at once create one device.
+   * Saves a new trial device, unless its MAC or app device id already belongs to a device: then
+   * that device is returned and nothing is written. Two sign-ups for one MAC at once create one device.
    */
   async claimTrial(device: TrialDevice): Promise<{ created: boolean; found: FoundDevice }> {
     const mac = normalizedMac(device.macAddress);
     return this.lock.withMacs([mac], async () => {
-      const existing = await this.findByMac(mac);
+      const existing =
+        (await this.findByMac(mac)) ??
+        (device.appDeviceId ? await this.findByAppDeviceId(device.appDeviceId) : null);
       if (existing) return { created: false, found: existing };
       await this.trials.insert(device);
       return { created: true, found: { paid: false, device } };
@@ -67,7 +105,7 @@ export class DeviceIdentity {
   async moveToPaid(
     deviceId: string,
     fields: PaidDeviceFields,
-  ): Promise<Result<PaidDevice, DeviceNotFoundError>> {
+  ): Promise<Result<PaidDevice, DeviceNotFoundError | AppDeviceIdInUseError>> {
     const before = await this.findById(deviceId);
     if (!before) return err(new DeviceNotFoundError('Device not found', { deviceId }));
     const mac = normalizedMac(before.device.macAddress);
@@ -80,12 +118,50 @@ export class DeviceIdentity {
       }
       const trial = await this.trials.findById(deviceId);
       if (!trial) return err(new DeviceNotFoundError('Device not found', { deviceId }));
+      // appDeviceId is unique per collection only; a paid device may already hold this one.
+      if (trial.appDeviceId && (await this.paid.findByAppDeviceId(trial.appDeviceId))) {
+        return err(
+          new AppDeviceIdInUseError('This app device id already belongs to a paid device', {
+            deviceId,
+            appDeviceId: trial.appDeviceId,
+          }),
+        );
+      }
 
       const moved = toPaidDevice(trial, fields);
       await this.paid.insert(moved);
       await this.trials.delete(deviceId);
       return ok(moved);
     });
+  }
+
+  /**
+   * Changes owner fields (device key, parent PIN) of a device, wherever it is. Runs under the MAC
+   * lock, so a move to devices running at the same time never copies the old values.
+   */
+  async changeSettings(
+    deviceId: string,
+    change: DeviceSettingsChange,
+  ): Promise<Result<FoundDevice, DeviceNotFoundError>> {
+    for (;;) {
+      const before = await this.findById(deviceId);
+      if (!before) return err(new DeviceNotFoundError('Device not found', { deviceId }));
+      const mac = normalizedMac(before.device.macAddress);
+
+      const result = await this.lock.withMacs([mac], async () => {
+        const found = await this.findById(deviceId);
+        if (!found) return err(new DeviceNotFoundError('Device not found', { deviceId }));
+        if (found.device.macAddress !== mac.value) return MAC_MOVED;
+        if (found.paid) {
+          await this.paid.changeSettings(deviceId, change);
+          return ok<FoundDevice>({ paid: true, device: { ...found.device, ...change } });
+        }
+        await this.trials.changeSettings(deviceId, change);
+        return ok<FoundDevice>({ paid: false, device: { ...found.device, ...change } });
+      });
+      // The MAC changed between the read and the lock: start again under the current one.
+      if (result !== MAC_MOVED) return result;
+    }
   }
 
   /**
@@ -97,25 +173,39 @@ export class DeviceIdentity {
     newMac: MacAddress,
     apply: (device: PaidDevice) => PaidDevice,
   ): Promise<Result<PaidDevice, DeviceNotFoundError | MacInUseError>> {
-    const before = await this.paid.findById(deviceId);
-    if (!before) return err(new DeviceNotFoundError('Paid device not found', { deviceId }));
-    const oldMac = normalizedMac(before.macAddress);
+    for (;;) {
+      const before = await this.paid.findById(deviceId);
+      if (!before) return err(new DeviceNotFoundError('Paid device not found', { deviceId }));
+      const oldMac = normalizedMac(before.macAddress);
 
-    return this.lock.withMacs([oldMac, newMac], async () => {
-      const device = await this.paid.findById(deviceId);
-      if (!device) return err(new DeviceNotFoundError('Paid device not found', { deviceId }));
-      if (device.macAddress === newMac.value) return ok(device);
+      const result = await this.lock.withMacs([oldMac, newMac], () =>
+        this.changeLockedMac(deviceId, oldMac, newMac, apply),
+      );
+      // The MAC changed between the read and the lock, so the current one is not locked: start again.
+      if (result !== MAC_MOVED) return result;
+    }
+  }
 
-      const owner = await this.findByMac(newMac);
-      if (owner) {
-        return err(
-          new MacInUseError('This MAC already belongs to another device', { mac: newMac.value }),
-        );
-      }
-      const updated: PaidDevice = { ...apply(device), id: device.id, macAddress: newMac.value };
-      await this.paid.update(updated);
-      return ok(updated);
-    });
+  private async changeLockedMac(
+    deviceId: string,
+    oldMac: MacAddress,
+    newMac: MacAddress,
+    apply: (device: PaidDevice) => PaidDevice,
+  ): Promise<Result<PaidDevice, DeviceNotFoundError | MacInUseError> | typeof MAC_MOVED> {
+    const device = await this.paid.findById(deviceId);
+    if (!device) return err(new DeviceNotFoundError('Paid device not found', { deviceId }));
+    if (device.macAddress === newMac.value) return ok(device);
+    if (device.macAddress !== oldMac.value) return MAC_MOVED;
+
+    const owner = await this.findByMac(newMac);
+    if (owner) {
+      return err(
+        new MacInUseError('This MAC already belongs to another device', { mac: newMac.value }),
+      );
+    }
+    const updated: PaidDevice = { ...apply(device), id: device.id, macAddress: newMac.value };
+    await this.paid.update(updated);
+    return ok(updated);
   }
 }
 

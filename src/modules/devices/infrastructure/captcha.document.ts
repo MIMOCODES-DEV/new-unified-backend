@@ -8,7 +8,11 @@ export const captchaDocumentSchema = z.object({
   _id: z.string().min(1),
   token: z.string().min(1),
   kind: z.enum(CAPTCHA_KINDS),
-  macAddress: z.string().nullable(),
+  /** Normalized, as MacAddress produces it: findSolved looks it up that way. */
+  macAddress: z
+    .string()
+    .regex(/^[0-9a-f]{2}(?::[0-9a-f]{2}){5}$/)
+    .nullable(),
   appDeviceId: z.string().nullable(),
   platform: z.string().nullable(),
   answerHash: z.string().min(1),

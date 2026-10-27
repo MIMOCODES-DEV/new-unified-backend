@@ -3,7 +3,7 @@ import type { Collection, Filter } from 'mongodb';
 import type { MacAddress } from '../../../shared/kernel/mac-address.js';
 import { TenantDb } from '../../../shared/tenancy/tenant-db.js';
 import { TrialDeviceRepository } from '../application/ports/trial-device.repository.js';
-import type { TrialDevice } from '../domain/device.js';
+import type { DeviceSettingsChange, DeviceVisit, TrialDevice } from '../domain/device.js';
 import {
   TRIAL_DEVICES_COLLECTION,
   toTrialDevice,
@@ -51,9 +51,49 @@ export class MongoTrialDeviceRepository extends TrialDeviceRepository {
     await (await this.collection()).insertOne(toTrialDeviceDocument(device));
   }
 
+  async recordVisit(id: string, visit: DeviceVisit): Promise<boolean> {
+    const result = await (
+      await this.collection()
+    ).updateOne(
+      { _id: id },
+      {
+        $set: {
+          platform: visit.platform,
+          ip: visit.ip,
+          appVersion: visit.appVersion,
+          apiVersion: visit.apiVersion,
+          lastSeenAt: visit.at,
+          updatedAt: visit.at,
+        },
+      },
+    );
+    return result.matchedCount > 0;
+  }
+
+  async changeSettings(id: string, change: DeviceSettingsChange): Promise<boolean> {
+    const result = await (await this.collection()).updateOne({ _id: id }, { $set: { ...change } });
+    return result.matchedCount > 0;
+  }
+
   async update(device: TrialDevice): Promise<boolean> {
     const doc = toTrialDeviceDocument(device);
     return (await (await this.collection()).replaceOne({ _id: doc._id }, doc)).matchedCount > 0;
+  }
+
+  async changePlaylistCount(id: string, delta: number, at: Date): Promise<boolean> {
+    // One pipeline update, so two playlists added at once both count.
+    const result = await (
+      await this.collection()
+    ).updateOne({ _id: id }, [
+      {
+        $set: {
+          playlistCount: { $max: [0, { $add: ['$playlistCount', delta] }] },
+          firstPlaylistAt: delta > 0 ? { $ifNull: ['$firstPlaylistAt', at] } : '$firstPlaylistAt',
+          updatedAt: at,
+        },
+      },
+    ]);
+    return result.matchedCount > 0;
   }
 
   async delete(id: string): Promise<boolean> {

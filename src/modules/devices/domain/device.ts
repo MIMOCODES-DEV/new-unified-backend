@@ -25,8 +25,14 @@ export const PLATFORMS = [
 ] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
+/** Oldest first: a device that used a version is never served by an older one (DEV-6). */
 export const API_VERSIONS = ['legacy', 'v4', 'v5'] as const;
 export type ApiVersion = (typeof API_VERSIONS)[number];
+
+/** Whether `caller` is older than `stored`: such a call must be refused. */
+export function isOlderApi(caller: ApiVersion, stored: ApiVersion): boolean {
+  return API_VERSIONS.indexOf(caller) < API_VERSIONS.indexOf(stored);
+}
 
 /** Where a row came from in the old backends: old brand, old `_id`, raw old fields kept for reference. */
 export interface LegacyRef {
@@ -49,7 +55,10 @@ export interface DeviceBase {
   readonly uid: string | null;
   /** Turns Stalker portals on for this device. */
   readonly stalkerEnabled: boolean;
-  /** Kept as entered, not hashed: the apps get it back and check it themselves. */
+  /**
+   * Parental control: the PIN when it is on, null when it is off. Kept as entered, not hashed: the
+   * apps get it back and check it themselves. New devices start on, with `0000`.
+   */
   readonly parentPin: string | null;
   readonly apiVersion: ApiVersion;
   readonly appVersion: string | null;
@@ -101,6 +110,24 @@ export interface PaidDevice extends DeviceBase {
   readonly customerId: string | null;
   readonly switch: MacSwitch | null;
   readonly recovery: DeviceRecovery | null;
+}
+
+/** What an app call updates on its device: who called, from where, when. */
+export interface DeviceVisit {
+  /** The caller's platform; differs from the stored one only when the device adopts it. */
+  readonly platform: Platform;
+  readonly ip: string;
+  readonly appVersion: string | null;
+  readonly apiVersion: ApiVersion;
+  readonly at: Date;
+}
+
+/** Fields changed outside a visit (owner settings, V4 uid); only the ones given are written. */
+export interface DeviceSettingsChange {
+  readonly deviceKey?: string;
+  readonly parentPin?: string | null;
+  readonly uid?: string;
+  readonly updatedAt: Date;
 }
 
 /** A device looked up by MAC (or id): which collection it is in decides whether it ever paid. */
