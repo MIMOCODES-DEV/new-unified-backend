@@ -5,11 +5,23 @@ export abstract class PlaylistRepository {
   abstract findById(id: string): Promise<Playlist | null>;
   /** A device's playlists, oldest first. */
   abstract listByDevice(deviceId: string): Promise<Playlist[]>;
+  /**
+   * Playlists with a link on this host (the link, Xtream server, Stalker portal or its fallback),
+   * any port, oldest first; only these devices' when given.
+   */
+  abstract listOnHost(host: string, deviceIds: readonly string[] | null): Promise<Playlist[]>;
   /** By the old backend's `_id` (`legacy.id`). */
   abstract findByLegacyId(legacyId: string): Promise<Playlist | null>;
-  abstract insert(playlist: Playlist): Promise<void>;
-  /** Replaces the stored playlist; false when it is not there. */
-  abstract update(playlist: Playlist): Promise<boolean>;
+  /**
+   * `duplicate` when the device already has this playlist (same link, portal or code);
+   * `name_taken` when it already has a playlist with this name (case does not matter).
+   */
+  abstract insert(playlist: Playlist): Promise<'inserted' | 'duplicate' | 'name_taken'>;
+  /**
+   * Replaces the stored playlist: `missing` when it is not there, `duplicate` when the change would
+   * make it the same as another playlist of the device, `name_taken` when another one has its name.
+   */
+  abstract update(playlist: Playlist): Promise<'updated' | 'missing' | 'duplicate' | 'name_taken'>;
   /** False when it was already gone. */
   abstract delete(id: string): Promise<boolean>;
   /** Removes every playlist of a device; returns how many. */
