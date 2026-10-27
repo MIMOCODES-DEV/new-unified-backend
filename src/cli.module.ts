@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ClsModule } from 'nestjs-cls';
+import { DevicesModule } from './modules/devices/index.js';
+import { DomainMigrationsModule } from './modules/domain-migrations/index.js';
+import { LicensingModule } from './modules/licensing/index.js';
+import { PlaylistsModule } from './modules/playlists/index.js';
 import { TenantsModule } from './modules/tenants/index.js';
 import { ConfigModule } from './shared/config/config.module.js';
 import { DatabaseModule } from './shared/database/database.module.js';
@@ -18,6 +22,11 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     // Brand changes made here must reach running APIs: host cache and change notices live in Redis.
     RedisModule,
     TenantsModule,
+    // Used by seed:examples (example rows for local development).
+    DevicesModule,
+    LicensingModule,
+    PlaylistsModule,
+    DomainMigrationsModule,
   ],
 })
 export class CliModule {}

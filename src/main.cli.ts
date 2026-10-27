@@ -6,6 +6,10 @@ import { Logger } from 'nestjs-pino';
 import { CliModule } from './cli.module.js';
 import { parseValue, patchFromPath, readStdin } from './cli-args.js';
 import { centralMigrations, tenantMigrations } from './migrations.js';
+import { SeedDeviceExamples } from './modules/devices/index.js';
+import { SeedDomainMigrationExamples } from './modules/domain-migrations/index.js';
+import { SeedLicenseExamples } from './modules/licensing/index.js';
+import { SeedPlaylistExamples } from './modules/playlists/index.js';
 import {
   AddTenantHostsUseCase,
   CreateTenantUseCase,
@@ -19,11 +23,13 @@ import {
   UpdateTenantConfigUseCase,
   UpdateTenantSettingsUseCase,
 } from './modules/tenants/index.js';
+import { AppConfig } from './shared/config/app-config.js';
 import { loadTenantSeed } from './tenant-seed.js';
 import { CENTRAL_DB } from './shared/database/database.tokens.js';
 import { runMigrations } from './shared/database/migrations/migration-runner.js';
 import { TenantDbRegistry } from './shared/database/tenant-db.registry.js';
 import type { DomainError } from './shared/kernel/domain-error.js';
+import { TenantContext } from './shared/tenancy/tenant-context.js';
 
 type Command = (app: INestApplicationContext, logger: Logger, args: string[]) => Promise<void>;
 
@@ -37,6 +43,18 @@ function usage(logger: Logger, line: string): void {
   process.exitCode = 1;
 }
 
+/** The brands named on the command line, or every brand (enabled or not) when none is named. */
+async function selectTenants(app: INestApplicationContext, logger: Logger, slugs: string[]) {
+  const tenants = (await app.get(ListTenantsUseCase).execute()).filter(
+    (t) => slugs.length === 0 || slugs.includes(t.slug),
+  );
+  for (const missing of slugs.filter((s) => !tenants.some((t) => t.slug === s))) {
+    logger.error(`Unknown tenant: ${missing}`);
+    process.exitCode = 1;
+  }
+  return tenants;
+}
+
 const commands: Record<string, Command> = {
   'migrate:central': async (app, logger) => {
     const applied = await runMigrations(app.get<Db>(CENTRAL_DB), centralMigrations);
@@ -45,20 +63,39 @@ const commands: Record<string, Command> = {
   // pnpm cli migrate:tenants [slug...]   (default: every brand, enabled or not)
   'migrate:tenants': async (app, logger, slugs) => {
     const registry = app.get(TenantDbRegistry);
-    const tenants = (await app.get(ListTenantsUseCase).execute()).filter(
-      (t) => slugs.length === 0 || slugs.includes(t.slug),
-    );
-    for (const missing of slugs.filter((s) => !tenants.some((t) => t.slug === s))) {
-      logger.error(`Unknown tenant: ${missing}`);
-      process.exitCode = 1;
-    }
-    for (const t of tenants) {
+    for (const t of await selectTenants(app, logger, slugs)) {
       const applied = await runMigrations(
         await registry.getDb({ dbName: t.dbName }),
         tenantMigrations,
       );
       logger.log(`${t.slug} (${t.dbName}): ${applied.length ? applied.join(', ') : 'up to date'}`);
     }
+  },
+  // pnpm cli seed:examples [slug...]   (example rows of every Phase 1 collection; never in production)
+  'seed:examples': async (app, logger, slugs) => {
+    if (app.get(AppConfig).env.NODE_ENV === 'production') {
+      logger.error('seed:examples writes example data and never runs in production');
+      process.exitCode = 1;
+      return;
+    }
+    const context = app.get(TenantContext);
+    for (const t of await selectTenants(app, logger, slugs)) {
+      const brand = {
+        id: t.id,
+        slug: t.slug,
+        name: t.name,
+        dbName: t.dbName,
+        settings: t.settings,
+      };
+      const counts = await context.run(brand, async () => ({
+        ...(await app.get(SeedDeviceExamples).execute()),
+        ...(await app.get(SeedLicenseExamples).execute()),
+        ...(await app.get(SeedPlaylistExamples).execute()),
+      }));
+      logger.log(`${t.slug}: ${JSON.stringify(counts)}`);
+    }
+    const central = await app.get(SeedDomainMigrationExamples).execute();
+    logger.log(`central: ${JSON.stringify(central)}`);
   },
   // pnpm cli tenant:create <slug> "<name>" <host> [host...]   (also prepares the brand's database)
   'tenant:create': async (app, logger, [slug = '', name = '', ...hosts]) => {

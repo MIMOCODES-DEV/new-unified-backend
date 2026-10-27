@@ -1,6 +1,6 @@
 # Unified Backend — Master Plan
 
-> Status: **Plan — not started**
+> Status: **Phase 1 (device core) in progress** — the current work, its schema and tasks are in [docs/phase-1/README.md](docs/phase-1/README.md), which wins over this document where they differ.
 > Scope: merge `iboplayer-backend`, `bobplayer-backend` and `cr-unified-backend` into one multi-tenant backend with a central database.
 > Each milestone below is intentionally high-level; it gets its own detailed plan when we reach it.
 
@@ -89,7 +89,7 @@ In the unified backend, ibo/bob/cr-tenant-to-tenant traffic becomes **internal q
 | D3 | TypeScript + Node + MongoDB (Mongoose or the native driver with typed repositories) | Confirmed |
 | D4 | Framework: **NestJS on the Fastify adapter** (see §3.1) | Confirmed |
 | D5 | **Redis is a required dependency**, with **BullMQ** for jobs and schedules (see §3.2) | Confirmed |
-| D6 | Anti-abuse: layered, non-destructive design — pending devices, quarantine instead of deletion (see §6) | Confirmed |
+| D6 | Anti-abuse: layered, non-destructive design — trial devices kept apart from paid ones, quarantine instead of deletion (see §6) | Confirmed |
 | D7 | Full legacy compat layer; new clean API (`/v5`) for new app builds | Confirmed |
 | D8 | Backend is **API-only**; admin / reseller / customer UIs become separate SPAs, **built by another team** (contract-first: OpenAPI published before implementation) | Confirmed |
 | D9 | Store stays external; contract preserved | Confirmed |
@@ -99,6 +99,9 @@ In the unified backend, ibo/bob/cr-tenant-to-tenant traffic becomes **internal q
 | D13 | `NewUnifiedBackend/` (earlier attempt) is ignored | Confirmed |
 | D14 | **Rebuild, don't copy** (2026-10-13): every feature is re-implemented cleanly from its intent, without old bugs. Only the wire format of non-updatable apps and the store contract are matched, inside thin adapters. Supersedes the phase-1 "copy quirks + `LEGACY-QUIRK` markers" approach in §8.0. See `docs/ARCHITECTURE.md`, `docs/FEATURES.md`, `docs/TASKS.md`. | Confirmed |
 | D15 | **One unified frontend** (2026-10-14): a single customer website serves every brand (the 3 IBO apps, BOB, cr brands, the unified app), built by the frontend team. The old websites' `/frontend/*` routes are **not** kept: the customer API is designed fresh for the unified frontend, covering the union of today's website features. Frozen contracts are only what installed apps (TV/phone) and the external store call. | Confirmed |
+| D16 | **Two device collections + licenses** (2026-10-21/25): `trialDevices` (never paid) and `devices` (paid at least once); paying moves a device and keeps its id, MAC and device key. Every license is its own row in `licenses`, kept as history; trial / expired / revoked are worked out, never stored. Replaces `pendingDevices` and the embedded `license`. | Confirmed |
+| D17 | **One `playlists` collection** (2026-10-25): a `type` (m3u, xtream, stalker, code) with only that part filled; `url` and the Xtream password are **not encrypted**; the PIN per playlist is kept encrypted (`pinEnc`) because Roku/iOS replies return it. Orphan playlists are left out of the migration. | Confirmed |
+| D18 | **One MAC, one device** (2026-10-25): a MAC is in only one of `trialDevices` / `devices`, kept by a Redis lock on the MAC (no extra collection); the device key is **not** unique (always checked with the MAC). `stalkerEnabled` stays on the device. | Confirmed |
 
 ### 3.1 Framework rationale (D4)
 
@@ -172,7 +175,7 @@ src/
   core/            config (zod-validated env), logger (pino), errors, cls context, mongo, redis, crypto (secrets vault), http client
   tenancy/         tenant registry, host resolver, connection registry
   modules/
-    devices/         registration, pending devices, identity, recovery, MAC switch, parental pin
+    devices/         registration, trial devices, identity, captchas, MAC switch, parental pin
     licensing/       plans/status engine (trial/yearly/lifetime), activation commands, history
     playlists/       CRUD, shaping profiles (xc ↔ general), backup URLs
     domain-migrations/
@@ -235,7 +238,7 @@ Conventions: camelCase, real types (Date, Boolean, ObjectId, Decimal128 or integ
 | `paymentProviders` | Provider registry: code, enabled tenants, usage counters, last success, health |
 | `languages` / `translationKeys` / `translations` | Global i18n with optional per-tenant overrides |
 | `countryCodes`, `coinList` | Global lookups |
-| `domainMigrations` | Provider host moves (global evidence is more useful than per-tenant); admin approval state |
+| `domainMigrations` | Provider host moves (global evidence is more useful than per-tenant); admin approval state. Built in Phase 1 (docs/phase-1 §2.7) |
 | `abuseIpReputation`, `abuseEvents` | Shared abuse intelligence across tenants |
 | `auditLog` | Every admin/reseller/store mutation |
 
@@ -243,35 +246,44 @@ Conventions: camelCase, real types (Date, Boolean, ObjectId, Decimal128 or integ
 
 | Collection | Purpose |
 |---|---|
-| `devices` | Activated / real devices (see 5.3) |
-| `pendingDevices` | Unpromoted registrations, TTL (see §6) |
-| `playlists` | `deviceId: ObjectId` **indexed** |
+| `trialDevices` | Devices that never paid (see 5.3) |
+| `devices` | Devices that paid at least once; never deleted (see 5.3) |
+| `licenses` | One row per license, kept as history; the device points to its current one |
+| `playlists` | One collection, `type` + one filled part; `deviceId` (UUID string) **indexed** |
 | `customers` | cr-style user accounts (+ ibo credit-buyer accounts) |
 | `subscriptions` | Customer ↔ plan slots (replaces `User.plans[]` + `Device.plan_id` double bookkeeping) |
 | `plans`, `packages` | Sellable items (merges ResellerPackage, CreditPackage, CreditPricePackage — `kind` enum) |
 | `transactions` | Typed: `{provider, type, status, amountMinor, currency, deviceId?, customerId?, resellerId?, couponOrder?, providerRef, idempotencyKey, rawEvent}` — no more polymorphic `device_id` |
-| `activationHistory` | Every licensing change with actor (admin/reseller/code/coupon/payment/store/transfer/recovery) |
 | `tenantConfig` | One typed document (replaces key/value `settings`) |
 | `contentPages`, `news`, `notifications` | CMS (one `contentPages` collection keyed by slug) |
-| `contactMessages`, `captchas` (TTL), `authTokens` (TTL) | |
+| `captchas` | Unanswered captchas expire (TTL); a solved one is kept for its MAC |
+| `contactMessages`, `authTokens` (TTL) | |
 | `androidApps`, `appVersions` | App update metadata, per tenant as today |
 
 ### 5.3 Device model (key decisions)
 
+The full field lists (trialDevices, devices, licenses, playlists, captchas, domainMigrations) are in
+[docs/phase-1/README.md §2](docs/phase-1/README.md#2-database-schema) and `docs/phase-1/database-schema.html`. In short:
+
 ```
-{
-  _id, macAddress (normalized: lowercase, colon-separated), appType (enum, lowercase), platform, appDeviceId,
-  deviceKey, uid, parentPinHash,                      // pins hashed; legacy routes that must return a pin read a separate encrypted field
-  license: { plan: 'trial'|'yearly'|'lifetime'|'plan', status: 'trial'|'active'|'expired'|'revoked',
-             expiresAt: Date|null (null = lifetime), creditCount, multiActivate: Boolean,
-             activatedBy: {type, id}, subscriptionId? },
-  apiGeneration: 'legacy'|'v4'|'v5', versions: {...}, hostname, ip, lastSeenAt,
-  recovery: {...}, switch: {...}, migration: {...}, flags: { quarantined, pendingDeletionAt },
-  legacy: { source, id, isTrial, expireDate, resellerId, raw? }, createdAt, updatedAt
-}
-Indexes: unique {macAddress}*, unique sparse {appDeviceId}, {license.status, license.expiresAt}, {deviceKey}
+trialDevices  ──pays──▶  devices  ──currentLicenseId──▶  licenses (one row per license, kept as history)
+     │                      │
+     └──── deviceId ◀───────┴──────────  playlists (deviceId never changes)
 ```
-\* **Decided:** a MAC address is unique within a tenant's database, regardless of app type. It is normalized before storage (lowercase, colon-separated) so `AA-BB-…`, `aa:bb:…` and `aabb…` cannot become three records. Uniqueness spans `devices` **and** `pendingDevices` (promotion moves a record, never duplicates it). The same MAC *may* exist in different tenants — that is how one customer uses two apps and how cross-app transfers work; the central `deviceRegistry` is keyed by `(macAddress, tenantId)`.
+
+- Both device collections: `macAddress` (normalized), `appDeviceId`, `platform`, `deviceKey` (6 digits, not unique),
+  `uid`, `stalkerEnabled`, `parentPin` (kept as entered: apps check it), `apiVersion` (legacy | v4 | v5), `appVersion`,
+  `ip`, `lastSeenAt`, `legacy`. `trialDevices` adds the trial dates, `playlistCount`, `firstPlaylistAt`; `devices` adds
+  `currentLicenseId`, `activatedAt`, `resellerId`, `customerId`, `switch`, `recovery`.
+- A license row: `type` yearly | lifetime, `expiresAt` (null = lifetime), `revoked`/`revokedAt`, `activatedBy`, `creditCost`
+  (1 or 2), `multiActivate`, `sourceId`. A yearly bought early stacks on the current end date.
+
+\* **Decided:** a MAC address is unique within a tenant, regardless of app type, across **both** `trialDevices` and
+`devices` (paying moves a record, never duplicates it). It is normalized before storage (lowercase, colon-separated) so
+`AA-BB-…`, `aa:bb:…` and `aabb…` cannot become three records. A unique index covers each collection; across the two,
+every create, move and MAC change runs under a Redis lock on the MAC. The same MAC *may* exist in different tenants —
+that is how one customer uses two apps and how cross-app transfers work; the central `deviceRegistry` is keyed by
+`(macAddress, tenantId)`.
 
 **Duplicate MACs found during migration** (caused by past race conditions and the MAC-only vs MAC+app_type lookup mismatch) are merged deterministically:
 1. Group all records of a tenant by normalized MAC.
@@ -284,10 +296,10 @@ Indexes: unique {macAddress}*, unique sparse {appDeviceId}, {license.status, lic
 
 | Old `is_trial` | Meaning in code | New |
 |---|---|---|
-| 0 | new trial, or deactivated loser of a MAC switch | `plan=trial`, status by expiry (or `revoked` if `switched_to` set) |
-| 1 | Roku/iOS trial, **or** deactivated (expiry = yesterday), **or** cr reseller-code activation < 500 months | needs context: `activatedBy`/history → `yearly`/`revoked`/`trial` (migration rule set per source) |
-| 2 | lifetime (expiry = now + 5000 or 500 months, or `2438-07-06`) | `plan=lifetime`, `expiresAt=null` (keep original in `legacy.expireDate`); past-dated lifetime records follow each old backend's own interpretation — no logic change in phase 1 |
-| 3 | one year | `plan=yearly`, `expiresAt` = date 23:59:59 in the agreed timezone |
+| 0 | new trial, or deactivated loser of a MAC switch | `trialDevices`, trial dates from `expire_date` (a switched-away record follows the switch rules) |
+| 1 | Roku/iOS trial, **or** deactivated (expiry = yesterday), **or** cr reseller-code activation < 500 months | needs context per source; an old revoked device (`is_trial` 1) goes to `trialDevices` (decided 25 Oct) |
+| 2 | lifetime (expiry = now + 5000 or 500 months, or `2438-07-06`) | `devices` + a `licenses` row `type=lifetime`, `expiresAt=null` (keep original in `legacy.expireDate`); past-dated lifetime records follow each old backend's own interpretation — no logic change in phase 1 |
+| 3 | one year | `devices` + a `licenses` row `type=yearly`, `expiresAt` = date 23:59:59 in the agreed timezone |
 
 Date strings exist in `Y-MM-DD`, `Y-M-D` (unpadded — Roku/iOS), ISO slices and free text; all parsed with explicit format lists, unparseable values flagged in the migration report.
 
@@ -295,7 +307,7 @@ Date strings exist in `Y-MM-DD`, `Y-M-D` (unpadded — Roku/iOS), ISO slices and
 
 - **Resellers:** ibo `Admin(is_admin=0)` + bob/cr `Admin(is_admin=0)` + bob/cr `Reseller` + store numeric `reseller_id` → central `resellers` with `legacyRefs`. Merge across backends by verified email. Credits: ibo/bob/cr Admin credits are *computed* (`max_connections − Σ device.credit_count − Σ sub-reseller max`) → materialize an opening ledger balance per reseller at migration time.
 - **Transactions:** split the polymorphic `device_id` (Device id / `{"email","count"}` JSON / `reseller/<email>/<n>` / `<adminId>_reseller` / User id) into typed refs; normalize the three `pay_time` formats; backfill currency per provider (PayPal/Stripe/Paymentwall EUR, Telr USD, EGP providers stored *unconverted* EUR amount → record original + flag).
-- **Playlists:** coalesce `portal_fallback_address`/`fallback_portal_address`; `is_protected` mixed int/string → Boolean; drop orphans (report counts); encrypt IPTV passwords at rest (legacy responses decrypt).
+- **Playlists:** one collection with a `type` and one filled part; coalesce `portal_fallback_address`/`fallback_portal_address`; `is_protected` mixed int/string → Boolean; drop orphans (report counts); url and Xtream password stored as they are, **not encrypted** (D17); the PIN is encrypted (`pinEnc`).
 - **Settings:** key/value rows → typed `tenantConfig`; duplicates resolved deterministically (most frequent value, tie → latest `_id`), every dropped duplicate reported; payment credentials → `tenantSecrets`.
 - **Translations:** cast string ids, drop orphans (158 in bob), dedupe words across tenants.
 - **Silently-dropped fields** in old code (`last_seen`, `version`, `status`, `email`, `previous_url`, `apiVersion` vs `api_version`, `transaction_type`/`credit_count` never written, …) become real fields only where the feature is actually wanted.
@@ -313,13 +325,15 @@ Layers:
 1. **Edge.** Origin accepts only Cloudflare (firewall allowlist or Cloudflare Tunnel + Authenticated Origin Pulls) → `cf-connecting-ip` / ASN headers become trustworthy (today they are spoofable). WAF rate-limit rules on registration/login paths per hostname. Scoped API token (not the global key), Cloudflare **IP Lists with expiry** instead of permanent user-level access rules.
 2. **App rate limiting (Redis).** Sliding windows per IP, per /24 (IPv4) and /64 (IPv6), per ASN, per tenant, per endpoint class (registration ≪ playlist fetch). Tunable per tenant in `tenantConfig`.
 3. **Cheap rejection.** Decode/validate envelope and MAC format before any DB access; reject impossible MACs, burst patterns (≥N MACs sharing a 9-char prefix from one subnet, sequential MACs), stale/unknown app versions.
-4. **Pending devices (the main fix).** Unknown MAC → `pendingDevices` (tenant DB) — the response to the client is *identical* (device key, trial, demo playlist). Lookups (site login, store `validate-mac-address`, every app route) check both collections. Rules:
-   - **Promotion** to `devices` (same `_id`, same device key) on **any** sign of a real user: playlist added (app/site/store); any activation (payment, reseller, code, coupon, admin, store); website login with the device key; recovery or MAC switch; solved v4 captcha; **a return visit on a different calendar day**.
-   - **Expiry:** a pending device with none of these signals expires after **30 days** (per-tenant setting) via a TTL index — no deletion jobs.
-   - **Trial history:** on expiry, a tiny record `{macAddress, appType, trialUsedAt}` is kept in `trialHistory` (TTL **1 year**, per-tenant setting). A returning MAC found there is re-created with an **already-expired trial**, never a fresh one — closing the "wait it out for a new trial" loophole. Note: such a user receives a new device key (acceptable: they never added a playlist or logged in).
-   - Effect: fake devices clean themselves up, the main collection holds only real users, and no real user can tell pending devices exist.
+4. **Trial devices kept apart (the main fix).** Unknown MAC → `trialDevices` (tenant DB); the response to the client is
+   unchanged (device key, trial, demo playlist). Lookups check `devices` first, then `trialDevices`. Rules:
+   - **Paying moves** a device to `devices` (same `_id`, MAC and device key); `devices` holds only real, paying users and
+     is never cleaned up.
+   - A trial device stays in `trialDevices` after its trial ends, so it never gets a second trial.
+   - **Cleanup** of ended trials that never added a playlist (`playlistCount` 0) is one safe job with a dry run and a
+     report (Phase 1 task LIC-4); it removes their playlists with them, so no orphans appear.
 5. **Quarantine, never delete.** Suspicious devices get `flags.quarantined` (not served, not counted), reviewed in admin; activated/paid devices are never auto-removed.
-6. **Uniqueness.** Unique index on the device identity key ends duplicate-device races and the "remove duplicated MAC" tools.
+6. **Uniqueness.** A unique MAC index per device collection plus the Redis lock on the MAC across both (D18) ends duplicate-device races and the "remove duplicated MAC" tools.
 7. **Attestation for new builds only (v5):** Play Integrity / App Attest, per-install keys, short-lived signed tokens. Legacy secrets are already extracted from APKs — legacy signatures are treated as noise, not authentication.
 8. **Observability:** registrations/min per tenant & app type, promotion rate, top IPs/ASNs, alerting; admin dashboard for IP/ASN/device review and manual Cloudflare list management.
 
@@ -387,7 +401,7 @@ Examples of what is not ported: PHP import tools; `activateOpayDevices` (~770 li
 **Phase 1 — Faithful clean rebuild (M1–M13).** Rebuild the backend with the new architecture and clean code while keeping **every client-visible contract exactly as it is today**:
 - *Kept exactly:* paths, methods, request formats, response formats and outputs — including odd ones clients may depend on (literal `"undefined"` in error envelopes, HTTP 302 on store errors, `'ascii'` decoding, …). Endpoints we're unsure about are kept.
 - *Not reproduced:* hangs, worker crashes, race conditions and corrupted writes (where old code hung or crashed, the new code returns the old error format).
-- *Architecture is phase 1:* central DB, typed schema, unique MAC, Redis/BullMQ, pending devices — internal changes clients cannot see.
+- *Architecture is phase 1:* central DB, typed schema, unique MAC, Redis/BullMQ, trial devices kept apart from paid ones — internal changes clients cannot see.
 - *Known bugs and security gaps copied on purpose* are marked in code with `// LEGACY-QUIRK(<inventory id>): <what and why>` so phase 2 can find every one of them.
 - *Never rebuilt:* the unauthenticated one-off maintenance tools (PHP import/wipe routes, `clearLanguageWord`, `removeDuplicatedMacAddress`, `saveCountryCode`) and developer test routes (`/email-test`, `/test`, `*-test` pages, test-MAC wipes).
 
@@ -429,7 +443,7 @@ Format per milestone: **Goal · Scope · Deliverables · Exit criteria · Blocke
 ### M4 — Core domain: devices, licensing, playlists, content, i18n
 
 - **Goal:** the business core, transport-agnostic.
-- **Scope:** device registration (incl. pending devices), license engine (trial/yearly/lifetime/plan, extend/revoke/stack rules reproduced from the old code and written down as specs), activation history, MAC switch, recovery codes, parental pin, playlists CRUD + shaping profiles (xc ↔ general, raw, backup URLs), domain-migration learning (hardened), content pages/news/notifications, i18n with tenant overrides, app updates (AndroidApp/AppVersion), typed tenant config.
+- **Scope:** device registration (trialDevices / devices), license engine (one `licenses` row per license; trial/yearly/lifetime, extend/revoke/stack rules reproduced from the old code and written down as specs), MAC switch, recovery codes, parental pin, playlists CRUD + shaping profiles (xc ↔ general, raw, backup URLs), domain-migration learning (hardened), content pages/news/notifications, i18n with tenant overrides, app updates (AndroidApp/AppVersion), typed tenant config.
 - **Exit:** service-level test suite covering every licensing rule found in the audits; playlist shaping reproduces the old parsers' test vectors exactly, quirks included.
 - **Gains:** one implementation instead of ~8 playlist CRUD variants and 4 URL parsers.
 - **Fixes:** is_trial overloading, string dates, double bookkeeping, orphan playlists, duplicate MACs.
@@ -525,7 +539,7 @@ M1 ─┬─> M2 ─> M3 ─> M4 ─┬─> M5 ─┬─> M7 ─> M8
 | Risk | Impact | Mitigation |
 |---|---|---|
 | Undocumented client behaviour (old apps parse quirks we don't know) | Broken apps in the field, unfixable | Contracts and test vectors taken directly from the old code (M1), byte-compat tests, per-route canary during cutover |
-| Legacy secrets are extracted from APKs | Attackers can always speak legacy protocols | Treat legacy routes as low-trust; rely on rate limits, pending devices, ownership rules; v5 for new builds |
+| Legacy secrets are extracted from APKs | Attackers can always speak legacy protocols | Treat legacy routes as low-trust; rely on rate limits, trial devices kept apart from paid ones, ownership rules; v5 for new builds |
 | Local data is only a sample of production | Wrong mappings, data loss | Migration verification reports; production dry-run as part of cutover preparation |
 | Cross-DB consistency (central wallet ↔ tenant DB) | Credit loss/duplication | Ledger + saga + idempotency + sweeper job |
 | Reseller identity merge across backends | Account takeover or credit mix-ups | Merge only on verified email, manual review queue, audit log |
