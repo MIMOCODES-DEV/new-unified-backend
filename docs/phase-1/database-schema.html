@@ -1,0 +1,1074 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Phase 1 Database Schema</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: a model list (tabs) beside one view: "All models" = a wall of Compass-style cards that can fit one screen; a model tab = old schema left, new design right. */
+:root {
+  --bg: #f4f5f2; --card: #ffffff; --line: #dfe2dc; --fg: #1c2420; --muted: #5d6862; --dim: #b5bcb7;
+  --accent: #0e7c5a; --accent-soft: #e2f3ec; --warn: #a45a00; --warn-soft: #fff1dd; --new: #1c5fb8; --new-soft: #e6effb; --central: #6b3fb8; --central-soft: #efe8fb; --brand: #0e7c5a; --brand-soft: #e2f3ec;
+  --t-string: #1f7a3a; --t-number: #1c5fb8; --t-bool: #b0306a; --t-date: #5b47b8; --t-oid: #c0392b; --t-other: #9a5b00;
+  --ui: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif; --mono: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15191a; --card: #1d2224; --line: #2e3538; --fg: #e8ece9; --muted: #9ba6a1; --dim: #4a5356;
+  --accent: #4fd1a1; --accent-soft: #163a2f; --warn: #f2b25c; --warn-soft: #3a2a14; --new: #7fb2ff; --new-soft: #172a45; --central: #c4a8ff; --central-soft: #2c2145; --brand: #4fd1a1; --brand-soft: #163a2f;
+  --t-string: #7fd39a; --t-number: #7fb2ff; --t-bool: #f28dbb; --t-date: #b3a6ff; --t-oid: #ff8a7a; --t-other: #f2b25c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15191a; --card: #1d2224; --line: #2e3538; --fg: #e8ece9; --muted: #9ba6a1; --dim: #4a5356;
+  --accent: #4fd1a1; --accent-soft: #163a2f; --warn: #f2b25c; --warn-soft: #3a2a14; --new: #7fb2ff; --new-soft: #172a45; --central: #c4a8ff; --central-soft: #2c2145; --brand: #4fd1a1; --brand-soft: #163a2f;
+  --t-string: #7fd39a; --t-number: #7fb2ff; --t-bool: #f28dbb; --t-date: #b3a6ff; --t-oid: #ff8a7a; --t-other: #f2b25c; color-scheme: dark }
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.45 var(--ui); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+header.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 14px 10px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+h1 { font-size: 20px; margin: 0; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+.stats { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; margin: 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+input[type=search] { font: 13px var(--ui); color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; width: 220px; max-width: 60vw; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--card); }
+.seg button, .toggle { font: 500 13px var(--ui); color: var(--muted); background: transparent; border: 0; padding: 7px 11px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"], .toggle[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.toggle { border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 12px var(--mono); color: var(--muted); padding-block: 4px 0; width: 100%; }
+.legend b { font-weight: 600; }
+
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 18px; padding-block: 14px 40px; align-items: start; }
+nav.tabs { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 120px); max-height: calc(100vh - 140px); overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 6px; }
+.tabs a { display: flex; justify-content: space-between; gap: 6px; padding: 5px 9px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 13px; }
+.tabs a:hover { background: var(--bg); }
+.tabs a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.tabs a .n { font: 11px var(--mono); color: var(--muted); }
+.tabs .grp { font: 600 10.5px var(--ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 10px 9px 3px; }
+.tabs .all { font-weight: 600; }
+
+.wall { columns: 280px; column-gap: 14px; transform-origin: 0 0; }
+.fit .wrap-all { overflow: hidden; }
+.card { break-inside: avoid; background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin: 0 0 14px; overflow: hidden; }
+.card.core { border-color: var(--accent); }
+.card.newc { border-color: var(--new); }
+.card header { padding: 9px 12px 7px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; }
+.card h2, .card h3 { font: 600 15px var(--ui); margin: 0; overflow-wrap: anywhere; }
+.card h2 a { color: inherit; text-decoration: none; }
+.card h2 a:hover { text-decoration: underline; }
+.area { font: 600 10.5px var(--ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); grid-column: 1 / -1; }
+.coll { font: 12px var(--mono); color: var(--muted); }
+.who { font: 600 12px var(--mono); white-space: nowrap; align-self: center; }
+.on { color: var(--accent); } .off { color: var(--dim); }
+.counts { font: 11.5px var(--mono); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.doc { list-style: none; margin: 0; padding: 6px 0 8px; font: 12.5px/1.5 var(--mono); }
+.doc li { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 1px 12px; }
+.doc li.diff { background: var(--warn-soft); }
+.doc li.sub .k { padding-left: 14px; }
+.k { overflow-wrap: anywhere; min-width: 0; }
+.k b { font-weight: 600; }
+.type-String { color: var(--t-string); } .type-Number { color: var(--t-number); } .type-Boolean { color: var(--t-bool); }
+.type-Date { color: var(--t-date); } .type-ObjectId { color: var(--t-oid); } .type-other { color: var(--t-other); }
+.flags { display: block; font-size: 11px; color: var(--muted); }
+.from { display: block; font-size: 11px; color: var(--new); }
+.mark { background: var(--accent-soft); color: var(--accent); border-radius: 3px; }
+.empty { color: var(--muted); padding-block: 40px; text-align: center; }
+.col { min-width: 0; }
+.notes { margin-top: 22px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.notes h2 { font: 600 12px var(--ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+.notes .hint { margin: 0 0 8px; font-size: 12.5px; color: var(--muted); }
+.notes textarea { width: 100%; box-sizing: border-box; min-height: 160px; resize: vertical; font: 14px/1.5 var(--ui); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.notes textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.save { font: 12px var(--ui); color: var(--muted); min-width: 70px; }
+.save.err { color: var(--warn); }
+.toggle.edit[aria-pressed="true"] { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+body.editing [contenteditable] { outline: 1px dashed var(--dim); outline-offset: 1px; border-radius: 3px; cursor: text; min-width: 1.5em; display: inline-block; }
+body.editing [contenteditable]:hover { outline-color: var(--muted); }
+body.editing [contenteditable]:focus { outline: 2px solid var(--accent); background: var(--accent-soft); }
+.del { font: 600 13px var(--ui); line-height: 1; color: var(--warn); background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 2px 6px; cursor: pointer; }
+.del:hover { border-color: var(--warn); background: var(--warn-soft); }
+.add { font: 600 12.5px var(--ui); color: var(--accent); background: transparent; border: 1px dashed var(--accent); border-radius: 8px; padding: 5px 10px; cursor: pointer; margin: 8px 12px; }
+.add:hover { background: var(--accent-soft); }
+.box .add { margin: 8px 0 0; }
+.dbb[role="button"] { cursor: pointer; }
+.editbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; background: var(--warn-soft); border: 1px solid var(--warn); color: var(--fg); border-radius: 10px; padding: 8px 12px; margin-bottom: 14px; font-size: 13px; }
+.editbar button { font: 600 12.5px var(--ui); color: var(--warn); background: var(--card); border: 1px solid var(--warn); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+.edited { font: 600 11px var(--ui); color: var(--warn); border: 1px solid var(--warn); border-radius: 999px; padding: 1px 7px; }
+.doc li .del { align-self: start; }
+.oldtypes { display: inline-flex; flex-wrap: wrap; gap: 4px 8px; }
+.oldtypes .bk { color: var(--muted); font-size: 11px; }
+.nt td.x { width: 1%; white-space: nowrap; }
+.li-row { display: flex; gap: 6px; align-items: baseline; }
+
+.compare { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr); gap: 18px; align-items: start; }
+.side h2.label { font: 600 12px var(--ui); letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 8px; display: flex; gap: 8px; align-items: center; }
+.side.old h2.label { color: var(--warn); } .side.new h2.label { color: var(--new); }
+.pill { font: 600 11px var(--ui); letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; text-transform: none; }
+.summary { background: var(--new-soft); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 0 0 14px; font-size: 13.5px; max-width: 75ch; }
+.newgrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.card .cnote { font-size: 13.5px; color: var(--fg); }
+.tw { overflow-x: auto; }
+.nt { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.nt th { text-align: left; font: 600 11.5px var(--ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 8px 12px 6px; border-bottom: 1px solid var(--line); }
+.nt td { padding: 6px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.nt tr:last-child td { border-bottom: 0; }
+.nt td.f { font: 600 13.5px var(--mono); white-space: nowrap; }
+.nt td[class^="type-"] { font: 13px var(--mono); white-space: nowrap; }
+.nt code { font: 13px var(--mono); color: var(--warn); overflow-wrap: anywhere; }
+.dbb { font: 600 11.5px var(--ui); padding: 2px 9px; border-radius: 999px; white-space: nowrap; align-self: center; justify-self: end; }
+.dbb.central { background: var(--central-soft); color: var(--central); border: 1px solid var(--central); }
+.dbb.brand { background: var(--brand-soft); color: var(--brand); border: 1px solid var(--brand); }
+.card.newc header { grid-template-columns: 1fr auto auto; }
+.card.newc.central { border-color: var(--central); border-width: 2px; }
+.card.newc.brand { border-color: var(--brand); border-width: 2px; }
+.isnew { font: 600 12px var(--ui); color: var(--new); background: var(--new-soft); border-radius: 999px; padding: 1px 8px; }
+.newgrid .card { margin: 0; }
+.cnote { font-size: 12px; color: var(--muted); grid-column: 1 / -1; }
+.box { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-top: 14px; font-size: 13px; }
+.box h3 { font: 600 12px var(--ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.box ul, .box ol { margin: 0; padding-left: 18px; }
+.box li { margin: 2px 0; }
+.box code, .target code { font: 12.5px var(--mono); }
+.box.decide { border-color: var(--warn); }
+.box.decide h3 { color: var(--warn); }
+.target { background: var(--card); border: 1px solid var(--new); border-radius: 10px; padding: 14px 16px; }
+.target .big { font: 600 20px var(--mono); color: var(--new); overflow-wrap: anywhere; }
+.target p { margin: 6px 0 0; max-width: 70ch; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.tag { font: 600 12px var(--ui); padding: 2px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); }
+.tag.built { color: var(--accent); border-color: var(--accent); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.tabs { position: static; max-height: 220px; }
+  .compare { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) { .controls { margin-left: 0; } input[type=search] { width: 100%; max-width: none; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="bar">
+  <h1>Phase 1 · Database Schema</h1>
+  <p class="stats" id="stats"></p>
+  <div class="controls">
+    <input type="search" id="q" placeholder="Find a model or field…" aria-label="Find a model or field">
+    <div class="seg" role="group" aria-label="Backend">
+      <button type="button" id="b-all" data-b="all" aria-pressed="true">All</button>
+      <button type="button" id="b-ibo" data-b="ibo" aria-pressed="false">ibo</button>
+      <button type="button" id="b-bob" data-b="bob" aria-pressed="false">bob</button>
+      <button type="button" id="b-cr" data-b="cr" aria-pressed="false">cr</button>
+    </div>
+    <button type="button" class="toggle" id="diffs" aria-pressed="false">Only differences</button>
+    <button type="button" class="toggle" id="fit" aria-pressed="false">Fit to screen</button>
+    <button type="button" class="toggle edit" id="edit" aria-pressed="false" hidden>Edit</button>
+    <span class="save" id="save" role="status" aria-live="polite"></span>
+  </div>
+  <div class="legend">
+    <span><b class="on">i b c</b> = in ibo, bob, cr (grey letter = missing there)</span>
+    <span><b class="type-String">String</b> <b class="type-Number">Number</b> <b class="type-Boolean">Boolean</b> <b class="type-Date">Date</b> <b class="type-ObjectId">ObjectId</b> <b class="type-other">Mixed / Array</b></span>
+    <span>highlighted row = not in every backend, or a different type</span>
+    <span><b class="dbb central">Central</b> one shared database for all brands · <b class="dbb brand">Per brand</b> one copy in each brand's database</span>
+  </div>
+</header>
+<div class="layout">
+  <nav class="tabs" id="tabs" aria-label="Models"></nav>
+  <div class="col">
+    <main id="main" class="wrap-all"></main>
+    <section class="notes" aria-labelledby="notes-h">
+      <h2 id="notes-h">Notes</h2>
+      <p class="hint" id="notes-hint"></p>
+      <textarea id="notes" rows="8" placeholder="Notes about this page’s content. Everyone who opens the page sees them." disabled></textarea>
+    </section>
+  </div>
+</div>
+
+<script>
+const MODELS = [{"n":"Device","a":"Devices","c":"devices","in":["ibo","bob","cr"],"counts":{"ibo":40,"bob":32,"cr":45},"ts":{"ibo":false,"bob":true,"cr":false},"fields":[{"p":"mac_address","t":{"ibo":"String","bob":"String","cr":"String"},"f":["required"]},{"p":"switched_to","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"switched_from","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"switched_date","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"origin_mac_address","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"expire_date","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"is_trial","t":{"ibo":"Number","bob":"Number","cr":"Number"},"f":["default 0"]},{"p":"app_type","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"device_key","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"old_device_key","t":{"ibo":"String"},"f":[]},{"p":"activated_by","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"multi_activate","t":{"ibo":"Number","bob":"Number","cr":"Number"},"f":["default 0"]},{"p":"credit_count","t":{"ibo":"Number","bob":"Number","cr":"Number"},"f":["default 1"]},{"p":"created_time","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"last_seen","t":{"ibo":"String"},"f":[]},{"p":"version","t":{"ibo":"String"},"f":[]},{"p":"pro_version","t":{"ibo":"String"},"f":[]},{"p":"api_version","t":{"ibo":"String","bob":"Number"},"f":[]},{"p":"u_id","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"recaptcha_code","t":{"ibo":"String","cr":"String"},"f":[]},{"p":"device_name","t":{"ibo":"String","cr":"String"},"f":["default \"Device\""]},{"p":"device_model","t":{"ibo":"String"},"f":[]},{"p":"player_tv_version","t":{"ibo":"String"},"f":[]},{"p":"platform","t":{"ibo":"String"},"f":[]},{"p":"app_device_id","t":{"ibo":"String","bob":"String","cr":"String"},"f":["unique"]},{"p":"parent_pin","t":{"ibo":"String","bob":"String","cr":"String"},"f":["default \"0000\""]},{"p":"app_device_id_unique","t":{"ibo":"String"},"f":["unique"]},{"p":"hostname","t":{"ibo":"String"},"f":[]},{"p":"ip","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"status","t":{"ibo":"Number"},"f":[]},{"p":"api_hit_count","t":{"ibo":"Number","bob":"Number"},"f":["default 0"]},{"p":"stalker_enabled","t":{"ibo":"Boolean"},"f":["default false"]},{"p":"device_info","t":{"ibo":"Mixed"},"f":["default null"]},{"p":"recaptcha_verified","t":{"ibo":"Boolean","bob":"Boolean","cr":"Boolean"},"f":["default false"]},{"p":"recaptcha_requested_at","t":{"ibo":"Date"},"f":[]},{"p":"recovery_code","t":{"ibo":"String","bob":"String","cr":"String"},"f":["default null"]},{"p":"recovery_code_expires_at","t":{"ibo":"Date","bob":"Date","cr":"Date"},"f":["default null"]},{"p":"pending_deletion","t":{"ibo":"Boolean","bob":"Boolean","cr":"Boolean"},"f":["default false"]},{"p":"deletion_at","t":{"ibo":"Date","bob":"Date","cr":"Date"},"f":["default null"]},{"p":"_id","t":{"ibo":"ObjectId","bob":"ObjectId","cr":"ObjectId"},"f":[]},{"p":"reseller_id","t":{"bob":"String","cr":"String"},"f":[]},{"p":"recovery_code_enabled","t":{"bob":"Boolean","cr":"Boolean"},"f":["default false"]},{"p":"recovered_from","t":{"bob":"String","cr":"String"},"f":[]},{"p":"recovered_date","t":{"bob":"String","cr":"String"},"f":[]},{"p":"is_automatic_saved","t":{"bob":"Number","cr":"Number"},"f":[]},{"p":"createdAt","t":{"bob":"Date"},"f":[]},{"p":"updatedAt","t":{"bob":"Date"},"f":[]},{"p":"user_id","t":{"cr":"ObjectId"},"f":["ref User"]},{"p":"plan_id","t":{"cr":"ObjectId"},"f":["ref Plans","default null"]},{"p":"old_plan_id","t":{"cr":"ObjectId"},"f":["ref Plans","default null"]},{"p":"pre_plan_expire_date","t":{"cr":"String"},"f":["default null"]},{"p":"pre_plan_is_trial","t":{"cr":"Number"},"f":["default null"]},{"p":"apiVersion","t":{"cr":"String"},"f":[]},{"p":"android_api_version","t":{"cr":"String"},"f":[]},{"p":"migrated_from","t":{"cr":"String"},"f":[]},{"p":"migrated_from_host","t":{"cr":"String"},"f":[]},{"p":"migrated_date","t":{"cr":"String"},"f":[]},{"p":"migrated_playlists_done","t":{"cr":"Boolean"},"f":["default false"]},{"p":"migration_checked_at","t":{"cr":"Date"},"f":["default null"]},{"p":"migrated_to_app","t":{"cr":"String"},"f":[]},{"p":"migrated_from_app","t":{"cr":"String"},"f":[]},{"p":"migrated_app_date","t":{"cr":"String"},"f":[]}]},{"n":"SuspectDevice","a":"Devices","c":"suspectdevices","in":["ibo"],"counts":{"ibo":23},"ts":{"ibo":false},"fields":[{"p":"mac_address","t":{"ibo":"String"},"f":[]},{"p":"switched_to","t":{"ibo":"String"},"f":[]},{"p":"switched_from","t":{"ibo":"String"},"f":[]},{"p":"switched_date","t":{"ibo":"String"},"f":[]},{"p":"origin_mac_address","t":{"ibo":"String"},"f":[]},{"p":"expire_date","t":{"ibo":"String"},"f":[]},{"p":"is_trial","t":{"ibo":"Number"},"f":["default 0"]},{"p":"app_type","t":{"ibo":"String"},"f":[]},{"p":"device_key","t":{"ibo":"String"},"f":[]},{"p":"old_device_key","t":{"ibo":"String"},"f":[]},{"p":"activated_by","t":{"ibo":"String"},"f":[]},{"p":"credit_count","t":{"ibo":"Number"},"f":["default 1"]},{"p":"created_time","t":{"ibo":"String"},"f":[]},{"p":"version","t":{"ibo":"String"},"f":[]},{"p":"pro_version","t":{"ibo":"String"},"f":[]},{"p":"player_tv_version","t":{"ibo":"String"},"f":[]},{"p":"platform","t":{"ibo":"String"},"f":[]},{"p":"app_device_id","t":{"ibo":"String"},"f":[]},{"p":"parent_pin","t":{"ibo":"String"},"f":[]},{"p":"app_device_id_unique","t":{"ibo":"String"},"f":["unique"]},{"p":"hostname","t":{"ibo":"String"},"f":[]},{"p":"ip","t":{"ibo":"String"},"f":[]},{"p":"_id","t":{"ibo":"ObjectId"},"f":[]}]},{"n":"PlayList","a":"Devices","c":"playlists","in":["ibo","bob","cr"],"counts":{"ibo":20,"bob":17,"cr":24},"ts":{"ibo":false,"bob":true,"cr":false},"fields":[{"p":"device_id","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"url","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"playlist_name","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"username","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"password","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"epg_url","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"is_protected","t":{"ibo":"Number","bob":"Number","cr":"Number"},"f":["default 0"]},{"p":"pin","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"playlist_type","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"portal_name","t":{"ibo":"String","cr":"String"},"f":[]},{"p":"portal_address","t":{"ibo":"String","cr":"String"},"f":[]},{"p":"portal_fallback_address","t":{"ibo":"String","cr":"String"},"f":[]},{"p":"stalker_mac_address","t":{"ibo":"String","cr":"String"},"f":[]},{"p":"updated_time","t":{"ibo":"Number","bob":"Number"},"f":[]},{"p":"device_type","t":{"ibo":"String"},"f":[]},{"p":"contact_name","t":{"ibo":"String","bob":"String"},"f":[]},{"p":"whatsapp","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"email","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"logo","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"_id","t":{"ibo":"ObjectId","bob":"ObjectId","cr":"ObjectId"},"f":[]},{"p":"createdAt","t":{"bob":"Date"},"f":[]},{"p":"updatedAt","t":{"bob":"Date"},"f":[]},{"p":"fallback_portal_address","t":{"cr":"String"},"f":[]},{"p":"code","t":{"cr":"String"},"f":[]},{"p":"expiration_date","t":{"cr":"Date"},"f":[]},{"p":"status","t":{"cr":"String"},"f":[]},{"p":"added_by","t":{"cr":"String"},"f":["default null"]},{"p":"cross_dns_backup","t":{"cr":"Number"},"f":["default 0"]},{"p":"backup_dns","t":{"cr":"Array<String>"},"f":["default []"]}]},{"n":"RecaptchaToken","a":"Devices","c":"recaptchatokens","in":["ibo","bob","cr"],"counts":{"ibo":7,"bob":7,"cr":6},"ts":{"ibo":false,"bob":false,"cr":false},"fields":[{"p":"token","t":{"ibo":"String","bob":"String","cr":"String"},"f":["required","unique"]},{"p":"captchaText","t":{"ibo":"String","bob":"String","cr":"String"},"f":["required"]},{"p":"createdAt","t":{"ibo":"Date","bob":"Date","cr":"Date"},"f":["default now()"]},{"p":"mac_address","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"code","t":{"ibo":"String","bob":"String","cr":"String"},"f":[]},{"p":"app_type","t":{"ibo":"String","bob":"String"},"f":[]},{"p":"_id","t":{"ibo":"ObjectId","bob":"ObjectId","cr":"ObjectId"},"f":[]}]},{"n":"DomainMigration","a":"Provider domain moves","c":"domainmigrations","in":["cr"],"counts":{"cr":14},"ts":{"cr":true},"fields":[{"p":"kind","t":{"cr":"String"},"f":["enum migration/mirror","default \"migration\""]},{"p":"from_host","t":{"cr":"String"},"f":["required"]},{"p":"to_host","t":{"cr":"String"},"f":["required"]},{"p":"from_scheme","t":{"cr":"String"},"f":["default \"\""]},{"p":"to_scheme","t":{"cr":"String"},"f":["default \"\""]},{"p":"confirmed_by","t":{"cr":"Array<String>"},"f":["default []"]},{"p":"confirmation_count","t":{"cr":"Number"},"f":["default 0"]},{"p":"source","t":{"cr":"String"},"f":["enum user/admin","default \"user\""]},{"p":"status","t":{"cr":"String"},"f":["enum pending/active/blocked","default \"pending\""]},{"p":"first_seen_at","t":{"cr":"Date"},"f":["default now()"]},{"p":"last_confirmed_at","t":{"cr":"Date"},"f":["default now()"]},{"p":"_id","t":{"cr":"ObjectId"},"f":[]},{"p":"updatedAt","t":{"cr":"Date"},"f":[]},{"p":"createdAt","t":{"cr":"Date"},"f":[]}]}];
+// The new side of each model. Device follows the 2026-10-21 meeting; the rest come from
+// docs/migration/old-to-new-map.md and PLAN §5 (fields only where PLAN already defines them).
+const NEW = {
+  Device: {
+    status: 'Decided · 21 and 25 Oct',
+    summary: 'A device lives in one of two collections: trialDevices (never paid, trial running or ended) or devices (paid at least once). Paying moves it from trialDevices to devices, keeping its id, MAC and device key. Every license it gets is its own row in licenses.',
+    collections: [
+      {
+        name: 'trialDevices',
+        note: 'Trial running or ended, never paid. Kept after the trial ends so a device can’t get a second trial.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'new id (old _id is kept in legacy.id)'],
+          ['macAddress', 'String', 'unique across both device tables', 'mac_address'],
+          ['appDeviceId', 'String | null', 'unique; used only when there is no usable MAC', 'app_device_id, app_device_id_unique'],
+          ['platform', 'String', 'the device or OS the app runs on: samsung, lg, android, ios, roku…; lowercase fixed list', 'app_type (renamed)'],
+          ['deviceKey', 'String', '6 digits; not unique: it is checked together with the MAC', 'device_key'],
+          ['uid', 'String | null', 'only V4 apps send it', 'u_id'],
+          ['trialStartedAt', 'Date', '', 'created_time (or the time inside the old _id)'],
+          ['trialEndsAt', 'Date', 'end of day UTC', 'expire_date when is_trial = 0'],
+          ['playlistCount', 'Number', '0 = never added a playlist; updated when a playlist is added or removed', 'counted from old playlists.device_id'],
+          ['firstPlaylistAt', 'Date | null', 'empty = never added one; stays set even if the playlist is deleted later', 'earliest old playlists.createdAt for the device'],
+          ['parentPin', 'String | null', 'kept as entered, not hashed: the apps get it back to check it', 'parent_pin'],
+          ['stalkerEnabled', 'Boolean', 'turns Stalker portals on for this device', 'stalker_enabled'],
+          ['apiVersion', 'String', 'one of: legacy, v4, v5', 'api_version, apiVersion, android_api_version'],
+          ['appVersion', 'String | null', 'the app version the device last sent', 'version (ibo Pro / Player TV: pro_version, player_tv_version)'],
+          ['ip', 'String', '', 'ip'],
+          ['lastSeenAt', 'Date', '', 'last_seen'],
+          ['legacy', 'Object', 'old brand, old _id, raw old fields', '_id, device_model, device_info'],
+          ['createdAt', 'Date', '', 'created_time, createdAt'],
+          ['updatedAt', 'Date', '', 'updatedAt'],
+        ],
+      },
+      {
+        name: 'devices',
+        note: 'Has paid at least once. Never deleted; an expired or revoked license keeps it here. (Old devices already revoked before migration, is_trial 1, go to trialDevices instead.)',
+        fields: [
+          ['_id', 'String', 'keeps the id it had in trialDevices', 'new id (old _id is kept in legacy.id)'],
+          ['macAddress', 'String', 'unique across both device tables', 'mac_address'],
+          ['appDeviceId', 'String | null', 'unique; used only when there is no usable MAC', 'app_device_id'],
+          ['platform', 'String', 'the device or OS the app runs on: samsung, lg, android, ios, roku…; lowercase fixed list', 'app_type (renamed)'],
+          ['deviceKey', 'String', '6 digits; not unique: it is checked together with the MAC', 'device_key'],
+          ['uid', 'String | null', '', 'u_id'],
+          ['currentLicenseId', 'String', 'points to a row in licenses', 'new'],
+          ['activatedAt', 'Date', 'first payment', 'new'],
+          ['resellerId', 'String | null', 'points to a reseller (central db)', 'reseller_id'],
+          ['customerId', 'String | null', 'points to a customer', 'user_id'],
+          ['parentPin', 'String | null', 'kept as entered, not hashed: the apps get it back to check it', 'parent_pin'],
+          ['stalkerEnabled', 'Boolean', 'turns Stalker portals on for this device', 'stalker_enabled'],
+          ['apiVersion', 'String', 'one of: legacy, v4, v5', 'api_version, apiVersion, android_api_version'],
+          ['appVersion', 'String | null', 'the app version the device last sent', 'version (ibo Pro / Player TV: pro_version, player_tv_version)'],
+          ['ip', 'String', '', 'ip'],
+          ['lastSeenAt', 'Date', '', 'last_seen'],
+          ['switch', 'Object | null', 'MAC switch history', 'switched_to, switched_from, switched_date, origin_mac_address'],
+          ['recovery', 'Object | null', '{ code, expiresAt, enabled, recoveredFrom, recoveredAt }: a code made on the website (paid devices only, 30 minutes) that moves this device to a new TV', 'recovery_code, …_expires_at, …_enabled, recovered_from, recovered_date'],
+          ['legacy', 'Object', 'old brand, old _id, raw old fields', '_id, device_model, device_info'],
+          ['createdAt', 'Date', '', 'created_time, createdAt'],
+          ['updatedAt', 'Date', '', 'updatedAt'],
+        ],
+      },
+      {
+        name: 'licenses',
+        note: 'One row per license a paid device gets; every row is kept as history and the device points to its current one. A yearly license bought before the current one ends adds its year to that end date (stacking), so expiresAt is calculated when it is created. Revoking keeps the row.',
+        fields: [
+          ['_id', 'String', 'UUID', 'new'],
+          ['deviceId', 'String', 'points to a row in devices', 'new'],
+          ['type', 'String', 'yearly or lifetime', 'is_trial 3 = yearly, 2 = lifetime'],
+          ['expiresAt', 'Date | null', 'empty for lifetime', 'expire_date'],
+          ['revoked', 'Boolean', '', 'is_trial 1 (revoked)'],
+          ['revokedAt', 'Date | null', '', 'new'],
+          ['activatedBy', 'Object', 'admin, reseller, code, coupon, payment, store, transfer or plan', 'activated_by'],
+          ['creditCost', 'Number', 'yearly costs 1, lifetime 2', 'credit_count'],
+          ['multiActivate', 'Boolean', 'true = bought in a multi-device order from the store; a MAC switch is refused for this license', 'multi_activate (set only by the store save-device-activation; once 1 it stayed 1 on the device forever)'],
+          ['sourceId', 'String | null', 'the transaction, code, coupon or subscription that paid', 'new'],
+          ['createdAt', 'Date', '', 'new'],
+        ],
+      },
+    ],
+    footnote: '* the MAC is unique across trialDevices and devices together: a device is in only one of them. The device key is not unique. Kept by taking a Redis lock on the MAC before creating, moving or switching a device; no extra collection.',
+    elsewhere: [
+      ['recaptcha_code, recaptcha_verified, recaptcha_requested_at', 'captchas collection'],
+      ['user_id, plan_id, old_plan_id, pre_plan_*', 'customers / subscriptions'],
+      ['8 migrated_* fields', 'central licenseTransfers, deviceRegistry'],
+      ['device_name', 'customers (a label for the customer’s device)'],
+    ],
+    dropped: [
+      ['old_device_key', 'only a dead bulk job wrote it'],
+      ['status', 'its only check can never be true'],
+      ['api_hit_count', 'counted, never read'],
+      ['is_automatic_saved', 'never read'],
+      ['platform (ibo)', 'which ibo app registered the device (Player, Pro, Player TV). Removed by team decision on 21 Oct'],
+      ['hostname (ibo)', 'the API domain the app first registered on; only shown in the old admin. Removed by team decision on 21 Oct'],
+      ['pending_deletion, deletion_at', 'set by device recovery on the record it pushes off the new MAC; no job ever read them. Removed by team decision on 21 Oct'],
+    ],
+    decided: [
+      'Collection names: trialDevices for the trial collection, devices for the paid one (25 Oct).',
+      'Every license is its own row in a licenses collection; rows are kept as history and the device points to its current one (25 Oct).',
+      'An old device with is_trial 1 (revoked) goes to trialDevices (25 Oct).',
+      'playlistCount + firstPlaylistAt on trialDevices are enough; devices does not track the split (25 Oct).',
+      'Only the MAC is unique (across both collections); the device key is not unique (25 Oct).',
+      'stalkerEnabled stays on the device, in both device collections (25 Oct).',
+    ],
+    decide: [],
+  },
+  SuspectDevice: { target: 'No table in the new design', mergeInto: 'Device', into: 'trialDevices', db: 'brand', status: 'Not needed · rows go to trialDevices', note: 'Old ibo archive of expired trial devices (is_trial 0 or 1), moved out of devices by an admin page to keep that table small. Same fields as Device. When such a MAC comes back, ibo moves it back into devices. In the new design these stay in trialDevices: expired = trialEndsAt in the past, and playlistCount = 0 shows the ones that never added a playlist.' },
+  PlayList: {
+    target: 'playlists',
+    db: 'brand',
+    status: 'Decided · 25 Oct',
+    summary: 'One playlists collection per brand. Each row has a type, and only the part for that type is filled: url for m3u, xtream for Xtream, stalker for Stalker portals, code for code playlists. The old reply shapes (urls[], origin_url, xc…) are built from this by each legacy door, so the apps see no change.',
+    collections: [
+      {
+        name: 'playlists',
+        note: 'A playlist belongs to one device. The device keeps the same id when it moves from trialDevices to devices, so deviceId never has to change.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'new id (old _id is kept in legacy.id)'],
+          ['deviceId', 'String', 'the device in trialDevices or devices; indexed', 'device_id (text, no index: every request scans the whole playlists collection)'],
+          ['name', 'String', 'required, trimmed', 'playlist_name'],
+          ['type', 'String', 'one of: m3u, xtream, stalker, code', 'playlist_type (general = m3u, xc = xtream, empty = m3u)'],
+          ['url', 'String | null', 'm3u and xtream: the link exactly as the user typed it; stored as is, not encrypted', 'url'],
+          ['xtream', 'Object | null', '{ server, username, password }, parsed once when saved; stored as is, not encrypted', 'username, password, or parsed from url (today it is re-parsed on every request)'],
+          ['stalker', 'Object | null', '{ portalName, portalUrl, fallbackUrl, mac }', 'portal_name, portal_address, portal_fallback_address / fallback_portal_address (two names for one field), stalker_mac_address'],
+          ['code', 'Object | null', '{ code, expiresAt, status }: the user types a provider code (digits only) instead of a link; the CRPlayer app resolves it and reports expiresAt and status back', 'code / playlist_code, expiration_date, status (cr only; only the app writes the last two, via PUT edit_playlist)'],
+          ['epgUrl', 'String | null', '', 'epg_url'],
+          ['backup', 'Object', '{ enabled, hosts[] }: hosts that replace the host of url when it is down; hosts are kept when turned off', 'cross_dns_backup, backup_dns (cr only)'],
+          ['protected', 'Boolean', 'opening it needs the PIN', 'is_protected (0, 1 or "" today)'],
+          ['pinEnc', 'String | null', 'encrypted, not hashed: Roku and iOS replies send the PIN to the app, which checks it', 'pin (plain text)'],
+          ['provider', 'Object | null', '{ name, logo, whatsapp, email }: the IPTV provider shown in the app', 'contact_name, logo, whatsapp, email'],
+          ['addedBy', 'Object', '{ via: app | website | store | admin, resellerId }; never the raw API key', 'added_by (cr: the raw reseller API key from store save-play-list; only echoed back, nothing reads it)'],
+          ['legacy', 'Object', 'old brand, old _id, raw old fields', '_id, device_type (ibo)'],
+          ['createdAt', 'Date', '', 'createdAt (bob), else the time inside the old _id'],
+          ['updatedAt', 'Date', '', 'updated_time (number, ibo/bob), updatedAt (bob)'],
+        ],
+      },
+    ],
+    footnote: 'Indexes: deviceId; and one unique key per device to stop the same playlist being saved twice (url + username, or portal + MAC, or code). The old backends had neither. The new edit door accepts only status and expiresAt: old PUT edit_playlist lets anyone who knows a MAC overwrite any field of its playlists.',
+    elsewhere: [
+      ['the demo playlist sent when a device has none', 'tenantConfig (one per brand, not a row per device)'],
+      ['stalker_enabled (on the old device)', 'stays on the device: it turns Stalker on for that device'],
+    ],
+    dropped: [
+      ['orphan playlists (their device is gone)', 'removeOldDevices in all three backends deletes the devices but deletes playlists by playlist _id instead of device_id, so their playlists stay. How many exist is unknown until we profile a production copy. Left out of the new database; migration counts and reports them (decided 25 Oct)'],
+      ['portal_fallback_address vs fallback_portal_address', 'two names for the same value in cr; merged into stalker.fallbackUrl'],
+      ['__v', 'Mongoose internal'],
+    ],
+    decide: [],
+    decided: [
+      'PIN per playlist stays (pinEnc), as the old apps expect.',
+      'No limit on playlists per device.',
+      'One playlists collection with a type and one filled part (25 Oct).',
+      'No encryption at rest for url or the Xtream password (25 Oct).',
+      'Orphan playlists are left out of the new database; migration reports how many (25 Oct).',
+    ],
+  },
+  RecaptchaToken: {
+    target: 'captchas',
+    db: 'brand',
+    status: 'Decided · 25 Oct',
+    summary: 'One captchas collection per brand for the V4 registration captcha, the u_id recovery captcha and the website captcha. An unanswered captcha expires; a solved one is kept for its MAC, because CRPlayer-type apps send the same solved code on every start and cr checks it forever.',
+    collections: [
+      {
+        name: 'captchas',
+        note: 'Short-lived until solved. Solving clears expiresAt, so the TTL index keeps the solved row.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'new'],
+          ['token', 'String', 'unique; what the app sends back with its answer', 'token'],
+          ['kind', 'String', 'v4 · uidRecovery · web', 'code (uid_recovery = uidRecovery, empty = registration)'],
+          ['macAddress', 'String | null', 'normalized', 'mac_address'],
+          ['appDeviceId', 'String | null', 'for devices without a usable MAC', 'new'],
+          ['platform', 'String | null', 'the app type that asked', 'app_type'],
+          ['answerHash', 'String', 'hash of the text shown, upper case; the answer itself is never stored', 'captchaText (plain text today)'],
+          ['verifiedAt', 'Date | null', 'set once when solved; a solved V4 captcha lets the device skip the next one', 'recaptcha_verified (on the old device)'],
+          ['expiresAt', 'Date | null', 'TTL; cleared when solved so the solved row is kept', 'new (the old rows had no expiry)'],
+          ['createdAt', 'Date', '', 'createdAt, recaptcha_requested_at (on the old device)'],
+        ],
+      },
+    ],
+    footnote: 'Indexes: token unique; macAddress + kind; expiresAt TTL (expireAfterSeconds 0; rows without expiresAt are kept).',
+    elsewhere: [
+      ['recaptcha_code + recaptcha_verified on an old device', 'one solved captchas row for that MAC, written by the data move, so old CRPlayer apps keep working'],
+    ],
+    dropped: [
+      ['old recaptchatokens rows', 'short-lived; not moved'],
+      ['captchaText in plain text', 'replaced by answerHash'],
+    ],
+    decided: ['Fields as proposed: a solved captcha is kept for its MAC; the answer is stored only as a hash (25 Oct).'],
+    decide: [],
+  },
+  User: {
+    target: 'customers + resellers',
+    db: 'brand',
+    status: 'Decided · 21 and 25 Oct',
+    summary: 'The old User means two different things. In cr it is a real customer who buys a plan for their own devices. In ibo it is a self-service code seller: it buys credits, turns them into activation codes and sells them (the /activation-codes site). So they split: cr users become customers (brand database), ibo users become resellers of kind self_service (central database).',
+    collections: [
+      {
+        name: 'customers',
+        note: 'Brand database. From cr User. A person who owns devices on this brand and logs in to the brand site.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'new id (old _id is kept in legacy.id)'],
+          ['email', 'String', 'unique within the brand, lowercase', 'email (cr)'],
+          ['passwordHash', 'String', 'hashed', 'password (cr)'],
+          ['firstName', 'String', '', 'first_name (cr)'],
+          ['lastName', 'String', '', 'last_name (cr)'],
+          ['emailVerifiedAt', 'Date | null', 'empty = not verified yet', 'is_verified + verified_at (cr)'],
+          ['legacy', 'Object', 'old brand, old _id', '_id'],
+          ['createdAt', 'Date', '', 'created_at (cr)'],
+          ['updatedAt', 'Date', '', 'new'],
+        ],
+      },
+      {
+        name: 'resellers (self_service)',
+        db: 'central',
+        note: 'Central database, the same resellers collection as the Reseller tab. From ibo User. Shown here with only the fields this kind uses.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'new id (old _id is kept in legacyRefs)'],
+          ['kind', 'String', 'always self_service for these rows. Needed because they share the resellers collection with managed resellers (Reseller tab), and kind is how the two are told apart', 'new: every ibo User is self_service'],
+          ['email', 'String', 'unique among resellers, lowercase', 'email (ibo)'],
+          ['passwordHash', 'String', 'bcrypt (ibo already uses bcrypt)', 'password (ibo)'],
+          ['wallet', 'Object', '{ balance }: a cached total; every top-up and spend is a walletLedger row', 'credits − used_credits (ibo)'],
+          ['tenantPermissions', 'Array', 'the brands it may sell for: ibo only at first', 'new'],
+          ['legacyRefs', 'Array', 'every old id, e.g. { source: ibo, model: User, id }', '_id'],
+          ['createdAt', 'Date', '', 'time inside the old _id'],
+        ],
+      },
+    ],
+    footnote: 'Why two collections: they buy different things (a plan for own devices vs credits to make codes for others), live in different databases (brand vs central), log in to different sites, and the same email may be both. One users collection with a role would mix fields and put reseller actions one missing check away from a customer login.',
+    elsewhere: [
+      ['plans[] (cr: plan_id, number_of_devices, devices[])', 'subscriptions (brand): one row per bought plan, listing its devices'],
+      ['verificationToken, resetToken, resetTokenExpires (cr)', 'authTokens (one short-lived token collection)'],
+      ['credits, used_credits history (ibo)', 'walletLedger: migration writes one opening row with the balance'],
+      ['ActivationCode.user_id (ibo)', 'activationCodes.owner = that reseller'],
+      ['buy_credit transactions, whose device_id holds the user id (ibo)', 'transactions.resellerId'],
+    ],
+    decided: [
+      'Two collections: customers (brand database) and resellers (central database).',
+      'ibo User accounts are resellers with kind self_service, not customers.',
+      'A self_service reseller can later be moved under a parent reseller: kind becomes managed and parentId is set (25 Oct).',
+    ],
+    decide: [],
+  },
+  Plans: {
+    target: 'plans + subscriptions',
+    db: 'brand',
+    status: 'Decided · 25 Oct · not live yet',
+    summary: 'cr only. A plan is a product: "N devices, lifetime". When a customer buys it, the old code pushes a copy into User.plans[] and later writes plan_id, old_plan_id and pre_plan_* on each device it covers. The new design keeps the product in plans, each purchase as one subscriptions row that lists its devices, and the activation itself as a normal license.',
+    collections: [
+      {
+        name: 'plans',
+        note: 'Brand database. The catalogue: what a customer can buy. Edited by admins.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'new id (old _id is kept in legacy.id)'],
+          ['name', 'String', 'shown to the customer', 'name'],
+          ['description', 'String', '', 'description'],
+          ['priceMinor', 'Number', 'integer in the smallest unit (cents)', 'price (a float today)'],
+          ['currency', 'String', 'ISO code, e.g. USD', 'new: old plans have no currency'],
+          ['deviceSlots', 'Number', 'how many devices one purchase covers', 'number_of_devices'],
+          ['licenseType', 'String', 'yearly or lifetime: what each covered device gets', 'new: the old code always gives lifetime (is_trial 2, +5000 months)'],
+          ['storeKey', 'String', 'unique: the value the mimo store sends to say which plan was bought', 'name (the store callback finds the plan by its name, so renaming a plan breaks purchases)'],
+          ['active', 'Boolean', 'false = hidden from sale; bought subscriptions keep working', 'new: the old admin deletes plans outright'],
+          ['legacy', 'Object', 'old brand, old _id', '_id'],
+          ['createdAt', 'Date', '', 'created_at'],
+          ['updatedAt', 'Date', '', 'updated_at'],
+        ],
+      },
+      {
+        name: 'subscriptions',
+        note: 'Brand database. One row per purchase of a plan by a customer. Buying the same plan twice = two rows.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'User.plans[]._id'],
+          ['customerId', 'String', 'points to customers; indexed', 'the User that holds the plans[] entry'],
+          ['planId', 'String', 'points to plans', 'plans[].plan_id'],
+          ['deviceSlots', 'Number', 'copied from the plan at purchase, so later plan edits do not change what was bought', 'plans[].number_of_devices'],
+          ['devices', 'Array', '[{ deviceId, licenseId, addedAt }]; at most deviceSlots', 'plans[].devices (ids only) + Device.plan_id'],
+          ['removedDevices', 'Array', '[{ deviceId, removedAt }]: a device removed from a plan cannot be added to the same plan again', 'Device.old_plan_id (remembers only the last plan)'],
+          ['status', 'String', 'active or cancelled', 'new'],
+          ['transactionId', 'String | null', 'the payment that bought it', 'new: the old transaction only has user_id'],
+          ['purchasedAt', 'Date', '', 'time inside the old plans[] _id'],
+          ['createdAt', 'Date', '', 'new'],
+          ['updatedAt', 'Date', '', 'new'],
+        ],
+      },
+    ],
+    footnote: 'Adding a device to a subscription gives it a license (licenses.activatedBy = plan, sourceId = the subscription) and moves it to devices if it was a trial. Removing it revokes that license. The device fields plan_id, old_plan_id, pre_plan_expire_date and pre_plan_is_trial are no longer needed: the license history already shows what the device had before.',
+    elsewhere: [
+      ['Device.user_id (cr)', 'devices.customerId'],
+      ['Device.plan_id', 'subscriptions.devices[] + the device license'],
+      ['Device.old_plan_id', 'subscriptions.removedDevices[]'],
+      ['Device.pre_plan_expire_date, pre_plan_is_trial', 'not needed: the earlier license stays in licenses'],
+    ],
+    decided: [
+      'A device removed from a plan stays in devices with no valid license; it never gets its trial back (25 Oct).',
+      'A customer cannot cancel a subscription (25 Oct).',
+      'Two ways to pay. Per-device: a device is activated for a year or for life; every active user pays this way today. Account plans: a customer logs in with an email and links devices to it; not working yet, so built after the per-device flow (25 Oct).',
+    ],
+    decide: [],
+  },
+  PasswordResetToken: { target: 'authTokens', db: 'brand', status: 'Planned · API', note: 'One TTL collection for every short-lived token.' },
+  VerificationToken: { target: 'authTokens', db: 'brand', status: 'Planned · API', note: 'One TTL collection for every short-lived token.' },
+  Admin: {
+    target: 'staffUsers + resellers',
+    db: 'central',
+    status: 'Decided · 25 Oct',
+    summary: 'The old admins collection holds two kinds of account, told apart by is_admin. is_admin 1 is a real admin of that backend. is_admin 0 is a reseller (or sub-reseller) that logs in to the same admin panel with fewer menus. Its credit limit is max_connections and its parent is created_by. They split: admins become staffUsers, is_admin 0 rows become managed resellers. Both are central, because one staff team and one reseller network serve every brand.',
+    collections: [
+      {
+        name: 'staffUsers',
+        db: 'central',
+        note: 'Central database. Our own team: people who run the admin panel. From Admin rows with is_admin 1.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'new id (old _id is kept in legacyRefs)'],
+          ['email', 'String', 'unique, lowercase; one person = one account for every brand', 'email (the same person may appear in ibo, bob and cr: merged by email)'],
+          ['passwordHash', 'String', 'bcrypt (the old login already uses bcrypt)', 'password'],
+          ['name', 'String', '', 'name'],
+          ['roleId', 'String', 'points to roles; what this person may do', 'new: is_admin 1 means full access today, so migrated admins get the super_admin role'],
+          ['tenantAccess', 'Array', 'the brands this person may manage; ["*"] = all', 'new: an old admin of ibo gets the ibo brand, and so on'],
+          ['status', 'String', 'active or disabled', 'new: today an admin can only be deleted'],
+          ['lastLoginAt', 'Date | null', '', 'new'],
+          ['legacyRefs', 'Array', 'every old row, e.g. { source: bob, model: Admin, id, numericId }', '_id, id (old numeric id)'],
+          ['createdAt', 'Date', '', 'time inside the old _id'],
+        ],
+      },
+      {
+        name: 'roles',
+        db: 'central',
+        note: 'Central database. Created and edited by the super admin in the panel. A role is a named set of permissions; its brand limits are on the staff user (tenantAccess), so one role serves every brand.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'new'],
+          ['name', 'String', 'unique, e.g. Support, Billing, Content editor', 'new: the old system has only is_admin 0 / 1'],
+          ['permissions', 'Array', 'permission keys; each must exist and be active in permissions', 'new'],
+          ['system', 'Boolean', 'true = built-in super_admin role: cannot be edited or deleted, always has every permission', 'new'],
+          ['createdBy', 'String', 'the staff user who made it', 'new'],
+          ['createdAt', 'Date', '', 'new'],
+          ['updatedAt', 'Date', '', 'new'],
+        ],
+      },
+      {
+        name: 'permissions',
+        db: 'central',
+        note: 'Central database. Written by the backend on startup from the list in the code. The super admin edits labels, descriptions and groups; a key added by hand does nothing, because only code checks keys.',
+        fields: [
+          ['_id', 'String', 'the key the code checks, e.g. devices.activate', 'new'],
+          ['group', 'String', 'for the panel, e.g. Devices, Resellers, Payments', 'new'],
+          ['label', 'Object', '{ en, ar }: editable by the super admin', 'new'],
+          ['description', 'String', 'editable by the super admin', 'new'],
+          ['active', 'Boolean', 'false once the code no longer has the key; it is removed from every role', 'new'],
+          ['syncedAt', 'Date', 'last startup that confirmed the key', 'new'],
+        ],
+      },
+      {
+        name: 'resellers (managed)',
+        db: 'central',
+        note: 'Central database, the same resellers collection as the Reseller and User tabs. From Admin rows with is_admin 0. Shown here with the fields this kind uses.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'new id (old _id is kept in legacyRefs)'],
+          ['kind', 'String', 'always managed for these rows', 'new: every is_admin 0 row is managed'],
+          ['email', 'String', 'unique among resellers, lowercase', 'email'],
+          ['passwordHash', 'String', 'bcrypt', 'password'],
+          ['name', 'String', '', 'name'],
+          ['parentId', 'String | null', 'the reseller who manages it; empty = directly under our staff', 'created_by, when it points to another is_admin 0 row'],
+          ['createdBy', 'Object', '{ kind: staff | reseller, id }', 'created_by (default "1" = the first admin)'],
+          ['wallet', 'Object', '{ balance }: a cached total; every movement is a walletLedger row', 'max_connections − credits already used (see below)'],
+          ['apiKeyHash', 'String | null', 'hashed; for the external activation link', 'token (the "connection token", stored in plain text and compared as is)'],
+          ['tenantPermissions', 'Array', 'the brands it may sell for', 'new: the backend the old row was in'],
+          ['status', 'String', 'active or disabled', 'new'],
+          ['legacyRefs', 'Array', 'every old row', '_id, id (old numeric id)'],
+          ['createdAt', 'Date', '', 'time inside the old _id'],
+        ],
+      },
+    ],
+    footnote: 'How credits work today (ibo AdminController.js:3052): a reseller may use max_connections credits. Used = the credit_count of every device it activated + the max_connections it handed to each sub-reseller. Nothing is stored; it is counted again on every page. The new wallet stores the balance and one walletLedger row per activation or transfer, so the history is kept and the count cannot drift. Migration writes one opening row per reseller: max_connections − used. Roles rules: the super_admin role is locked; the last super admin can never be removed or disabled; role changes apply on the next request without logging out; every role, permission and assignment change is written to auditLog (who, when, before, after).',
+    elsewhere: [
+      ['coupon_code (the coupon auto-created for a reseller with credits left)', 'coupons, with owner = that reseller'],
+      ['used_count / active connections', 'walletLedger (computed today, never stored)'],
+      ['the separate bob Reseller model (own /reseller panel)', 'resellers too, see the Reseller tab'],
+    ],
+    dropped: [
+      ['id (the numeric id)', 'only used by the old PHP import; kept in legacyRefs'],
+      ['is_admin', 'replaced by two collections: staffUsers vs resellers'],
+    ],
+    decided: [
+      'Roles and permissions are collections the super admin manages (option 2): permission keys come from the code and are synced on startup; labels, descriptions and role contents are edited in the panel.',
+      'The old admins table splits into two collections: is_admin 1 rows become staffUsers, is_admin 0 rows become managed resellers (25 Oct).',
+      'The same admin email in ibo, bob and cr is merged into one staffUser with access to all three brands (25 Oct).',
+      'Day-one roles: the locked super_admin plus admin, support and billing (25 Oct).',
+      'The external activation link (/activate/:mac/:credits/:id/:token) is replaced by the reseller API; it is kept, with a hashed key, only if a partner still calls it (25 Oct).',
+    ],
+    decide: [],
+  },
+  Reseller: {
+    target: 'resellers', db: 'central', status: 'Planned · IDN', note: 'Central reseller identity across brands.',
+    fields: [['kind', 'String', 'managed or self_service (old ibo User)'], ['email', 'String', 'unique'], ['passwordHash', 'String', ''], ['wallet', 'Object', '{ balance }, every movement in walletLedger'], ['parentId', 'String | null', 'hierarchy'], ['status', 'String', ''], ['tenantPermissions', 'Array', ''], ['branding', 'Object', 'logo'], ['legacyRefs', 'Array', 'every old id']],
+  },
+  ResellerActivity: { target: 'walletLedger + auditLog', db: 'central', status: 'Planned · IDN', note: 'Money movements go to an append-only ledger; actions to the audit log.' },
+  ResellerLogo: { target: 'resellers.branding', mergeInto: 'Reseller', db: 'central', status: 'Planned · IDN', note: 'Part of the reseller, not its own collection.' },
+  ResellerNotification: { target: 'notifications', db: 'brand', status: 'Planned · CNT', note: 'One notifications collection, optionally per reseller.' },
+  ResellerPackage: { target: 'packages', db: 'brand', status: 'Planned · IDN', note: 'Merged with CreditPackage and CreditPricePackage, with a kind field.' },
+  CreditPackage: { target: 'packages', db: 'brand', status: 'Planned · IDN', note: 'Merged into packages (kind field).' },
+  CreditPricePackage: { target: 'packages', db: 'brand', status: 'Planned · IDN', note: 'Merged into packages (kind field).' },
+  Transaction: {
+    target: 'transactions', db: 'brand', status: 'Planned · PAY', note: 'Typed references instead of the old polymorphic device_id; money in integer minor units.',
+    fields: [['provider', 'String', ''], ['type', 'String', ''], ['status', 'String', ''], ['amountMinor', 'Number', 'integer'], ['currency', 'String', ''], ['deviceId', 'String | null', 'ref'], ['customerId', 'String | null', 'ref'], ['resellerId', 'String | null', 'ref'], ['couponOrder', 'Object | null', ''], ['providerRef', 'String', ''], ['idempotencyKey', 'String', 'unique'], ['rawEvent', 'Object', '']],
+  },
+  Coupon: { target: 'coupons + couponRedemptions', db: 'central', status: 'Planned · IDN', note: 'Coupon packs and one row per use.' },
+  CouponActivity: { target: 'couponRedemptions', mergeInto: 'Coupon', db: 'central', status: 'Planned · IDN', note: 'One row per coupon use.' },
+  CoinList: { target: 'coinList', db: 'central', status: 'Planned', note: 'Global lookup.' },
+  ActivationCode: {
+    target: 'activationCodes', db: 'central', status: 'Planned · IDN', note: 'Merged with bob/cr ResellerCode.',
+    fields: [['owner', 'Object', 'reseller or admin'], ['durationMonths', 'Number', ''], ['credits', 'Number', ''], ['status', 'String', ''], ['usedBy', 'Object', 'tenant, deviceId, mac, ip, platform'], ['usedAt', 'Date | null', '']],
+  },
+  ActivationCodeIPHistory: { target: 'activationCodes.usedBy + auditLog', mergeInto: 'ActivationCode', db: 'central', status: 'Planned · IDN', note: 'History becomes the code’s usedBy plus the audit log.' },
+  ActivationCodeUseHistory: { target: 'activationCodes.usedBy + auditLog', mergeInto: 'ActivationCode', db: 'central', status: 'Planned · IDN', note: 'History becomes the code’s usedBy plus the audit log.' },
+  ResellerCode: { target: 'activationCodes', mergeInto: 'ActivationCode', db: 'central', status: 'Planned · IDN', note: 'Merged with ibo ActivationCode.' },
+  ActivationContent: { target: 'contentPages', db: 'brand', status: 'Planned · CNT', note: 'One collection keyed by slug for every page text.' },
+  ActivationCodePageContent: { target: 'contentPages', db: 'brand', status: 'Planned · CNT', note: 'One collection keyed by slug.' },
+  PrivacyContent: { target: 'contentPages', db: 'brand', status: 'Planned · CNT', note: 'One collection keyed by slug.' },
+  TermsContent: { target: 'contentPages', db: 'brand', status: 'Planned · CNT', note: 'One collection keyed by slug.' },
+  ResellerContent: { target: 'contentPages', db: 'brand', status: 'Planned · CNT', note: 'One collection keyed by slug.' },
+  Faq: { target: 'contentPages', db: 'brand', status: 'Planned · CNT', note: 'One collection keyed by slug.' },
+  News: { target: 'news', db: 'brand', status: 'Planned · CNT', note: '' },
+  Notification: { target: 'notifications', db: 'brand', status: 'Planned · CNT', note: '' },
+  AndroidApp: { target: 'androidApps', db: 'brand', status: 'Planned · CNT', note: 'App update metadata, per brand.' },
+  AppVersion: { target: 'appVersions', db: 'brand', status: 'Planned · CNT', note: '' },
+  Setting: { target: 'tenantConfig (+ tenantSecrets)', db: 'brand', status: 'Built on master · TEN-4/5', note: 'One typed tenantConfig document per brand instead of key/value rows: trial days, currency, contact, app links and which payment providers show. Brand flags (maintenance, legacy options, playlist profile, CORS, StarArcs name) sit on the brand record; keys go to encrypted tenantSecrets. Other modules add their own section as they are built.' },
+  DomainMigration: {
+    target: 'domainMigrations',
+    db: 'central',
+    status: 'Decided · 25 Oct',
+    summary: 'When an IPTV provider moves its server, devices report the new host. A move is learned from several paid devices on different IPs, and only served after a staff member approves it. One central collection, because a provider host is the same for every brand.',
+    collections: [
+      {
+        name: 'domainMigrations',
+        db: 'central',
+        note: 'One row per from → to pair.',
+        fields: [
+          ['_id', 'String', 'new UUID', 'new id (old _id is kept in legacy.id)'],
+          ['kind', 'String', 'migration · mirror', 'kind'],
+          ['fromHost', 'String', 'lowercase host[:port]; unique together with toHost', 'from_host'],
+          ['toHost', 'String', 'lowercase host[:port]', 'to_host'],
+          ['fromScheme', 'String', 'http · https · empty', 'from_scheme'],
+          ['toScheme', 'String', 'http · https · empty', 'to_scheme'],
+          ['confirmations', 'Array', '[{ tenantId, deviceId, ipHash, at }]: only paid devices, one per IP', 'confirmed_by (device ids only)'],
+          ['source', 'String', 'user (learned from devices) · admin (entered by staff)', 'source'],
+          ['status', 'String', 'pending · approved · blocked; only approved moves are served', 'status (active = approved)'],
+          ['decidedBy', 'String | null', 'the staff user who approved or blocked it', 'new'],
+          ['decidedAt', 'Date | null', '', 'new'],
+          ['firstSeenAt', 'Date', '', 'first_seen_at'],
+          ['lastConfirmedAt', 'Date', '', 'last_confirmed_at'],
+          ['legacy', 'Object', 'old _id', '_id'],
+          ['createdAt', 'Date', '', 'createdAt'],
+          ['updatedAt', 'Date', '', 'updatedAt'],
+        ],
+      },
+    ],
+    footnote: 'Indexes: fromHost + toHost unique; status. confirmation_count is not stored: it is the number of confirmations.',
+    elsewhere: [],
+    dropped: [
+      ['confirmation_count', 'worked out from confirmations'],
+    ],
+    decided: ['Fields as proposed: central, paid devices only, one confirmation per IP (25 Oct).', 'A move shows up for approval after 3 confirmations from different IPs; it is only served once approved (25 Oct).'],
+    decide: [],
+  },
+  Language: { target: 'languages', db: 'central', status: 'Planned · CNT', note: 'Global i18n with optional per-brand overrides.' },
+  LanguageWord: { target: 'translations', db: 'central', status: 'Planned · CNT', note: '' },
+  Word: { target: 'translationKeys', db: 'central', status: 'Planned · CNT', note: '' },
+  BlockedIPAdress: { target: 'abuseIpReputation / abuseEvents', db: 'central', status: 'Planned · ABU', note: 'Shared abuse data across brands (both spellings merge).' },
+  BlockedIPAddress: { target: 'abuseIpReputation / abuseEvents', db: 'central', status: 'Planned · ABU', note: 'Shared abuse data across brands (both spellings merge).' },
+  AndroidPlaylistIpGuard: { target: 'abuseEvents', db: 'central', status: 'Planned · ABU', note: 'Rate limiting moves to Redis; events are kept for review.' },
+  CountryCode: { target: 'countryCodes', db: 'central', status: 'Planned', note: 'Global lookup.' },
+  Contact: { target: 'contactMessages', db: 'brand', status: 'Planned · API', note: '' },
+};
+
+// Edits live in the shared db: models/<Name> = { old, new, updatedAt } replaces the built-in copy of that model;
+// notes/<Name|_all> = { text, updatedAt }. Without db the page is read-only.
+const CORE = new Set(['Device', 'PlayList', 'Admin', 'Transaction', 'Setting']);
+const BK = ['ibo', 'bob', 'cr'];
+const state = { q: '', b: 'all', diffs: false, fit: false, tab: 'all', editing: false };
+const live = { db: null, overrides: {}, notes: {}, work: null, saveTimer: null, notesTimer: null, pendingRender: false, dirty: false };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const typeClass = (t) => {
+  const base = String(t).split(' ')[0];
+  return ['String', 'Number', 'Boolean', 'Date', 'ObjectId'].includes(base) ? 'type-' + base : 'type-other';
+};
+const mark = (text, q) => {
+  const s = esc(text);
+  if (!q || state.editing) return s;
+  const i = text.toLowerCase().indexOf(q);
+  return i < 0 ? s : esc(text.slice(0, i)) + '<span class="mark">' + esc(text.slice(i, i + q.length)) + '</span>' + esc(text.slice(i + q.length));
+};
+const who = (present) => '<span class="who" aria-label="in ' + present.join(', ') + '">' + BK.map((k) => '<span class="' + (present.includes(k) ? 'on' : 'off') + '">' + k[0] + '</span>').join(' ') + '</span>';
+
+// ---- effective data: the db copy when someone edited the model, else the built-in one
+const modelByName = (n) => MODELS.find((m) => m.n === n);
+const baseOf = (n) => ({ old: modelByName(n).fields, new: NEW[n] || null });
+function effOf(n) {
+  if (state.editing && live.work && live.work.n === n) return live.work;
+  const o = live.overrides[n];
+  return o ? { old: o.old, new: o.new } : baseOf(n);
+}
+const oldOf = (n) => effOf(n).old || [];
+const newOf = (n) => effOf(n).new;
+const canEdit = () => state.editing && state.tab !== 'all';
+
+// ---- editable pieces
+function ed(path, text, cls) {
+  if (!canEdit()) return esc(text);
+  return '<span class="' + (cls || '') + '" contenteditable="plaintext-only" spellcheck="false" data-p="' + path + '">' + esc(text) + '</span>';
+}
+const del = (path, label) => canEdit() ? '<button type="button" class="del" data-del="' + path + '" aria-label="Delete ' + esc(label) + '" title="Delete">×</button>' : '';
+const add = (path, tpl, label) => canEdit() ? '<button type="button" class="add" data-add="' + path + '" data-tpl="' + tpl + '">+ ' + esc(label) + '</button>' : '';
+
+const isDiff = (m, f) => Object.keys(f.t || {}).length !== m.in.length || new Set(Object.values(f.t || {})).size > 1;
+function typeText(f, i) {
+  const vals = Object.entries(f.t || {});
+  if (canEdit()) return '<span class="oldtypes">' + vals.map(([k, t]) => '<span><span class="bk">' + k + '</span> ' + ed('old.' + i + '.t.' + k, t, typeClass(t)) + '</span>').join('') + '</span>';
+  if (!vals.length) return '';
+  if (new Set(vals.map(([, t]) => t)).size === 1) return '<span class="' + typeClass(vals[0][1]) + '">' + esc(vals[0][1]) + '</span>';
+  return vals.map(([k, t]) => '<span class="' + typeClass(t) + '">' + esc(t) + '</span> <span class="off">' + k + '</span>').join(' · ');
+}
+
+function visibleFields(m, q) {
+  let fields = oldOf(m.n).map((f, i) => ({ f, i }));
+  if (state.b !== 'all') fields = fields.filter(({ f }) => f.t && f.t[state.b]);
+  if (state.diffs) fields = fields.filter(({ f }) => isDiff(m, f));
+  const modelHit = !q || m.n.toLowerCase().includes(q) || m.c.toLowerCase().includes(q);
+  const hits = q ? fields.filter(({ f }) => f.p.toLowerCase().includes(q)) : fields;
+  return { list: q && !modelHit ? hits : fields, show: !(q && !modelHit && hits.length === 0) };
+}
+
+function oldCard(m, list, q, linkName) {
+  const all = oldOf(m.n);
+  const counts = m.in.map((k) => all.filter((f) => f.t && f.t[k]).length).join(' · ');
+  const title = linkName ? '<a href="#' + m.n + '">' + mark(m.n, q) + '</a>' : mark(m.n, q);
+  const edited = live.overrides[m.n] ? ' <span class="edited" title="Changed on this page">edited</span>' : '';
+  return '<article class="card' + (CORE.has(m.n) ? ' core' : '') + '">' +
+    '<header><span class="area">' + esc(m.a) + '</span><h2>' + title + edited + '</h2>' + who(m.in) +
+    '<span class="coll">' + esc(m.c) + '</span><span class="counts" title="fields per backend">' + counts + ' fields</span></header>' +
+    '<ul class="doc">' + list.map(({ f, i }) => {
+      const name = canEdit() ? f.p : (f.p.includes('.') ? f.p.split('.').pop() : f.p);
+      const cls = [f.p.includes('.') ? 'sub' : '', isDiff(m, f) ? 'diff' : ''].join(' ').trim();
+      const flags = canEdit() ? '<span class="flags">' + ed('old.' + i + '.f', (f.f || []).join(' · ')) + '</span>'
+        : ((f.f || []).length ? '<span class="flags">' + esc(f.f.join(' · ')) + '</span>' : '');
+      return '<li class="' + cls + '"><span class="k"><b>' + (canEdit() ? ed('old.' + i + '.p', name) : mark(name, q)) + '</b>: ' + typeText(f, i) + flags + '</span>' +
+        (canEdit() ? del('old.' + i, f.p) : who(Object.keys(f.t || {}))) + '</li>';
+    }).join('') + '</ul>' + (linkName ? '' : add('old', 'oldField', 'Add old field')) + '</article>';
+}
+
+function newFieldsList(fields, base) {
+  const withFrom = canEdit() || fields.some((f) => f.length > 3);
+  return '<div class="tw"><table class="nt"><thead><tr><th>New field</th><th>Type</th><th>Rule</th>' + (withFrom ? '<th>Comes from (old field)</th>' : '') + (canEdit() ? '<th class="x"></th>' : '') + '</tr></thead><tbody>' +
+    fields.map(([p, t, rule, from], i) => {
+      const at = base + '.' + i + '.';
+      const fromCell = canEdit() ? '<code>' + ed(at + '3', from || '') + '</code>'
+        : (from === 'new' ? '<span class="isnew">new field</span>' : '<code>' + esc(from || '') + '</code>');
+      return '<tr><td class="f">' + ed(at + '0', p) + '</td><td class="' + typeClass(t) + '">' + ed(at + '1', t) + '</td><td>' +
+        (canEdit() ? ed(at + '2', rule || '') : (rule ? esc(rule) : '<span class="off">—</span>')) + '</td>' +
+        (withFrom ? '<td>' + fromCell + '</td>' : '') + (canEdit() ? '<td class="x">' + del(base + '.' + i, p) + '</td>' : '') + '</tr>';
+    }).join('') +
+    '</tbody></table></div>' + add(base, 'field', 'Add field');
+}
+
+const tablesOf = (d) => !d ? [] : d.collections ? d.collections.map((c) => String(c.name).replace(/\s*\(.*\)/, '')) : (d.into ? [d.into] : String(d.target || '').split(/\s*[+/]\s*/).map((x) => x.replace(/\(.*\)/, '').trim().split('.')[0]));
+function siblings(name) {
+  const mine = tablesOf(newOf(name));
+  return MODELS.map((m) => m.n).filter((n) => n !== name && newOf(n) && tablesOf(newOf(n)).some((c) => mine.includes(c)));
+}
+
+function dbBadge(db, path) {
+  const central = db === 'central';
+  const label = central ? 'Central' : 'Per brand';
+  if (canEdit() && path) return '<span class="dbb ' + (central ? 'central' : 'brand') + '" role="button" tabindex="0" data-dbtoggle="' + path + '" title="Click to switch Central / Per brand">' + label + '</span>';
+  return '<span class="dbb ' + (central ? 'central' : 'brand') + '">' + label + '</span>';
+}
+
+function listBox(d, key, title, kind, cls) {
+  const items = d[key] || [];
+  if (!items.length && !canEdit()) return '';
+  const base = 'new.' + key;
+  const tag = key === 'decide' ? 'ol' : 'ul';
+  const body = items.map((x, i) => {
+    const at = base + '.' + i;
+    let text;
+    if (kind === 'pair') {
+      const sep = key === 'elsewhere' ? ' → ' : ': ';
+      text = canEdit() ? '<code>' + ed(at + '.0', x[0]) + '</code>' + sep + ed(at + '.1', x[1]) : '<code>' + esc(x[0]) + '</code>' + sep + esc(x[1]);
+    } else text = ed(at, x);
+    return '<li>' + (canEdit() ? '<span class="li-row"><span>' + text + '</span>' + del(at, 'item') + '</span>' : text) + '</li>';
+  }).join('');
+  return '<div class="box' + (cls ? ' ' + cls : '') + '"><h3>' + title + '</h3><' + tag + '>' + body + '</' + tag + '>' + add(base, kind, 'Add') + '</div>';
+}
+
+function lists(d) {
+  return listBox(d, 'elsewhere', 'Moves to other collections', 'pair') + listBox(d, 'dropped', 'Dropped', 'pair') +
+    listBox(d, 'decided', 'Decided', 'text') + listBox(d, 'decide', 'To decide', 'text', 'decide');
+}
+
+function newSide(m) {
+  const d = newOf(m.n);
+  if (!d) return '<p class="empty">No target decided yet.</p>';
+  if (d.collections) {
+    let h = '<p class="summary">' + ed('new.summary', d.summary || '') + '</p><div class="newgrid">';
+    d.collections.forEach((c, ci) => {
+      const where = c.db || d.db || 'brand';
+      const base = 'new.collections.' + ci;
+      h += '<article class="card newc ' + where + '"><header><h3>' + ed(base + '.name', c.name) + '</h3>' + dbBadge(where, base + '.db') +
+        '<span class="counts">' + c.fields.length + ' fields' + (canEdit() ? ' ' + del(base, c.name) : '') + '</span><span class="cnote">' + ed(base + '.note', c.note || '') + '</span></header>' +
+        newFieldsList(c.fields, base + '.fields') + '</article>';
+    });
+    h += '</div>' + add('new.collections', 'collection', 'Add collection');
+    if (d.footnote || canEdit()) h += '<p class="stats" style="margin-top:8px">' + ed('new.footnote', d.footnote || '') + '</p>';
+    return h + lists(d);
+  }
+  const built = String(d.status || '').startsWith('Built');
+  let h = '<div class="target"><div class="big">' + ed('new.target', d.target || '') + '</div>' +
+    '<div class="row">' + dbBadge(d.db, 'new.db') + '<span class="tag' + (built ? ' built' : '') + '">' + ed('new.status', d.status || '') + '</span></div>' +
+    (d.note || canEdit() ? '<p>' + ed('new.note', d.note || '') + '</p>' : '') + '</div>';
+  const sibs = siblings(m.n);
+  const links = (names) => names.map((n) => '<a href="#' + n + '">' + esc(n) + '</a>').join(', ');
+  if (d.mergeInto && !d.fields) {
+    const owner = newOf(d.mergeInto);
+    h += '<div class="box"><h3>Fields</h3>Nothing to design here: this table is not kept on its own. Its rows go into <code>' + esc(d.into || d.target) + '</code>' +
+      (owner && (owner.fields || owner.collections) ? '; the fields are on the <a href="#' + d.mergeInto + '">' + esc(d.mergeInto) + ' tab</a>.' : ', designed on the <a href="#' + d.mergeInto + '">' + esc(d.mergeInto) + ' tab</a> (not designed yet).') + '</div>';
+    const others = sibs.filter((n) => n !== d.mergeInto);
+    if (others.length) h += '<div class="box"><h3>Also goes there</h3>' + links(others) + '</div>';
+    return h + (canEdit() ? add('new.fields', 'field', 'Add fields anyway') : '') + lists(d);
+  }
+  if (sibs.length) h += '<div class="box"><h3>Shares a new table with</h3>' + links(sibs) + (d.fields ? '' : '. Design the fields once for all of them.') + '</div>';
+  if (d.fields) h += '<article class="card newc" style="margin-top:14px"><header><h3>' + esc(d.target) + '</h3><span class="counts">' + d.fields.length + ' fields</span></header>' + newFieldsList(d.fields, 'new.fields') + '</article>';
+  else h += '<div class="box"><h3>Fields</h3>Not designed yet. Decide them here, starting from the old fields on the left.' + add('new.fields', 'field', 'Add field') + '</div>';
+  return h + lists(d);
+}
+
+function renderTabs() {
+  const groups = [];
+  for (const m of MODELS) { if (!groups.length || groups[groups.length - 1].a !== m.a) groups.push({ a: m.a, ms: [] }); groups[groups.length - 1].ms.push(m); }
+  let h = '<a href="#all" class="all"' + (state.tab === 'all' ? ' aria-current="page"' : '') + '>All models <span class="n">' + MODELS.length + '</span></a>';
+  for (const g of groups) {
+    h += '<div class="grp">' + esc(g.a) + '</div>';
+    for (const m of g.ms) h += '<a href="#' + m.n + '"' + (state.tab === m.n ? ' aria-current="page"' : '') + '>' + esc(m.n) + (live.overrides[m.n] ? ' ✎' : '') + '<span class="n">' + m.in.map((k) => k[0]).join('') + '</span></a>';
+  }
+  $('tabs').innerHTML = h;
+}
+
+function render() {
+  live.pendingRender = false;
+  document.body.classList.toggle('editing', canEdit());
+  $('edit').disabled = state.tab === 'all';
+  $('edit').title = state.tab === 'all' ? 'Open a model tab to edit it' : '';
+  renderTabs();
+  renderNotes();
+  const q = state.q.trim().toLowerCase();
+  const main = $('main');
+  $('fit').hidden = state.tab !== 'all';
+  if (state.tab === 'all') {
+    main.className = 'wrap-all';
+    let shownModels = 0, shownFields = 0;
+    const cards = [];
+    for (const m of MODELS) {
+      if (state.b !== 'all' && !m.in.includes(state.b)) continue;
+      const v = visibleFields(m, q);
+      if (!v.show || (state.diffs && v.list.length === 0)) continue;
+      shownModels++; shownFields += v.list.length;
+      cards.push(oldCard(m, v.list, q, true));
+    }
+    main.innerHTML = '<div class="wall" id="wall">' + (cards.length ? cards.join('') : '<p class="empty">No model or field matches. Clear the search or pick “All”.</p>') + '</div>';
+    $('stats').textContent = shownModels + ' of ' + MODELS.length + ' old models · ' + shownFields + ' fields shown · Phase 1: devices, licensing, playlists, recovery, provider domain moves';
+    layout();
+    return;
+  }
+  const m = modelByName(state.tab);
+  main.className = '';
+  const v = visibleFields(m, q);
+  const bar = canEdit() ? '<div class="editbar"><span><b>Editing ' + esc(m.n) + '.</b> Click any dashed text to change it; × deletes. Changes save for everyone.</span>' +
+    (live.overrides[m.n] ? '<button type="button" id="reset">Reset this model to the original</button>' : '') + '</div>' : '';
+  main.innerHTML = bar + '<div class="compare">' +
+    '<section class="side old"><h2 class="label">Old · ' + esc(m.n) + ' <span class="pill">' + m.in.join(' · ') + '</span></h2>' + oldCard(m, v.list, q, false) + '</section>' +
+    '<section class="side new"><h2 class="label">New <span class="pill">' + esc(newOf(m.n)?.status || 'not decided') + '</span></h2>' + newSide(m) + '</section></div>';
+  $('stats').textContent = m.n + ' · ' + v.list.length + ' old fields shown · in ' + m.in.join(', ');
+}
+
+function layout() {
+  const wall = $('wall');
+  if (!wall) return;
+  wall.style.transform = ''; wall.style.width = ''; $('main').style.height = '';
+  if (!state.fit || state.tab !== 'all') return;
+  const avail = $('main').clientWidth;
+  const availH = window.innerHeight - $('main').getBoundingClientRect().top - 12;
+  let best = { s: 0, w: avail };
+  for (let w = Math.max(avail, 900); w <= 9000; w += 150) {
+    wall.style.width = w + 'px';
+    const s = Math.min(avail / w, availH / wall.scrollHeight, 1);
+    if (s > best.s) best = { s, w };
+  }
+  wall.style.width = best.w + 'px';
+  wall.style.transform = 'scale(' + best.s + ')';
+  $('main').style.height = Math.ceil(wall.scrollHeight * best.s) + 'px';
+}
+
+// ---- editing: a working copy of the open model, saved whole to models/<Name>
+function work() {
+  if (!live.work || live.work.n !== state.tab) live.work = { n: state.tab, ...clone(effOf(state.tab)) };
+  if (!live.work.new) live.work.new = { target: '', db: 'brand', status: 'Not decided', note: '' };
+  return live.work;
+}
+function walk(path) {
+  const keys = path.split('.');
+  let o = work();
+  for (const k of keys.slice(0, -1)) o = o[/^\d+$/.test(k) ? +k : k];
+  const last = keys[keys.length - 1];
+  return { o, k: /^\d+$/.test(last) ? +last : last };
+}
+function setAt(path, value) {
+  const { o, k } = walk(path);
+  if (/^old\.\d+\.f$/.test(path)) o[k] = value.split('·').map((s) => s.trim()).filter(Boolean);
+  else o[k] = value;
+}
+function setSave(text, err) { const s = $('save'); s.textContent = text; s.classList.toggle('err', !!err); }
+function scheduleSave(now) {
+  live.dirty = true;
+  clearTimeout(live.saveTimer);
+  setSave('Saving…');
+  live.saveTimer = setTimeout(saveNow, now ? 0 : 700);
+}
+async function saveNow() {
+  const w = live.work;
+  if (!w || !live.db) return;
+  const body = { old: w.old, new: w.new, updatedAt: new Date().toISOString() };
+  live.overrides[w.n] = body;
+  try {
+    await live.db.doc('models/' + w.n).set(clone(body));
+    live.dirty = false;
+    setSave('Saved');
+  } catch (e) {
+    setSave(e && e.code === 'quota_exceeded' ? 'Couldn’t save: the store is full' : 'Couldn’t save. Try again.', true);
+  }
+  if (live.pendingRender && !document.activeElement?.closest?.('#main')) render();
+}
+const TEMPLATES = {
+  field: () => ['newField', 'String', '', ''],
+  oldField: () => ({ p: 'new_field', t: Object.fromEntries(modelByName(state.tab).in.map((k) => [k, 'String'])), f: [] }),
+  pair: () => ['old field', 'where it goes'],
+  text: () => 'New item',
+  collection: () => ({ name: 'newCollection', db: 'brand', note: 'What this collection holds.', fields: [['_id', 'String', 'new UUID', 'new']] }),
+};
+
+const main = $('main');
+main.addEventListener('input', (e) => {
+  const el = e.target.closest('[data-p]');
+  if (!el) return;
+  setAt(el.dataset.p, el.textContent);
+  scheduleSave();
+});
+main.addEventListener('keydown', (e) => {
+  const el = e.target.closest('[data-p]');
+  if (el && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); el.blur(); }
+  const tg = e.target.closest('[data-dbtoggle]');
+  if (tg && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); tg.click(); }
+});
+main.addEventListener('paste', (e) => {
+  if (!e.target.closest('[data-p]')) return;
+  e.preventDefault();
+  document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain').replace(/\s*\n\s*/g, ' '));
+});
+main.addEventListener('focusout', () => {
+  setTimeout(() => { if (live.pendingRender && !live.dirty && !document.activeElement?.closest?.('#main [data-p]')) render(); }, 0);
+});
+main.addEventListener('click', async (e) => {
+  const d = e.target.closest('[data-del]');
+  if (d) {
+    const { o, k } = walk(d.dataset.del);
+    o.splice(k, 1);
+    scheduleSave(true); render();
+    return;
+  }
+  const a = e.target.closest('[data-add]');
+  if (a) {
+    const keys = a.dataset.add.split('.');
+    let o = work();
+    for (const k of keys.slice(0, -1)) o = o[/^\d+$/.test(k) ? +k : k];
+    const last = keys[keys.length - 1];
+    if (!Array.isArray(o[last])) o[last] = [];
+    o[last].push(TEMPLATES[a.dataset.tpl]());
+    scheduleSave(true); render();
+    const fresh = [...main.querySelectorAll('[data-p^="' + a.dataset.add + '.' + (o[last].length - 1) + '"]')][0];
+    if (fresh) { fresh.focus(); document.getSelection().selectAllChildren(fresh); }
+    return;
+  }
+  const tg = e.target.closest('[data-dbtoggle]');
+  if (tg) {
+    const { o, k } = walk(tg.dataset.dbtoggle);
+    o[k] = (tg.classList.contains('central') ? 'brand' : 'central');
+    scheduleSave(true); render();
+    return;
+  }
+  if (e.target.id === 'reset') {
+    if (!confirm('Reset ' + state.tab + ' to the original design? Everyone’s edits to this model are removed. Its notes stay.')) return;
+    const n = state.tab;
+    clearTimeout(live.saveTimer);
+    live.work = null; live.dirty = false;
+    delete live.overrides[n];
+    try { await live.db.doc('models/' + n).delete(); setSave('Reset'); } catch { setSave('Couldn’t reset. Try again.', true); }
+    render();
+  }
+});
+
+// ---- notes: one shared text per tab
+const notesKey = () => (state.tab === 'all' ? '_all' : state.tab);
+function renderNotes() {
+  const ta = $('notes');
+  $('notes-h').textContent = 'Notes · ' + (state.tab === 'all' ? 'All models' : state.tab);
+  if (!live.db) { ta.disabled = true; $('notes-hint').textContent = 'Notes and editing need the live page on claude.ai.'; return; }
+  ta.disabled = false;
+  const n = live.notes[notesKey()];
+  $('notes-hint').textContent = n && n.updatedAt ? 'Last changed ' + new Date(n.updatedAt).toLocaleString() + '. Saved for everyone as you type.' : 'Saved for everyone as you type.';
+  if (document.activeElement !== ta || ta.dataset.key !== notesKey()) { ta.value = n ? n.text : ''; ta.dataset.key = notesKey(); }
+}
+$('notes').addEventListener('input', (e) => {
+  const key = e.target.dataset.key, text = e.target.value;
+  live.notes[key] = { text, updatedAt: new Date().toISOString() };
+  clearTimeout(live.notesTimer);
+  setSave('Saving…');
+  live.notesTimer = setTimeout(async () => {
+    try { await live.db.doc('notes/' + key).set(clone(live.notes[key])); setSave('Saved'); }
+    catch { setSave('Couldn’t save the notes. Try again.', true); }
+  }, 700);
+});
+
+function fromHash() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  const next = modelByName(h) ? h : 'all';
+  if (next !== state.tab) { clearTimeout(live.saveTimer); if (live.dirty) saveNow(); live.work = null; }
+  state.tab = next;
+  render();
+  if (state.tab !== 'all') window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', fromHash);
+$('q').addEventListener('input', (e) => { state.q = e.target.value; render(); });
+document.querySelectorAll('[data-b]').forEach((b) => b.addEventListener('click', () => {
+  state.b = b.dataset.b;
+  document.querySelectorAll('[data-b]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  render();
+}));
+$('diffs').addEventListener('click', (e) => { state.diffs = !state.diffs; e.currentTarget.setAttribute('aria-pressed', String(state.diffs)); render(); });
+$('fit').addEventListener('click', (e) => {
+  state.fit = !state.fit;
+  e.currentTarget.setAttribute('aria-pressed', String(state.fit));
+  document.body.classList.toggle('fit', state.fit);
+  layout();
+});
+$('edit').addEventListener('click', (e) => {
+  state.editing = !state.editing;
+  e.currentTarget.setAttribute('aria-pressed', String(state.editing));
+  e.currentTarget.textContent = state.editing ? 'Done editing' : 'Edit';
+  if (!state.editing && live.dirty) { clearTimeout(live.saveTimer); saveNow(); }
+  live.work = null;
+  render();
+});
+let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(layout, 120); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+fromHash();
+
+// ---- live store: light up editing and notes when db is available
+(async () => {
+  const db = window.claude && window.claude.use ? await window.claude.use('db') : null;
+  if (!db) { renderNotes(); return; }
+  live.db = db;
+  $('edit').hidden = false;
+  const busy = () => live.dirty || !!document.activeElement?.closest?.('#main [data-p]');
+  db.collection('models').onSnapshot((snap) => {
+    const next = {};
+    for (const d of snap.docs) if (d.exists) next[d.id] = d.data();
+    live.overrides = next;
+    if (busy()) { live.pendingRender = true; return; }
+    live.work = null;
+    render();
+  }, () => setSave('Live updates stopped. Reload to see others’ edits.', true));
+  db.collection('notes').onSnapshot((snap) => {
+    const next = {};
+    for (const d of snap.docs) if (d.exists) next[d.id] = d.data();
+    const mine = live.notes[notesKey()];
+    live.notes = next;
+    if (document.activeElement === $('notes') && mine) live.notes[notesKey()] = mine;
+    renderNotes();
+  }, () => {});
+  render();
+})();
+</script>
+
+</body></html>
