@@ -49,4 +49,8 @@ export class MongoLicenseRepository extends LicenseRepository {
     const doc = toLicenseDocument(license);
     return (await (await this.collection()).replaceOne({ _id: doc._id }, doc)).matchedCount > 0;
   }
+
+  async delete(id: string): Promise<boolean> {
+    return (await (await this.collection()).deleteOne({ _id: id })).deletedCount > 0;
+  }
 }
