@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { randomBytes } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplicationContext } from '@nestjs/common';
 import type { Db } from 'mongodb';
@@ -9,12 +10,13 @@ import { centralMigrations, tenantMigrations } from './migrations.js';
 import { SeedDeviceExamples } from './modules/devices/index.js';
 import { SeedDomainMigrationExamples } from './modules/domain-migrations/index.js';
 import { SeedLicenseExamples } from './modules/licensing/index.js';
-import { SeedPlaylistExamples } from './modules/playlists/index.js';
+import { PLAYLIST_PIN_KEY_SECRET, SeedPlaylistExamples } from './modules/playlists/index.js';
 import {
   AddTenantHostsUseCase,
   CreateTenantUseCase,
   DeleteTenantSecretUseCase,
   GetTenantConfigUseCase,
+  GetTenantSecretUseCase,
   GetTenantUseCase,
   ListTenantSecretsUseCase,
   ListTenantsUseCase,
@@ -96,6 +98,23 @@ const commands: Record<string, Command> = {
     }
     const central = await app.get(SeedDomainMigrationExamples).execute();
     logger.log(`central: ${JSON.stringify(central)}`);
+  },
+  // pnpm cli playlists:pin-keys [slug...]   (creates missing keys; never replaces one)
+  'playlists:pin-keys': async (app, logger, slugs) => {
+    for (const t of await selectTenants(app, logger, slugs)) {
+      // A new key would make every stored playlist PIN of the brand unreadable.
+      if (await app.get(GetTenantSecretUseCase).execute(t.id, PLAYLIST_PIN_KEY_SECRET)) {
+        logger.log(`${t.slug}: already has ${PLAYLIST_PIN_KEY_SECRET}`);
+        continue;
+      }
+      const result = await app.get(SetTenantSecretUseCase).execute({
+        slug: t.slug,
+        name: PLAYLIST_PIN_KEY_SECRET,
+        value: randomBytes(32).toString('base64'),
+      });
+      if (!result.ok) return fail(logger, result.error);
+      logger.log(`${t.slug}: created ${PLAYLIST_PIN_KEY_SECRET}`);
+    }
   },
   // pnpm cli tenant:create <slug> "<name>" <host> [host...]   (also prepares the brand's database)
   'tenant:create': async (app, logger, [slug = '', name = '', ...hosts]) => {
@@ -223,3 +242,6 @@ try {
 } finally {
   await app.close();
 }
+// A command ends here. In development the pretty logger runs in a worker thread that can keep the
+// process alive after a command that logged a lot; pino flushes it on exit.
+process.exit(process.exitCode ?? 0);

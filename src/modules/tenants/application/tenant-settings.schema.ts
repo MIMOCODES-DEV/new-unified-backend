@@ -20,7 +20,14 @@ export const tenantSettingsPatchSchema = z
     features: z
       .strictObject({ maintenance: z.boolean(), rawPlaylistsForAndroid44: z.boolean() })
       .partial(),
-    legacy: z.strictObject({ plainBodyAddRemove: z.boolean() }).partial(),
+    legacy: z
+      .strictObject({
+        plainBodyAddRemove: z.boolean(),
+        raspEnforce: z.boolean().nullable(),
+        notificationFields: z.boolean(),
+        notificationInterval: z.string().regex(/^\d{1,10}$/, 'whole seconds, as text'),
+      })
+      .partial(),
     playlistProfile: z.enum(['xc', 'general']),
     corsOrigins: z
       .array(z.string().refine(isOrigin, 'must be an origin like https://example.com'))

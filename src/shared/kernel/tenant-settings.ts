@@ -15,6 +15,15 @@ export interface TenantSettings {
   readonly legacy: {
     /** Legacy add/remove playlist calls arrive as a plain form instead of an envelope. */
     readonly plainBodyAddRemove: boolean;
+    /** V4 `device_info` sends `rasp_enforce` with this value (cr brands: false); null = not sent. */
+    readonly raspEnforce: boolean | null;
+    /**
+     * V4 `device_info` sends `real_time_notification`, `notification` and `notification_interval`
+     * (the ibo and bob backends did; cr did not).
+     */
+    readonly notificationFields: boolean;
+    /** `notification_interval`, as text like the old settings held it (bob: "1000000"). */
+    readonly notificationInterval: string;
   };
   readonly playlistProfile: PlaylistProfile;
   /** Browser origins allowed to call this brand's API (`https://example.com`). */
@@ -40,7 +49,12 @@ export interface TenantSettingsPatch {
 /** Settings of a new brand, and of brands stored before a setting existed. */
 export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   features: { maintenance: false, rawPlaylistsForAndroid44: false },
-  legacy: { plainBodyAddRemove: false },
+  legacy: {
+    plainBodyAddRemove: false,
+    raspEnforce: null,
+    notificationFields: true,
+    notificationInterval: '300',
+  },
   playlistProfile: 'xc',
   corsOrigins: [],
   frontendUrl: null,

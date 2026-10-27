@@ -10,6 +10,13 @@ const app = await NestFactory.create<NestFastifyApplication>(ApiModule, createFa
   bufferLogs: true,
 });
 app.useLogger(app.get(Logger));
+// TV apps run from local files (Origin "null") and call the API from another origin, so browsers
+// and the TV web engines need CORS. No cookies are used, so "*" is safe.
+app.enableCors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['authorization', 'content-type', 'custom-proxy-mode', 'token'],
+});
 app.enableShutdownHooks();
 
 const config = app.get(AppConfig);

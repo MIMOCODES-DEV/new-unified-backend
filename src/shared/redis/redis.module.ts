@@ -3,6 +3,7 @@ import type { Redis } from 'ioredis';
 import { AppConfig } from '../config/app-config.js';
 import { createRedisConnection, REDIS } from './redis.connection.js';
 import { RedisLock } from './redis-lock.js';
+import { RedisRateLimiter } from './redis-rate-limiter.js';
 
 @Global()
 @Module({
@@ -13,8 +14,9 @@ import { RedisLock } from './redis-lock.js';
       useFactory: (config: AppConfig) => createRedisConnection(config.env.REDIS_URL),
     },
     RedisLock,
+    RedisRateLimiter,
   ],
-  exports: [REDIS, RedisLock],
+  exports: [REDIS, RedisLock, RedisRateLimiter],
 })
 export class RedisModule implements OnApplicationShutdown {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}

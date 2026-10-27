@@ -7,6 +7,10 @@ import { REDIS } from './redis.connection.js';
 /** Deletes the key only while it still holds our token, so a late release never frees someone else's lock. */
 const RELEASE_SCRIPT = `if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end`;
 const RETRY_MS = 25;
+/** ioredis states of a first connection still under way. */
+const CONNECTING = new Set(['connecting', 'connect']);
+/** How long a lock waits for that first connection before giving up. */
+const CONNECT_WAIT_MS = 2_000;
 
 /** Another caller held the lock for longer than we were willing to wait. */
 export class LockBusyError extends Error {
@@ -58,7 +62,7 @@ export class RedisLock {
     const deadline = Date.now() + (options.waitMs ?? 0);
     for (;;) {
       // Commands sent while disconnected would sit in ioredis' offline queue; refuse instead.
-      if (this.redis.status !== 'ready') throw new LockUnavailableError(key);
+      if (!(await this.ready())) throw new LockUnavailableError(key);
       let taken: string | null;
       try {
         taken = await this.redis.set(key, token, 'PX', options.ttlMs, 'NX');
@@ -69,6 +73,19 @@ export class RedisLock {
       if (Date.now() >= deadline) throw new LockBusyError(key);
       await sleep(RETRY_MS);
     }
+  }
+
+  /**
+   * True once the client is ready. While it is still connecting (just after boot) we wait a moment
+   * for it; any other state (reconnecting, closed) means Redis is down.
+   */
+  private async ready(): Promise<boolean> {
+    if (this.redis.status === 'ready') return true;
+    if (!CONNECTING.has(this.redis.status)) return false;
+    const deadline = Date.now() + CONNECT_WAIT_MS;
+    while (CONNECTING.has(this.redis.status) && Date.now() < deadline) await sleep(RETRY_MS);
+    // The cast undoes TypeScript narrowing: the status changes while we sleep.
+    return (this.redis.status as string) === 'ready';
   }
 
   private async release(key: string, token: string): Promise<void> {
