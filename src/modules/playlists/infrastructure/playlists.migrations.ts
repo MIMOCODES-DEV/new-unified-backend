@@ -20,43 +20,40 @@ const sameOnceIndexes: IndexDescription[] = PLAYLIST_TYPES.map((type) => ({
   partialFilterExpression: { type },
 }));
 
-/** The current shape of a playlists row, for the validator. */
+/** The fields of a playlists row as 0005 stored it, for the validator. */
+const firstFields = () => ({
+  _id: bson.string(),
+  deviceId: bson.string(),
+  name: bson.string(),
+  type: bson.enum(PLAYLIST_TYPES),
+  url: nullableString(),
+  xtream: bson.nullable(bson.anyObject()),
+  stalker: bson.nullable(bson.anyObject()),
+  code: bson.nullable(bson.anyObject()),
+  epgUrl: nullableString(),
+  backup: bson.object({ enabled: bson.bool(), hosts: bson.array(bson.string()) }),
+  protected: bson.bool(),
+  pinEnc: nullableString(),
+  provider: bson.nullable(bson.anyObject()),
+  addedBy: bson.object({ via: bson.enum(ADDED_VIA), resellerId: nullableString() }),
+  legacy: bson.nullable(bson.anyObject()),
+  createdAt: bson.date(),
+  updatedAt: bson.date(),
+});
+
+/** The current shape of a playlists row (0006 added account), for the validator. */
 const playlistsSchema = () =>
-  bson.object({
-    _id: bson.string(),
-    deviceId: bson.string(),
-    name: bson.string(),
-    type: bson.enum(PLAYLIST_TYPES),
-    url: nullableString(),
-    xtream: bson.nullable(bson.anyObject()),
-    stalker: bson.nullable(bson.anyObject()),
-    code: bson.nullable(bson.anyObject()),
-    account: bson.nullable(bson.anyObject()),
-    epgUrl: nullableString(),
-    backup: bson.object({ enabled: bson.bool(), hosts: bson.array(bson.string()) }),
-    protected: bson.bool(),
-    pinEnc: nullableString(),
-    provider: bson.nullable(bson.anyObject()),
-    addedBy: bson.object({ via: bson.enum(ADDED_VIA), resellerId: nullableString() }),
-    legacy: bson.nullable(bson.anyObject()),
-    createdAt: bson.date(),
-    updatedAt: bson.date(),
-  });
+  bson.object({ ...firstFields(), account: bson.nullable(bson.anyObject()) });
 
 /** One name per device; case does not matter ("My List" and "my list" are the same name). */
 export const PLAYLIST_NAME_INDEX = 'name_once_per_device';
 const CASE_INSENSITIVE = { locale: 'en', strength: 2 };
 
-const playlistsIndexes: IndexDescription[] = [
+/** The indexes 0005 created. An applied migration never changes, so 0005 and 0006 keep to these. */
+const firstIndexes: IndexDescription[] = [
   // Every playlist read is by device (the old backends scanned the whole collection).
   { key: { deviceId: 1, createdAt: 1 }, name: 'device' },
   ...sameOnceIndexes,
-  {
-    key: { deviceId: 1, name: 1 },
-    name: PLAYLIST_NAME_INDEX,
-    unique: true,
-    collation: CASE_INSENSITIVE,
-  },
   {
     key: { 'legacy.id': 1 },
     name: 'legacy_id',
@@ -64,12 +61,21 @@ const playlistsIndexes: IndexDescription[] = [
   },
 ];
 
+/** Added by 0007, only once older duplicate names are renamed. */
+const nameIndex: IndexDescription = {
+  key: { deviceId: 1, name: 1 },
+  name: PLAYLIST_NAME_INDEX,
+  unique: true,
+  collation: CASE_INSENSITIVE,
+};
+
 /** Brand-database migrations owned by the playlists module. */
 export const playlistsMigrations: readonly Migration[] = [
   {
     id: '0005-playlists',
     description: 'playlists: one collection for m3u, xtream, stalker and code playlists',
-    up: (db) => ensureCollection(db, PLAYLISTS_COLLECTION, playlistsSchema(), playlistsIndexes),
+    up: (db) =>
+      ensureCollection(db, PLAYLISTS_COLLECTION, bson.object(firstFields()), firstIndexes),
   },
   {
     id: '0006-playlist-account',
@@ -100,7 +106,7 @@ export const playlistsMigrations: readonly Migration[] = [
         { type: 'code' },
         { $unset: { 'code.status': '', 'code.expiresAt': '' } },
       );
-      await ensureCollection(db, PLAYLISTS_COLLECTION, playlistsSchema(), playlistsIndexes);
+      await ensureCollection(db, PLAYLISTS_COLLECTION, playlistsSchema(), firstIndexes);
     },
   },
   {
@@ -110,9 +116,10 @@ export const playlistsMigrations: readonly Migration[] = [
       const playlists = db.collection<{ _id: string; deviceId: string; name: string }>(
         PLAYLISTS_COLLECTION,
       );
-      // Rows saved before the rule: the oldest keeps its name, the others get " (2)", " (3)", …
+      // Rows saved before the rule: the oldest keeps its name, the others get the first free
+      // " (2)", " (3)", … on their device.
       const groups = await playlists
-        .aggregate<{ ids: string[]; names: string[] }>(
+        .aggregate<{ _id: { deviceId: string }; ids: string[]; names: string[] }>(
           [
             { $sort: { createdAt: 1, _id: 1 } },
             {
@@ -128,15 +135,27 @@ export const playlistsMigrations: readonly Migration[] = [
           { collation: CASE_INSENSITIVE },
         )
         .toArray();
+      const taken = async (deviceId: string, name: string) =>
+        (await playlists.countDocuments(
+          { deviceId, name },
+          { collation: CASE_INSENSITIVE, limit: 1 },
+        )) > 0;
       for (const group of groups) {
+        let suffix = 2;
         for (let i = 1; i < group.ids.length; i++) {
+          const base = group.names[i]!.trim();
+          while (await taken(group._id.deviceId, `${base} (${suffix})`)) suffix++;
           await playlists.updateOne(
             { _id: group.ids[i]! },
-            { $set: { name: `${group.names[i]!.trim()} (${i + 1})` } },
+            { $set: { name: `${base} (${suffix})` } },
           );
+          suffix++;
         }
       }
-      await ensureCollection(db, PLAYLISTS_COLLECTION, playlistsSchema(), playlistsIndexes);
+      await ensureCollection(db, PLAYLISTS_COLLECTION, playlistsSchema(), [
+        ...firstIndexes,
+        nameIndex,
+      ]);
     },
   },
 ];

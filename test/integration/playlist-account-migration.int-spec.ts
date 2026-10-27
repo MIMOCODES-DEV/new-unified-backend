@@ -81,12 +81,12 @@ describe('migration 0006-playlist-account on MongoDB', () => {
     await db.dropDatabase();
   });
 
-  it('0007 renames older duplicate names, then one name per device is enforced', async () => {
+  it('0005 → 0006 → 0007 on duplicate names: renamed, then one name per device is enforced', async () => {
     const db = client.db(`p1_names_${Date.now()}`);
-    const [create, , unique] = playlistsMigrations;
+    const [create, move, unique] = playlistsMigrations;
     await create!.up(db);
-    await db.collection('playlists').dropIndex('name_once_per_device');
     const at = (minute: number) => new Date(Date.UTC(2026, 9, 20, 10, minute));
+    // Rows as 0005 stored them: no account field yet.
     const row = (id: string, deviceId: string, name: string, minute: number, url: string) => ({
       _id: id as never,
       deviceId,
@@ -96,7 +96,6 @@ describe('migration 0006-playlist-account on MongoDB', () => {
       xtream: null,
       stalker: null,
       code: null,
-      account: null,
       epgUrl: null,
       backup: { enabled: false, hosts: [] },
       protected: false,
@@ -107,7 +106,7 @@ describe('migration 0006-playlist-account on MongoDB', () => {
       createdAt: at(minute),
       updatedAt: at(minute),
     });
-    // Saved before the rule: three "Sports" on one device, one on another.
+    // Saved before the rule: three "Sports" on one device next to a real "Sports (2)", one on another.
     await db
       .collection('playlists')
       .insertMany([
@@ -115,22 +114,27 @@ describe('migration 0006-playlist-account on MongoDB', () => {
         row('b', 'd1', 'sports ', 2, 'http://x.example/2.m3u'),
         row('c', 'd1', 'SPORTS', 3, 'http://x.example/3.m3u'),
         row('d', 'd2', 'Sports', 4, 'http://x.example/4.m3u'),
+        row('e', 'd1', 'Sports (2)', 5, 'http://x.example/5.m3u'),
       ]);
 
+    await move!.up(db);
     await unique!.up(db);
 
     const names = await db
       .collection('playlists')
       .find({}, { sort: { _id: 1 } })
       .toArray();
-    expect(names.map((r): unknown[] => [r._id, r['name']])).toEqual([
-      ['a', 'Sports'],
-      ['b', 'sports (2)'],
-      ['c', 'SPORTS (3)'],
-      ['d', 'Sports'],
+    expect(names.map((r): unknown[] => [r._id, r['name'], r['account']])).toEqual([
+      ['a', 'Sports', null],
+      ['b', 'sports (3)', null],
+      ['c', 'SPORTS (4)', null],
+      ['d', 'Sports', null],
+      ['e', 'Sports (2)', null],
     ]);
     await expect(
-      db.collection('playlists').insertOne(row('e', 'd1', 'sPoRtS', 5, 'http://x.example/5.m3u')),
+      db
+        .collection('playlists')
+        .insertOne({ ...row('f', 'd1', 'sPoRtS', 6, 'http://x.example/6.m3u'), account: null }),
     ).rejects.toMatchObject({ code: 11000 });
     await db.dropDatabase();
   });
