@@ -2,6 +2,7 @@ import { Global, Inject, Module, type OnApplicationShutdown } from '@nestjs/comm
 import type { Redis } from 'ioredis';
 import { AppConfig } from '../config/app-config.js';
 import { createRedisConnection, REDIS } from './redis.connection.js';
+import { RedisLock } from './redis-lock.js';
 
 @Global()
 @Module({
@@ -11,8 +12,9 @@ import { createRedisConnection, REDIS } from './redis.connection.js';
       inject: [AppConfig],
       useFactory: (config: AppConfig) => createRedisConnection(config.env.REDIS_URL),
     },
+    RedisLock,
   ],
-  exports: [REDIS],
+  exports: [REDIS, RedisLock],
 })
 export class RedisModule implements OnApplicationShutdown {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
