@@ -73,3 +73,4 @@ In the playground (`/dev/playground`): **License, switch, recovery** makes a cod
 |---|---|---|---|---|---|---|
 | 27 Oct 2026 | format, lint, typecheck, knip green | **513/513** | **51/51** | OK | moves 32/32, devices 46/46, playlists 24/24, licenses 19/19, v4 21/21 | recovery and provider moves driven in a headless browser, no page errors |
 | 28 Oct 2026 (Phase 3 app routes merged in) | format, lint, typecheck, knip green | **530/530** | **51/51** | OK | moves 32/32, devices 46/46, playlists 24/24, licenses 19/19, v4 49/49 | not rerun |
+| 28 Oct 2026 (routes before V4 and their recovery routes) | format, lint, typecheck, knip green | **559/559** | **51/51** | OK | moves 32/32, devices 46/46, playlists 24/24, licenses 19/19, v4 47/47 (no StarArcs stand-in), legacy 82/82 (13 recovery checks) | not rerun |

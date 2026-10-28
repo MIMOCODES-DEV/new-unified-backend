@@ -323,5 +323,56 @@ console.log('\ncr7');
   check('GET android/v3/playlist answers (the old one always failed)', list.json?.error === false && Array.isArray(list.json?.message), list.json);
 }
 
+// ── recovery (Phase 4) ──────────────────────────────────────────────────────────────────────
+console.log('\nrecovery: the code from the website, typed on the new TV');
+{
+  /** A TV that opened the old app once; paid when asked. */
+  const tvOn = async (host, paid) => {
+    const mac = randomMac();
+    await envelope(host, '/api/playlist_info', { mac_address: mac, app_type: 'lg' });
+    if (paid) await request(host, 'POST', `/dev/licenses/${mac}/activate`, { type: 'yearly', source: 'admin', sourceId: `e2e-${randomInt(1e9)}` });
+    return mac;
+  };
+  const codeFor = async (host, mac) => (await request(host, 'POST', `/dev/licenses/${mac}/recovery-code`)).json?.code;
+
+  const oldTv = await tvOn('cr7', true);
+  await request('cr7', 'POST', `/dev/playlists/${oldTv}/add`, { name: 'Kept', source: { kind: 'link', url: 'http://line.example.com/kept.m3u' } });
+  const newTv = await tvOn('cr7', false);
+  const code = await codeFor('cr7', oldTv);
+  const missing = await request('cr7', 'POST', '/api/tv/v3/recover-summary', { recovery_code: code });
+  check('recover-summary without a MAC: 400', missing.status === 400 && missing.json?.status === false, missing.json);
+  const wrong = await request('cr7', 'POST', '/api/tv/v3/recover-summary', { recovery_code: 'ZZZZZZZZ', mac_address: newTv });
+  check('a wrong code: 404 "Invalid recovery code"', wrong.status === 404 && wrong.json?.msg === 'Invalid recovery code', wrong.json);
+  const unknown = await request('cr7', 'POST', '/api/tv/v3/recover-summary', { recovery_code: code, mac_address: randomMac() });
+  check('a new TV that never opened the app: 404', unknown.status === 404 && unknown.json?.msg?.startsWith('New device is not registered'), unknown.json);
+  const summary = await request('cr7', 'POST', '/api/tv/v3/recover-summary', { recovery_code: code, mac_address: newTv });
+  check('recover-summary: what moves (1 playlist, a year), nothing changed yet', summary.json?.status === true && summary.json?.summary?.old_device?.playlist_count === 1 && summary.json?.summary?.after_recovery?.is_trial === 3 && summary.json?.msg?.includes('1 playlist'), summary.json);
+  const done = await request('cr7', 'POST', '/api/tv/v3/recover-my-device', { recovery_code: code, mac_address: newTv });
+  check('recover-my-device moves the device to the new MAC', done.json?.status === true && done.json?.data?.old_mac_address === oldTv && done.json?.data?.new_mac_address === newTv && done.json?.data?.is_trial === 3, done.json);
+  const info = (await envelope('cr7', '/api/playlist_info', { mac_address: newTv, app_type: 'lg' })).reply;
+  check('the new TV now has the year and the playlist', info?.is_trial === 3 && info?.urls?.some((u) => u.playlist_name === 'Kept'), info);
+  const reused = await request('cr7', 'POST', '/api/tv/v3/recover-my-device', { recovery_code: code, mac_address: newTv });
+  check('the code works once', reused.status === 404, reused.json);
+
+  // V4 apply_recovery: the new TV is logged in (a Roku-style token of an lg device stands in for its V4 token).
+  const old2 = await tvOn('ibo', true);
+  const new2 = randomMac();
+  const login = await request('ibo', 'POST', '/api/device_login', { mac: new2, model: 'lg' });
+  const auth = { Authorization: `Bearer ${login.json?.message}` };
+  const code2 = await codeFor('ibo', old2);
+  const noToken = await request('ibo', 'POST', '/api/lg/v4/apply_recovery', { recovery_code: code2, new_mac_address: new2, app_type: 'lg' });
+  check('apply_recovery without a token: 401', noToken.status === 401, noToken.json);
+  const otherRoute = await request('ibo', 'POST', '/api/samsung/v4/apply_recovery', { recovery_code: code2, new_mac_address: new2, app_type: 'samsung' }, auth);
+  check('a token of another app type: 403', otherRoute.status === 403, otherRoute.json);
+  const fields = await request('ibo', 'POST', '/api/lg/v4/apply_recovery', { recovery_code: code2 }, auth);
+  check('missing fields: the old message', fields.json?.message === 'recovery_code, new_mac_address, and app_type are required.', fields.json);
+  const elsewhere = await request('ibo', 'POST', '/api/lg/v4/apply_recovery', { recovery_code: code2, new_mac_address: randomMac(), app_type: 'lg' }, auth);
+  check("another TV's MAC with this token: 403 (the old route took any token)", elsewhere.status === 403, elsewhere.json);
+  const bad = await request('ibo', 'POST', '/api/lg/v4/apply_recovery', { recovery_code: 'ZZZZZZZZ', new_mac_address: new2, app_type: 'lg' }, auth);
+  check('a wrong code: "Invalid or expired recovery code."', bad.json?.message === 'Invalid or expired recovery code.', bad.json);
+  const applied = await request('ibo', 'POST', '/api/lg/v4/apply_recovery', { recovery_code: code2, new_mac_address: new2, app_type: 'lg' }, auth);
+  check('apply_recovery moves the paid device to this TV', applied.json?.status === 'success' && applied.json?.mac_address === new2 && applied.json?.is_trial === 3, applied.json);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

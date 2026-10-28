@@ -68,7 +68,7 @@ function info(overrides: Partial<LegacyDeviceInfo> = {}): LegacyDeviceInfo {
     ip: '203.0.113.9',
     now,
     ...overrides,
-  } as LegacyDeviceInfo;
+  };
 }
 
 describe('tvInfo: the TV playlist_info replies of each old backend', () => {

@@ -10,6 +10,7 @@ import { LegacyDeviceController } from './legacy-device.controller.js';
 import { LegacyDevices } from './legacy-devices.js';
 import { LegacyPlaylistSyncController } from './legacy-playlist-sync.controller.js';
 import { LegacyPlaylistsController } from './legacy-playlists.controller.js';
+import { LegacyRecoveryController } from './legacy-recovery.controller.js';
 import { LegacyRokuController } from './legacy-roku.controller.js';
 import { LegacyTvController } from './legacy-tv.controller.js';
 import { StarArcsGuests } from './stararcs-guests.js';
@@ -25,6 +26,7 @@ import { V4Controller } from './v4.controller.js';
     LegacyTvController,
     LegacyRokuController,
     LegacyPlaylistSyncController,
+    LegacyRecoveryController,
   ],
   providers: [StarArcsGuests, LegacyDevices, { provide: Clock, useClass: SystemClock }],
 })

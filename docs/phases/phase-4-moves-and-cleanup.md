@@ -220,15 +220,26 @@ pnpm cli domain-moves:approve <id> <who>
 pnpm cli domain-moves:block <id> <who>
 ```
 
-The old apps' recovery route (`/api/:appType/v4/apply_recovery`) and the website's code route come with the later
-old-app and website phases.
+Old-app recovery routes (same paths and replies as the old backends; added 28 Oct with the Phase 3 routes before V4):
+
+| Method | Path | Body → answer |
+|---|---|---|
+| POST | `/api/:appType/v4/apply_recovery` | V4 token of the new TV; plain `{recovery_code, new_mac_address, app_type}` → `{status, message, mac_address, is_trial, expire_date}` |
+| POST | `/api/tv/v3/recover-summary` | cr: `{recovery_code, mac_address}` → what would move (`summary.old_device`, `new_device`, `after_recovery`), nothing changed |
+| POST | `/api/tv/v3/recover-my-device` | cr: the same, and the device moves → `{status: true, msg, data}` |
+
+All three call REC-2 and REC-3 (`RecoverWithCodeUseCase`); cr's refusals keep their HTTP codes (404 wrong code or
+unregistered TV, 410 expired code, 400 the rest). **Changed on purpose:** the old `apply_recovery` took any logged-in
+device's token, so any app could use any code: the token must now be the new TV's own (`new_mac_address` is its MAC).
+A paid device already on the new MAC is refused (the old code gave it the old MAC and marked it for deletion). The
+website's code route comes with the website phase.
 
 ## How to run and check it
 
 ```sh
 npm run seed
 pnpm dev:api                          # playground: License, switch, recovery · Provider moves
-pnpm e2e:moves                        # and the four Phase 3 scripts
+pnpm e2e:moves                        # and the five Phase 3 scripts (e2e:legacy also checks recovery)
 pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test && pnpm test:int && pnpm build
 ```
 
