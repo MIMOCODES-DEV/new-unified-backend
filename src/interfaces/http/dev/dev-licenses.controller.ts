@@ -1,13 +1,26 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { z } from 'zod';
 import { FindDeviceUseCase } from '../../../modules/devices/index.js';
 import {
   ACTIVATION_SOURCES,
   ActivateLicenseUseCase,
+  CleanUpTrialDevicesUseCase,
+  CreateRecoveryCodeUseCase,
   DeviceLicenseUseCase,
   LICENSE_TYPES,
   LicenseHistoryUseCase,
+  RecoverWithCodeUseCase,
   RevokeLicenseUseCase,
+  SwitchMacUseCase,
 } from '../../../modules/licensing/index.js';
 import { Public } from '../../../shared/auth/access.decorators.js';
 import { MacAddress } from '../../../shared/kernel/mac-address.js';
@@ -35,7 +48,7 @@ const mac = z.string().transform((value, ctx) => {
 });
 
 /**
- * Dev-only routes to try the Phase 1 license rules (LIC-1 to LIC-3) against a real database, for
+ * Dev-only routes to try the license rules (LIC-1 to LIC-4, DEV-7, REC-1 to REC-3) against a real database, for
  * the playground. Plain JSON, no auth; 404 in production. The device is named by MAC.
  */
 @Controller('dev/licenses')
@@ -47,7 +60,27 @@ export class DevLicensesController {
     private readonly revoke: RevokeLicenseUseCase,
     private readonly state: DeviceLicenseUseCase,
     private readonly history: LicenseHistoryUseCase,
+    private readonly switchMac: SwitchMacUseCase,
+    private readonly createCode: CreateRecoveryCodeUseCase,
+    private readonly recoverWithCode: RecoverWithCodeUseCase,
+    private readonly cleanUp: CleanUpTrialDevicesUseCase,
   ) {}
+
+  /** LIC-4: what the cleanup would remove now. A dry run only: nothing is deleted from here. */
+  @Public()
+  @Get('cleanup')
+  async cleanupReport(@Query('days') days?: string) {
+    const notSeenDays = parse(z.coerce.number().int().min(1).default(180), days);
+    return this.cleanUp.execute({ dryRun: true, notSeenDays, limit: 1000 });
+  }
+
+  /** REC-2/3: the new TV sends the code made on the website and gets the paid device. */
+  @Public()
+  @Post('recover')
+  async recover(@Body() body: unknown) {
+    const input = parse(z.object({ code: z.string(), newMac: z.string() }), body);
+    return unwrap(await this.recoverWithCode.execute(input));
+  }
 
   private async deviceId(value: string): Promise<string> {
     return unwrap(await this.findDevice.execute(parse(mac, value))).device.id;
@@ -99,5 +132,32 @@ export class DevLicensesController {
   @Post(':mac/revoke')
   async revokeOne(@Param('mac') value: string) {
     return unwrap(await this.revoke.execute({ deviceId: await this.deviceId(value) }));
+  }
+
+  /** REC-1: a recovery code for a paid device (the website's "move to a new TV"). */
+  @Public()
+  @Post(':mac/recovery-code')
+  async recoveryCode(@Param('mac') value: string) {
+    return unwrap(await this.createCode.execute({ deviceId: await this.deviceId(value) }));
+  }
+
+  /**
+   * DEV-7: move the device's license to a new MAC. The new MAC is passed as typed, so the switch
+   * itself refuses a bad or placeholder MAC.
+   */
+  @Public()
+  @Post(':mac/switch')
+  async switchOne(@Param('mac') value: string, @Body() body: unknown) {
+    const input = parse(
+      z.object({ newMac: z.string(), allowYearly: z.boolean().default(false) }),
+      body,
+    );
+    return unwrap(
+      await this.switchMac.execute({
+        deviceId: await this.deviceId(value),
+        newMac: input.newMac,
+        allowYearly: input.allowYearly,
+      }),
+    );
   }
 }

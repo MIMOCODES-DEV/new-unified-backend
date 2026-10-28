@@ -74,7 +74,7 @@ const by = z.enum(['app', 'dashboard']).default('app');
 const pin = z.string().nullable().optional();
 
 /**
- * Dev-only routes to try the Phase 1 playlist rules (PL-1 to PL-8) against a real database, for
+ * Dev-only routes to try the playlist rules (PL-1 to PL-8) against a real database, for
  * the playground. Plain JSON, no envelope, no auth; 404 in production. The device is named by MAC.
  */
 @Controller('dev/playlists')
@@ -174,6 +174,9 @@ export class DevPlaylistsController {
         source: source.optional(),
         epgUrl: z.string().nullable().optional(),
         newPin: z.string().nullable().optional(),
+        // Where the edit came from; a new link on another host is reported as a provider move
+        // (DOM-1). Dev only: a test can stand in for devices on different IPs.
+        ip: z.string().default('127.0.0.1'),
       }),
       body,
     );

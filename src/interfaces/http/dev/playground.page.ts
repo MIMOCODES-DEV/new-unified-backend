@@ -1,8 +1,8 @@
 /**
  * The device playground: one page, served by the backend in development only
  * (`http://<brand>.localhost:3000/dev/playground`). Three parts: tools that call the /dev/devices,
- * /dev/playlists and /dev/licenses routes on the same host (the brand is the one in the address
- * bar); guided scenarios (playground-scenarios.ts); and the e2e test cases run from
+ * /dev/playlists, /dev/licenses and /dev/domain-moves routes on the same host (the brand is the one
+ * in the address bar); guided scenarios (playground-scenarios.ts); and the e2e test cases run from
  * the browser (playground-tests.ts), both driven by playground-runner.ts. Styled with Tailwind's
  * browser build from a CDN (dev only, so the page needs internet for its styles). The page uses no
  * backticks or template placeholders, because it lives inside this string.
@@ -121,7 +121,8 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
       <button class="nav-item" data-view="tv">Old TV code<span class="code">DEV-4</span></button>
       <button class="nav-item" data-view="owner">Key and PIN<span class="code">DEV-5</span></button>
       <button class="nav-item" data-view="playlists">Playlists<span class="code">PL-1–8</span></button>
-      <button class="nav-item" data-view="license">License<span class="code">LIC-1–3</span></button>
+      <button class="nav-item" data-view="license">License, switch, recovery<span class="code">LIC · REC</span></button>
+      <button class="nav-item" data-view="moves">Provider moves<span class="code">DOM</span></button>
       <div class="nav-group">Database</div>
       <button class="nav-item" data-view="db">What is stored<span class="code">MongoDB</span></button>
       <div class="nav-group">Scenarios</div>
@@ -140,14 +141,14 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
 
       <div class="tab" id="tab-home">
         <div class="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 p-6 text-white shadow-sm">
-          <p class="text-xs font-semibold tracking-wider text-indigo-100 uppercase">Phases 1 to 3 · core features</p>
+          <p class="text-xs font-semibold tracking-wider text-indigo-100 uppercase">Phases 1 to 4 · device core</p>
           <h2 class="mt-1 text-2xl font-semibold tracking-tight">Try every rule on a real database</h2>
-          <p class="mt-2 max-w-2xl text-sm text-indigo-100">Brands from the host, devices and trials, V4 login, playlists, licenses and the V4 app routes, through the dev-only routes. This page is 404 in production.</p>
+          <p class="mt-2 max-w-2xl text-sm text-indigo-100">Brands from the host, devices and trials, V4 login, playlists, licenses, MAC switch, recovery, provider moves and cleanup, through the dev-only routes. This page is 404 in production.</p>
           <div class="mt-4 flex flex-wrap gap-2 text-xs"><span class="rounded-full bg-white/15 px-2.5 py-1">brand <b id="home-brand">…</b></span><span class="rounded-full bg-white/15 px-2.5 py-1"><b id="home-scenarios">…</b> scenarios</span><span class="rounded-full bg-white/15 px-2.5 py-1"><b id="home-checks">…</b> test cases</span></div>
         </div>
         <div class="grid gap-3 sm:grid-cols-3">
-          <button class="home-card" data-view="register"><span class="pill w-fit">Try it</span><span class="font-semibold">Tools</span><span class="hint">Register a TV, log in as a V4 app, add playlists, activate, extend and revoke a license.</span></button>
-          <button class="home-card" data-view="scenario:D1"><span class="pill ok w-fit">Scenarios</span><span class="font-semibold">Guided stories</span><span class="hint">E2E-D1 to P3 step by step: what each step does, what should happen, and what came back.</span></button>
+          <button class="home-card" data-view="register"><span class="pill w-fit">Try it</span><span class="font-semibold">Tools</span><span class="hint">Register a TV, log in as a V4 app, add playlists, activate, switch MAC, recover, approve a provider move.</span></button>
+          <button class="home-card" data-view="scenario:D1"><span class="pill ok w-fit">Scenarios</span><span class="font-semibold">Guided stories</span><span class="hint">E2E-D1 to X1 step by step: what each step does, what should happen, and what came back.</span></button>
           <button class="home-card" data-view="tests"><span class="pill run w-fit">Test cases</span><span class="font-semibold">Run the e2e checks</span><span class="hint">The same checks as pnpm e2e:*, from the browser, with a pass or fail line for each.</span></button>
         </div>
         <div class="step">
@@ -188,7 +189,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
         <div class="view-head">
           <div>
             <h2 class="view-title">Test cases</h2>
-            <p class="hint mt-1 max-w-2xl">The checks of <code class="mono">pnpm e2e:devices</code>, <code class="mono">e2e:playlists</code>, <code class="mono">e2e:licenses</code> and <code class="mono">e2e:v4</code>, run from this page against the running API. Click a suite to run only that one.</p>
+            <p class="hint mt-1 max-w-2xl">The checks of <code class="mono">pnpm e2e:devices</code>, <code class="mono">e2e:playlists</code>, <code class="mono">e2e:licenses</code>, <code class="mono">e2e:v4</code> and <code class="mono">e2e:moves</code>, run from this page against the running API. Click a suite to run only that one.</p>
           </div>
           <div class="row">
             <label class="check"><input type="checkbox" id="tests-failed"> Failed only</label>
@@ -296,7 +297,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
       </div>
 
       <div class="tab" id="tab-license">
-        <div class="view-head"><h2 class="view-title">License</h2><span class="pill">LIC-1 · LIC-2 · LIC-3</span></div>
+        <div class="view-head"><h2 class="view-title">License, MAC switch, recovery and cleanup</h2><span class="pill">LIC-1–4 · DEV-7 · REC-1–3</span></div>
         <div class="step" data-submit="l-activate">
           <div class="step-title">Activate a license <span class="font-normal normal-case tracking-normal">LIC-1, LIC-2</span></div>
           <p class="hint mb-2">Activating moves a trial device to devices. A year starts where the running trial or year ends; lifetime never ends. The state is worked out from the dates, never stored.</p>
@@ -320,6 +321,58 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
             <button class="btn btn-danger" id="l-revoke">Revoke current license</button>
           </div>
           <p class="hint mt-2">The same source id twice activates once. Use New for a second payment.</p>
+        </div>
+
+        <div class="step" data-submit="s-switch">
+          <div class="step-title">MAC switch <span class="font-normal normal-case tracking-normal">DEV-7</span></div>
+          <ol class="hint mb-3 list-decimal space-y-0.5 pl-4">
+            <li>The device above must be paid, with a running lifetime license (or yearly with <b>Allow yearly</b>), not from a multi-device order.</li>
+            <li>The new MAC must be registered: the app installed on the new TV. <b>Make it a new TV</b> does that, with one playlist.</li>
+            <li>Its trial device is absorbed (playlists move over); a paid device there refuses the switch. The old MAC keeps an ended trial.</li>
+            <li>Switches per device: brand config <code class="mono">macSwitch.maxPerDevice</code>, 1 by default.</li>
+          </ol>
+          <div class="row">
+            <label class="field">New MAC
+              <span class="flex gap-1.5"><input id="s-mac" class="input font-mono" placeholder="aa:bb:cc:dd:ee:ff" spellcheck="false"><button class="btn" id="s-random">Random</button></span>
+            </label>
+            <button class="btn" id="s-trial" title="Register a trial device on the new MAC, with one playlist, like a new TV would">Make it a new TV</button>
+            <label class="check mb-1.5"><input type="checkbox" id="s-yearly"> Allow yearly</label>
+          </div>
+          <div class="row mt-3">
+            <button class="btn btn-primary" id="s-switch">Switch MAC</button>
+            <button class="btn" id="s-follow" title="Show the device on its new MAC">Look up new MAC</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="r-recover">
+          <div class="step-title">Recovery on a new TV <span class="font-normal normal-case tracking-normal">REC-1, REC-2, REC-3</span></div>
+          <ol class="hint mb-3 list-decimal space-y-0.5 pl-4">
+            <li>The website makes a code for the paid device above (running license only). It lasts 30 minutes; a new code replaces the old one.</li>
+            <li>The new TV, with the app installed, sends the code. The device takes its MAC and keeps its id, license and playlists.</li>
+            <li>The new TV's own trial device is removed with its playlists. The old MAC keeps an ended trial. A code works once.</li>
+          </ol>
+          <div class="row">
+            <button class="btn" id="r-code">Make recovery code</button>
+            <label class="field">Code<input id="r-code-value" class="input font-mono uppercase" placeholder="8 characters" spellcheck="false"></label>
+          </div>
+          <div class="row mt-2">
+            <label class="field">New TV MAC
+              <span class="flex gap-1.5"><input id="r-mac" class="input font-mono" placeholder="aa:bb:cc:dd:ee:ff" spellcheck="false"><button class="btn" id="r-random">Random</button></span>
+            </label>
+            <button class="btn" id="r-trial" title="Register a trial device on the new MAC, with one playlist, like a new TV would">Make it a new TV</button>
+          </div>
+          <div class="row mt-3">
+            <button class="btn btn-primary" id="r-recover">Recover on the new TV</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="c-report">
+          <div class="step-title">Cleanup report <span class="font-normal normal-case tracking-normal">LIC-4, dry run</span></div>
+          <p class="hint mb-2">Trial devices whose trial ended, with no playlist, not seen for the days given. Only a report here; the real run is <code class="mono">pnpm cli devices:cleanup --apply</code>.</p>
+          <div class="row">
+            <label class="field max-w-[8rem]">Not seen for (days)<input id="c-days" class="input" value="180"></label>
+            <button class="btn" id="c-report">Report</button>
+          </div>
         </div>
       </div>
 
@@ -419,6 +472,34 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
             <button class="btn" id="p-count">Count</button>
             <button class="btn btn-primary" id="p-move">Move</button>
           </div>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-moves">
+        <div class="view-head"><h2 class="view-title">Provider moves</h2><span class="pill">DOM-1 · DOM-2</span></div>
+        <div class="step" data-submit="m-report">
+          <div class="step-title">Devices report a move <span class="font-normal normal-case tracking-normal">DOM-1</span></div>
+          <p class="hint mb-2">A paid device that changes its own playlist's link, when only the host changed, reports the move. Once per IP and per device; trial devices do not count. This makes new paid devices that each add the old link and change it to the new one, each from its own IP.</p>
+          <div class="row">
+            <label class="field">Old link<input id="m-old" class="input font-mono" spellcheck="false"></label>
+            <label class="field">New link<input id="m-new" class="input font-mono" spellcheck="false"></label>
+          </div>
+          <div class="row mt-2">
+            <label class="field max-w-[7rem]">Devices<input id="m-count" class="input" value="3"></label>
+            <button class="btn" id="m-hosts" title="New random hosts for both links">New hosts</button>
+            <button class="btn btn-primary" id="m-report">Report from the devices</button>
+            <button class="btn" id="m-watch" title="Add the old link to the device above, to see what its reply gets">Add old link to this MAC</button>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-title">Approve or block <span class="font-normal normal-case tracking-normal">DOM-2</span></div>
+          <p class="hint mb-2">After 3 IPs a move waits for staff. Only approved moves are served: the link goes out on the new host, the old host first in its backups; the stored playlist never changes. A blocked move is never served.</p>
+          <div class="row">
+            <label class="field">Show<select id="m-filter" class="input"><option value="awaiting">Awaiting approval</option><option>pending</option><option>approved</option><option>blocked</option></select></label>
+            <button class="btn" id="m-refresh">Refresh</button>
+          </div>
+          <div id="m-list" class="mt-3"></div>
         </div>
       </div>
     </div>
@@ -787,6 +868,114 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     if (!confirm('Revoke the current license of ' + mac() + '?')) return;
     call('POST', macPath() + '/revoke', undefined, '/dev/licenses').then(both);
   });
+
+  // MAC switch (DEV-7)
+  function followMac(next) { $('mac').value = next; remember(); pl.selected = null; both(); }
+  $('s-random').addEventListener('click', function () { $('s-mac').value = randomMac(); });
+  $('s-trial').addEventListener('click', function () {
+    var tv = orNull($('s-mac').value);
+    if (!tv) { warn('Type or pick the new MAC first.'); return; }
+    call('POST', '/register', { mac: tv, platform: $('r-platform').value, appVersion: '1.0.0', apiVersion: 'legacy', appDeviceId: null, uid: null })
+      .then(function () {
+        return plCall('POST', '/' + encodeURIComponent(tv) + '/add', {
+          name: 'Added on the new TV', source: { kind: 'link', url: 'http://newtv.example/list-' + Math.random().toString(36).slice(2, 6) + '.m3u' }, via: 'app'
+        });
+      });
+  });
+  $('s-switch').addEventListener('click', function () {
+    var next = orNull($('s-mac').value);
+    if (!next) { warn('Type or pick the new MAC first.'); return; }
+    call('POST', macPath() + '/switch', { newMac: next, allowYearly: $('s-yearly').checked }, '/dev/licenses')
+      .then(function (r) { if (r.status < 300 && r.json.to) followMac(r.json.to); else both(); });
+  });
+  $('s-follow').addEventListener('click', function () { var next = orNull($('s-mac').value); if (next) followMac(next); });
+
+  // Recovery (REC-1 to REC-3)
+  $('r-random').addEventListener('click', function () { $('r-mac').value = randomMac(); });
+  $('r-trial').addEventListener('click', function () {
+    var tv = orNull($('r-mac').value);
+    if (!tv) { warn('Type or pick the new TV MAC first.'); return; }
+    call('POST', '/register', { mac: tv, platform: $('r-platform').value, appVersion: '1.0.0', apiVersion: 'legacy', appDeviceId: null, uid: null })
+      .then(function () {
+        return plCall('POST', '/' + encodeURIComponent(tv) + '/add', {
+          name: 'Added on the new TV', source: { kind: 'link', url: 'http://newtv.example/list-' + Math.random().toString(36).slice(2, 6) + '.m3u' }, via: 'app'
+        });
+      });
+  });
+  $('r-code').addEventListener('click', function () {
+    if (!mac()) { warn('Type the MAC of the paid device first.'); return; }
+    call('POST', macPath() + '/recovery-code', undefined, '/dev/licenses')
+      .then(function (r) { if (r.status < 300 && r.json.code) $('r-code-value').value = r.json.code; lookUp(); });
+  });
+  $('r-recover').addEventListener('click', function () {
+    var code = orNull($('r-code-value').value), tv = orNull($('r-mac').value);
+    if (!code || !tv) { warn('Make a code and pick the new TV MAC first.'); return; }
+    call('POST', '/recover', { code: code, newMac: tv }, '/dev/licenses')
+      .then(function (r) { if (r.status < 300 && r.json.to) followMac(r.json.to); else both(); });
+  });
+  $('c-report').addEventListener('click', function () {
+    call('GET', '/cleanup?days=' + encodeURIComponent($('c-days').value.trim()), undefined, '/dev/licenses');
+  });
+
+  // Provider moves (DOM-1, DOM-2)
+  function moveLink(host) { return 'http://' + host + '/get.php?username=demo&password=demo&type=m3u_plus'; }
+  function newMoveHosts() {
+    var tag = Math.random().toString(36).slice(2, 6);
+    $('m-old').value = moveLink('line-' + tag + '.example.com:8080');
+    $('m-new').value = moveLink('line-' + tag + '-new.example.com:8080');
+  }
+  newMoveHosts();
+  $('m-hosts').addEventListener('click', newMoveHosts);
+  $('m-report').addEventListener('click', function () {
+    var count = Math.max(1, Math.min(10, parseInt($('m-count').value, 10) || 3));
+    var oldLink = $('m-old').value.trim(), newLink = $('m-new').value.trim();
+    // This button spins for the whole run, not for each request in it.
+    var button = pressed; pressed = null;
+    var base = Math.floor(Math.random() * 200);
+    busy(button, true);
+    var chain = Promise.resolve();
+    for (var i = 1; i <= count; i++) {
+      (function (n) {
+        chain = chain.then(function () {
+          var tv = randomMac();
+          return call('POST', '/register', { mac: tv, platform: 'samsung', appVersion: '1.0.0', apiVersion: 'legacy', appDeviceId: null, uid: null })
+            .then(function () { return call('POST', '/' + encodeURIComponent(tv) + '/activate', { type: 'lifetime', source: 'admin', sourceId: 'move-' + Math.random().toString(36).slice(2, 10) }, '/dev/licenses'); })
+            .then(function () { return plCall('POST', '/' + encodeURIComponent(tv) + '/add', { name: 'Provider', source: { kind: 'link', url: oldLink }, via: 'app' }); })
+            .then(function (r) {
+              if (!r.json || !r.json.id) return null;
+              return plCall('POST', '/' + encodeURIComponent(tv) + '/' + r.json.id + '/edit', { source: { kind: 'link', url: newLink }, ip: '198.51.100.' + (base + n) });
+            });
+        });
+      })(i);
+    }
+    chain.finally(function () { busy(button, false); refreshMoves(); });
+  });
+  $('m-watch').addEventListener('click', function () {
+    if (!mac()) { warn('Type a MAC first.'); return; }
+    plCall('POST', macPath() + '/add', { name: 'Provider ' + Math.random().toString(36).slice(2, 5), source: { kind: 'link', url: $('m-old').value.trim() }, via: 'app' }).then(both);
+  });
+  function refreshMoves() {
+    fetch('/dev/domain-moves?filter=' + $('m-filter').value).then(function (res) { return res.json(); }).then(function (moves) {
+      var box = $('m-list');
+      if (!moves.length) { box.innerHTML = '<p class="empty">No moves here.</p>'; return; }
+      box.innerHTML = moves.map(function (m) {
+        return '<div class="kv mb-3"><div>Move</div><div><code>' + esc(m.fromHost) + '</code> → <code>' + esc(m.toHost) + '</code>' + (m.toScheme ? ' <span class="hint">(' + esc(m.toScheme) + ')</span>' : '') + '</div>' +
+          '<div>Status</div><div><span class="pill' + (m.status === 'approved' ? ' ok' : m.status === 'blocked' ? ' bad' : '') + '">' + esc(m.status) + '</span> ' +
+          m.confirmations + ' IP(s) · ' + m.brands + ' brand(s)' + (m.decidedBy ? ' <span class="hint">· by ' + esc(m.decidedBy) + '</span>' : '') + '</div>' +
+          '<div></div><div class="flex gap-1.5"><button class="btn btn-primary" data-move="approve" data-id="' + esc(m.id) + '">Approve</button>' +
+          '<button class="btn btn-danger" data-move="block" data-id="' + esc(m.id) + '">Block</button></div></div>';
+      }).join('');
+    }, function () { $('m-list').innerHTML = '<p class="empty">The API is not reachable.</p>'; });
+  }
+  $('m-refresh').addEventListener('click', refreshMoves);
+  $('m-filter').addEventListener('change', refreshMoves);
+  $('m-list').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-move]');
+    if (!b) return;
+    call('POST', '/' + encodeURIComponent(b.dataset.id) + '/' + b.dataset.move, { by: 'playground' }, '/dev/domain-moves')
+      .then(function () { refreshMoves(); refreshPlaylists(); });
+  });
+  refreshMoves();
 
   var STATE_PILL = { trial: 'ok', yearly: 'ok', lifetime: 'ok', expired: 'bad', revoked: 'bad' };
   function when(iso) { return iso ? new Date(iso).toUTCString().replace(' GMT', ' UTC') : 'never'; }

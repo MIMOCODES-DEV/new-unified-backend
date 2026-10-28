@@ -1,6 +1,6 @@
 /**
  * The playground's test cases (`/dev/playground/tests.js`): the same checks as the
- * `pnpm e2e:devices|playlists|licenses|v4` scripts in tools/dev, run from the browser against
+ * `pnpm e2e:devices|playlists|licenses|v4|moves` scripts in tools/dev, run from the browser against
  * the `ibo` brand (and `bob` for isolation). Keep the two in step when a rule changes.
  * Plain browser JavaScript inside a string: no backticks or template placeholders.
  */
@@ -406,6 +406,118 @@ export const PLAYGROUND_TESTS_JS = String.raw`(function () {
       var mixedType = await req('POST', '/api/lg/v4/recaptcha', { mac_address: m, app_type: 'samsung' });
       t.check('an unknown app type in the path is 404', unknownType.status === 404, unknownType);
       t.check('an app_type that differs from the path is refused', mixedType.json && mixedType.json.message === 'Invalid app_type', mixedType.json);
+    }
+  });
+
+  PG.suite({
+    id: 'moves', title: 'Moves and cleanup', script: 'e2e:moves', expected: 32, tasks: ['DEV-7', 'REC-1', 'REC-2', 'REC-3', 'DOM-1', 'DOM-2', 'LIC-4'],
+    about: 'MAC switch, recovery code and recovery on a new TV, provider host moves with staff approval, the cleanup dry run.',
+    run: async function (t) {
+      var L = function (m) { return '/dev/licenses/' + m; };
+      var P = function (m) { return '/dev/playlists/' + m; };
+
+      t.group('DEV-7 MAC switch');
+      var from = await PG.paid(), to = await PG.trial();
+      await PG.addLink(from, 'News', 'http://a.e2e.example/a.m3u');
+      await PG.addLink(to, 'News', 'http://b.e2e.example/b.m3u');
+      var before = await PG.device(from);
+      var sw = await req('POST', L(from) + '/switch', { newMac: to });
+      t.check('a lifetime license switches to a MAC whose app is installed', ok(sw), sw.json);
+      var after = await PG.device(to);
+      t.check('the paid device keeps its id on the new MAC', after && after.paid && after.device.id === before.device.id, after);
+      var names = (await req('GET', P(to))).json.map(function (p) { return p.name; }).sort();
+      t.check('the new TV trial playlist is absorbed as "News (2)"', JSON.stringify(names) === '["News","News (2)"]', names);
+      var old = await PG.device(from);
+      t.check('the old MAC keeps an ended trial', old && !old.paid && new Date(old.device.trialEndsAt) < new Date(), old);
+      var again = await req('POST', L(to) + '/switch', { newMac: await PG.trial() });
+      t.check('a second switch is refused (limit 1)', code(again) === 'licensing.mac_switch_limit', again.json);
+      var yearly = await PG.paid('yearly'), target = await PG.trial();
+      var noAllow = await req('POST', L(yearly) + '/switch', { newMac: target });
+      t.check('yearly is refused without allowYearly', code(noAllow) === 'licensing.yearly_switch_not_allowed', noAllow.json);
+      t.check('yearly switches with allowYearly', ok(await req('POST', L(yearly) + '/switch', { newMac: target, allowYearly: true })));
+      var multi = await PG.paid('lifetime', { multiActivate: true }), multiTo = await PG.trial();
+      t.check('multiActivate is refused', code(await req('POST', L(multi) + '/switch', { newMac: multiTo })) === 'licensing.multi_activate_switch');
+      var p2 = await PG.paid();
+      t.check('a paid device on the new MAC refuses it', code(await req('POST', L(await PG.paid()) + '/switch', { newMac: p2 })) === 'licensing.mac_taken');
+
+      t.group('REC-1 recovery code');
+      var tr = await PG.trial();
+      t.check('a trial device gets no code', code(await req('POST', L(tr) + '/recovery-code')) === 'licensing.recovery_needs_paid_device');
+      var revoked = await PG.paid();
+      await req('POST', L(revoked) + '/revoke', {});
+      t.check('a revoked license gets no code', code(await req('POST', L(revoked) + '/recovery-code')) === 'licensing.license_not_running');
+      var pm = await PG.paid();
+      var c1 = await req('POST', L(pm) + '/recovery-code');
+      var minutes = (new Date(c1.json && c1.json.expiresAt) - Date.now()) / 60000;
+      t.check('a paid device gets an 8-character code for 30 minutes', /^[A-Z2-9]{8}$/.test((c1.json && c1.json.code) || '') && minutes > 29 && minutes <= 30, c1.json);
+      var c2 = await req('POST', L(pm) + '/recovery-code');
+      var usedOld = await req('POST', '/dev/licenses/recover', { code: c1.json.code, newMac: await PG.trial() });
+      t.check('a new code replaces the old one', ok(c2) && code(usedOld) === 'licensing.recovery_code_not_found', usedOld.json);
+
+      t.group('REC-2/3 apply the code on a new TV');
+      var rm = await PG.paid();
+      await PG.addLink(rm, 'Mine', 'http://own.e2e.example/own.m3u');
+      var rid = (await PG.device(rm)).device.id;
+      var tv = await PG.trial();
+      await PG.addLink(tv, 'Trial list', 'http://tv.e2e.example/tv.m3u');
+      var tvId = (await PG.device(tv)).device.id;
+      var made = (await req('POST', L(rm) + '/recovery-code')).json;
+      t.check('a wrong code is refused', code(await req('POST', '/dev/licenses/recover', { code: 'WRONG234', newMac: tv })) === 'licensing.recovery_code_not_found');
+      var rec = await req('POST', '/dev/licenses/recover', { code: ' ' + made.code.toLowerCase(), newMac: tv });
+      t.check('the code (any case) moves the paid device to the new TV', ok(rec) && rec.json.deviceId === rid && rec.json.to === tv, rec.json);
+      var now = await PG.device(tv);
+      t.check('it keeps its id and license', now.paid && now.device.id === rid && now.device.recovery.recoveredFrom === rm, now);
+      var lists = (await req('GET', P(tv))).json.map(function (p) { return p.name; });
+      t.check('it keeps its own playlists; the new TV trial ones are gone', JSON.stringify(lists) === '["Mine"]', lists);
+      t.check('the new TV trial device was removed with its playlists', rec.json.removedTrialId === tvId && rec.json.removedPlaylists === 1, rec.json);
+      var oldR = await PG.device(rm);
+      t.check('the old MAC keeps one ended trial device, nothing else', oldR && !oldR.paid && oldR.device.playlistCount === 0, oldR);
+      var reuse = await req('POST', '/dev/licenses/recover', { code: made.code, newMac: await PG.trial() });
+      t.check('the code works once', code(reuse) === 'licensing.recovery_code_not_found', reuse.json);
+
+      t.group('DOM-1/2 provider domain moves');
+      var oldHost = 'line-' + PG.word() + '.e2e.example:8080', newHost = 'line-' + PG.word() + '.e2e.example:8080';
+      var link = function (h) { return 'http://' + h + '/get.php?username=u&password=p&type=m3u_plus'; };
+      var moveFrom = async function (ip, kind) {
+        var m = kind === 'trial' ? await PG.trial() : await PG.paid();
+        var added = await PG.addLink(m, 'Provider', link(oldHost));
+        await req('POST', P(m) + '/' + added.json.id + '/edit', { source: { kind: 'link', url: link(newHost) }, ip: ip });
+        return m;
+      };
+      var findMove = async function (filter) {
+        return (await req('GET', '/dev/domain-moves?filter=' + filter)).json.filter(function (x) { return x.fromHost === oldHost; })[0];
+      };
+      await moveFrom('198.51.100.1', 'trial');
+      t.check('a trial device does not report a move', !(await findMove('pending')));
+      await moveFrom('198.51.100.1');
+      await moveFrom('198.51.100.1');
+      var pending = await findMove('pending');
+      t.check('the first report makes a pending move; the same IP counts once', pending && pending.confirmations === 1 && pending.toHost === newHost, pending);
+      await moveFrom('198.51.100.2');
+      t.check('two IPs: not yet up for approval', !(await findMove('awaiting')));
+      var watcher = await PG.paid();
+      await PG.addLink(watcher, 'Provider', link(oldHost));
+      await moveFrom('198.51.100.3');
+      var awaiting = await findMove('awaiting');
+      t.check('three IPs: shows up for approval', awaiting && awaiting.confirmations === 3, awaiting);
+      var b4 = (await req('GET', P(watcher) + '/reply')).json.playlists[0];
+      t.check('not served before it is approved', b4.url.indexOf(oldHost) >= 0, b4);
+      var approved = await req('POST', '/dev/domain-moves/' + awaiting.id + '/approve', { by: 'playground' });
+      t.check('approving records who decided', ok(approved) && approved.json.status === 'approved' && approved.json.decidedBy === 'playground', approved.json);
+      var served = (await req('GET', P(watcher) + '/reply?platform=samsung')).json.playlists[0];
+      t.check('an approved move is served on the new host, the old host first in the backups',
+        served.url.indexOf(newHost) >= 0 && served.url.indexOf(oldHost) < 0 && served.backupUrls[0] && served.backupUrls[0].indexOf(oldHost.split(':')[0]) >= 0, served);
+      var stored = (await req('GET', P(watcher))).json[0];
+      t.check('the stored playlist is not changed', stored.url === link(oldHost), stored);
+      var blocked = await req('POST', '/dev/domain-moves/' + awaiting.id + '/block', { by: 'playground' });
+      var afterBlock = (await req('GET', P(watcher) + '/reply')).json.playlists[0];
+      t.check('a blocked move is not served', ok(blocked) && afterBlock.url.indexOf(oldHost) >= 0, afterBlock);
+      t.check('approving an unknown move is refused', code(await req('POST', '/dev/domain-moves/nope/approve', { by: 'playground' })) === 'domain_migrations.not_found');
+
+      t.group('LIC-4 cleanup report (dry run)');
+      var report = await req('GET', '/dev/licenses/cleanup?days=180');
+      t.check('the dry run reports and deletes nothing', ok(report) && report.json.dryRun === true && report.json.deleted === 0, report.json);
+      t.check('a rule that is not whole days is refused', (await req('GET', '/dev/licenses/cleanup?days=0')).status === 400);
     }
   });
 })();

@@ -74,7 +74,7 @@ const imageUrl = (svg: string) =>
   `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
 
 /**
- * Dev-only routes to try the Phase 1 device rules against a real database, before the real app
+ * Dev-only routes to try the device core rules against a real database, before the real app
  * routes exist. Plain JSON, no envelope, no auth; 404 in production. Call them on a brand host,
  * for example `http://ibo.localhost:3000/dev/devices/register`.
  */

@@ -1,6 +1,6 @@
 /**
  * The playground's scenarios (`/dev/playground/scenarios.js`): the E2E-* stories of the phase tests
- * pages, told step by step against the `ibo` brand (D1 also reads `bob`). Each step says what it does and
+ * pages, told step by step against the `ibo` brand (X1 also on `bob`). Each step says what it does and
  * what should happen, then checks it; the device it works on is shown in the playground's side panel.
  * Plain browser JavaScript inside a string: no backticks or template placeholders.
  */
@@ -338,6 +338,193 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
           s.expect('two backup links', JSON.stringify(it.backupUrls) === JSON.stringify(['http://mirror.example.com:8080/', 'https://m2.example.com:2095/']), it.backupUrls);
         } }
     ]
+  });
+
+  PG.scenario({
+    id: 'S1', nav: 'MAC switch', title: 'A paid device switches MAC', tasks: ['DEV-7'],
+    story: 'A customer replaces their TV. The lifetime license moves to the new MAC with its id and playlists; the new TV’s trial is absorbed and the old MAC keeps an ended trial.',
+    steps: [
+      { title: 'The old TV, paid, with a playlist', does: 'Register, activate lifetime, add “News”.', expect: 'a paid lifetime device.',
+        run: async function (s) {
+          s.vars.from = PG.mac('ae');
+          await register(s, s.vars.from);
+          await activate(s, s.vars.from, { type: 'lifetime', source: 'admin' });
+          await PG.addLink(s.vars.from, 'News', 'http://a-' + PG.word() + '.example/a.m3u');
+          var d = await PG.device(s.vars.from);
+          s.vars.id = d.device.id;
+          s.expect('paid', d.paid, d);
+          s.show(s.vars.from);
+        } },
+      { title: 'The new TV installs the app', does: 'Register the new MAC; it adds its own “News”.', expect: 'a trial device on the new MAC.',
+        run: async function (s) {
+          s.vars.to = PG.mac('ae');
+          await register(s, s.vars.to);
+          await PG.addLink(s.vars.to, 'News', 'http://b-' + PG.word() + '.example/b.m3u');
+          var d = await PG.device(s.vars.to);
+          s.expect('trial on the new MAC', d && !d.paid, d);
+        } },
+      { title: 'Switch the MAC', does: 'POST /switch { newMac }.', expect: 'the same device id on the new MAC; playlists “News” and “News (2)”.',
+        run: async function (s) {
+          var r = await s.req('POST', L(s.vars.from) + '/switch', { newMac: s.vars.to });
+          s.expect('switched', ok(r), r.json);
+          var d = await PG.device(s.vars.to);
+          s.expect('same id on the new MAC', d.paid && d.device.id === s.vars.id, d);
+          var names = (await s.req('GET', P(s.vars.to))).json.map(function (p) { return p.name; }).sort();
+          s.expect('the trial playlist absorbed as “News (2)”', JSON.stringify(names) === '["News","News (2)"]', names);
+          s.show(s.vars.to);
+        } },
+      { title: 'The old MAC and the limit', does: 'Read the old MAC; try a second switch.', expect: 'the old MAC has an ended trial; a second switch is refused (limit 1).',
+        run: async function (s) {
+          var old = await PG.device(s.vars.from);
+          s.expect('old MAC: ended trial', old && !old.paid && new Date(old.device.trialEndsAt) < new Date(), old);
+          var again = await s.req('POST', L(s.vars.to) + '/switch', { newMac: await PG.trial() });
+          s.expect('second switch refused', code(again) === 'licensing.mac_switch_limit', again.json);
+        } }
+    ]
+  });
+
+  PG.scenario({
+    id: 'R1', nav: 'Recovery on a new TV', title: 'A recovery code moves a paid device to a new TV', tasks: ['REC-1', 'REC-2', 'REC-3'],
+    story: 'The old TV is broken. The owner makes a recovery code on the website and types it on the new TV: the device moves with its id, license and playlists; nothing is left behind.',
+    steps: [
+      { title: 'A paid device with its playlist', does: 'Register, activate lifetime, add “Mine”.', expect: 'paid.',
+        run: async function (s) {
+          s.vars.mac = PG.mac('ae');
+          await register(s, s.vars.mac);
+          await activate(s, s.vars.mac, { type: 'lifetime', source: 'admin' });
+          await PG.addLink(s.vars.mac, 'Mine', 'http://own-' + PG.word() + '.example/own.m3u');
+          s.vars.id = (await PG.device(s.vars.mac)).device.id;
+          s.show(s.vars.mac);
+        } },
+      { title: 'The website makes a code', does: 'POST /recovery-code.', expect: '8 characters, valid for 30 minutes.',
+        run: async function (s) {
+          var r = await s.req('POST', L(s.vars.mac) + '/recovery-code');
+          s.vars.code = r.json.code;
+          var minutes = (new Date(r.json.expiresAt) - Date.now()) / 60000;
+          s.expect('8 characters', /^[A-Z2-9]{8}$/.test(r.json.code || ''), r.json);
+          s.expect('30 minutes', minutes > 29 && minutes <= 30, r.json.expiresAt);
+        } },
+      { title: 'The new TV installs the app', does: 'Register a new MAC with its own trial playlist.', expect: 'a trial device on the new TV.',
+        run: async function (s) {
+          s.vars.tv = PG.mac('ae');
+          await register(s, s.vars.tv);
+          await PG.addLink(s.vars.tv, 'Trial list', 'http://tv-' + PG.word() + '.example/tv.m3u');
+          s.vars.tvId = (await PG.device(s.vars.tv)).device.id;
+          s.expect('trial', !!s.vars.tvId);
+        } },
+      { title: 'The code is typed on the new TV', does: 'POST /recover with the code in lower case.', expect: 'the paid device takes the new MAC, keeps id and “Mine”; the new TV’s trial is removed.',
+        run: async function (s) {
+          var r = await s.req('POST', '/dev/licenses/recover', { code: s.vars.code.toLowerCase(), newMac: s.vars.tv });
+          s.expect('recovered', ok(r) && r.json.deviceId === s.vars.id, r.json);
+          s.expect('new TV trial removed with 1 playlist', r.json.removedTrialId === s.vars.tvId && r.json.removedPlaylists === 1, r.json);
+          var names = (await s.req('GET', P(s.vars.tv))).json.map(function (p) { return p.name; });
+          s.expect('keeps only its own playlists', JSON.stringify(names) === '["Mine"]', names);
+          s.show(s.vars.tv);
+        } },
+      { title: 'The code works once', does: 'Use the code again on another TV.', expect: 'licensing.recovery_code_not_found.',
+        run: async function (s) {
+          var r = await s.req('POST', '/dev/licenses/recover', { code: s.vars.code, newMac: await PG.trial() });
+          s.expect('refused', code(r) === 'licensing.recovery_code_not_found', r.json);
+        } }
+    ]
+  });
+
+  PG.scenario({
+    id: 'M1', nav: 'Provider moves host', title: 'Three paid devices report a provider move; staff approve', tasks: ['DOM-1', 'DOM-2'],
+    story: 'An IPTV provider moves to a new host. Paid customers fix their own links; after 3 different IPs staff see the move, and once approved every device gets the new host.',
+    steps: [
+      { title: 'A watcher still on the old host', does: 'A paid device with the old link.', expect: 'its reply uses the old host.',
+        run: async function (s) {
+          s.vars.old = 'line-' + PG.word() + '.e2e.example:8080'; s.vars.new = 'line-' + PG.word() + '.e2e.example:8080';
+          s.vars.link = function (h) { return 'http://' + h + '/get.php?username=u&password=p&type=m3u_plus'; };
+          s.vars.watcher = await PG.paid();
+          await PG.addLink(s.vars.watcher, 'Provider', s.vars.link(s.vars.old));
+          var it = (await s.req('GET', P(s.vars.watcher) + '/reply')).json.playlists[0];
+          s.expect('old host served', it.url.indexOf(s.vars.old) >= 0, it);
+          s.show(s.vars.watcher);
+        } },
+      { title: 'Three paid devices change the host', does: 'Three paid devices on 3 IPs edit old link → new link.', expect: 'one move, 3 confirmations, awaiting approval, still not served.',
+        run: async function (s) {
+          for (var i = 1; i <= 3; i++) {
+            var m = await PG.paid();
+            var added = await PG.addLink(m, 'Provider', s.vars.link(s.vars.old));
+            await s.req('POST', P(m) + '/' + added.json.id + '/edit', { source: { kind: 'link', url: s.vars.link(s.vars.new) }, ip: '198.51.100.' + (10 + i) });
+          }
+          var list = (await s.req('GET', '/dev/domain-moves?filter=awaiting')).json;
+          var move = list.filter(function (x) { return x.fromHost === s.vars.old; })[0];
+          s.vars.move = move;
+          s.expect('awaiting with 3 IPs', move && move.confirmations === 3, move);
+          var it = (await s.req('GET', P(s.vars.watcher) + '/reply')).json.playlists[0];
+          s.expect('not served yet', it.url.indexOf(s.vars.old) >= 0, it);
+        } },
+      { title: 'Staff approve', does: 'POST /dev/domain-moves/:id/approve.', expect: 'the watcher gets the new host, the old host first in its backups; its stored link is unchanged.',
+        run: async function (s) {
+          var r = await s.req('POST', '/dev/domain-moves/' + s.vars.move.id + '/approve', { by: 'playground' });
+          s.expect('approved by playground', r.json.status === 'approved' && r.json.decidedBy === 'playground', r.json);
+          var it = (await s.req('GET', P(s.vars.watcher) + '/reply')).json.playlists[0];
+          s.expect('new host served', it.url.indexOf(s.vars.new) >= 0, it);
+          s.expect('old host is the first backup', it.backupUrls[0] && it.backupUrls[0].indexOf(s.vars.old.split(':')[0]) >= 0, it.backupUrls);
+          var stored = (await s.req('GET', P(s.vars.watcher))).json[0];
+          s.expect('stored link unchanged', stored.url === s.vars.link(s.vars.old), stored);
+        } },
+      { title: 'Staff change their mind', does: 'Block the move.', expect: 'the old host is served again.',
+        run: async function (s) {
+          await s.req('POST', '/dev/domain-moves/' + s.vars.move.id + '/block', { by: 'playground' });
+          var it = (await s.req('GET', P(s.vars.watcher) + '/reply')).json.playlists[0];
+          s.expect('old host again', it.url.indexOf(s.vars.old) >= 0, it);
+        } }
+    ]
+  });
+
+  PG.scenario({
+    id: 'C1', nav: 'Cleanup dry run', title: 'Cleanup of old trial devices: dry run', tasks: ['LIC-4'],
+    story: 'Trial devices whose trial ended, with no playlist and not seen for 180 days, can be removed. Here only the report: the real run is the CLI with --apply.',
+    steps: [
+      { title: 'Run the report', does: 'GET /dev/licenses/cleanup?days=180.', expect: 'dryRun true, nothing deleted.',
+        run: async function (s) {
+          var r = await s.req('GET', '/dev/licenses/cleanup?days=180');
+          s.expect('a dry run', ok(r) && r.json.dryRun === true, r.json);
+          s.expect('nothing deleted', r.json.deleted === 0, r.json);
+        } },
+      { title: 'A bad rule', does: 'days=0.', expect: 'refused with 400.',
+        run: async function (s) {
+          var r = await s.req('GET', '/dev/licenses/cleanup?days=0');
+          s.expect('400', r.status === 400, r);
+        } }
+    ]
+  });
+
+  PG.scenario({
+    id: 'X1', nav: 'Whole flow, two brands', title: 'The whole device flow on brand A, then brand B', tasks: ['CORE'],
+    story: 'The merge-point test: register, add a playlist, activate, switch MAC and recover, first on ibo, then on bob, and neither brand sees the other’s devices.',
+    steps: [0, 1].map(function (i) {
+      var brand = i === 0 ? 'ibo' : 'bob';
+      return { title: 'Full flow on ' + brand, does: 'Register → playlist → lifetime → switch MAC → recovery code → recover on a third TV, all on ' + brand + '.localhost.',
+        expect: 'every step answers; the device keeps one id from start to end.',
+        run: async function (s) {
+          var o = { brand: brand };
+          var a = PG.mac('af'), b = PG.mac('af'), c = PG.mac('af');
+          var reg = await register(s, a, {}, brand);
+          var id = reg.json && reg.json.found && reg.json.found.device.id;
+          s.expect('registered', ok(reg) && !!id, reg.json);
+          var pl = await s.req('POST', P(a) + '/add', { name: 'Main', source: { kind: 'link', url: 'http://x1-' + PG.word() + '.example/m.m3u' } }, o);
+          s.expect('playlist added', ok(pl), pl.json);
+          var act = await activate(s, a, { type: 'lifetime', source: 'admin' }, brand);
+          s.expect('lifetime activated', ok(act), act.json);
+          await register(s, b, {}, brand);
+          var sw = await s.req('POST', L(a) + '/switch', { newMac: b }, o);
+          s.expect('switched to a second TV', ok(sw), sw.json);
+          var made = await s.req('POST', L(b) + '/recovery-code', undefined, o);
+          await register(s, c, {}, brand);
+          var rec = await s.req('POST', '/dev/licenses/recover', { code: made.json.code, newMac: c }, o);
+          s.expect('recovered on a third TV', ok(rec) && rec.json.deviceId === id, rec.json);
+          var fin = (await s.req('GET', D + '/' + c, undefined, o)).json;
+          s.expect('same id, paid, with its playlist', fin.paid && fin.device.id === id, fin);
+          var other = await s.req('GET', D + '/' + c, undefined, { brand: i === 0 ? 'bob' : 'ibo' });
+          s.expect('the other brand does not see it', code(other) === 'devices.not_found', other.json);
+          s.show(c, brand);
+        } };
+    })
   });
 })();
 `;
