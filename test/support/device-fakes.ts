@@ -217,6 +217,24 @@ export class InMemoryPaidDeviceRepository implements PaidDeviceRepository {
     this.items.set(id, { ...device, recovery: { ...recovery, code, expiresAt }, updatedAt: at });
     return 'set';
   }
+  async findByCustomer(customerId: string): Promise<PaidDevice[]> {
+    await tick();
+    return [...this.items.values()].filter((d) => d.customerId === customerId);
+  }
+
+  async setCustomer(
+    id: string,
+    customerId: string | null,
+    expected: string | null,
+    at: Date,
+  ): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device || device.customerId !== expected) return false;
+    this.items.set(id, { ...device, customerId, updatedAt: at });
+    return true;
+  }
+
   async insert(device: PaidDevice): Promise<void> {
     await tick();
     if ([...this.items.values()].some((d) => d.macAddress === device.macAddress)) {

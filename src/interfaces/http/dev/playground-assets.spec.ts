@@ -18,8 +18,8 @@ interface Change {
 }
 
 interface Registry {
-  suites: { id: string; expected: number }[];
-  scenarios: { id: string; steps: unknown[] }[];
+  suites: { id: string; expected: number; phase: number }[];
+  scenarios: { id: string; steps: unknown[]; phase: number }[];
   diff(before: Snapshot, after: Snapshot): Change[];
   encryptRequest(value: unknown): string;
   decryptResponse(reply: { data: string }): unknown;
@@ -62,12 +62,24 @@ describe('device playground', () => {
     }
   });
 
-  it('has the 142 checks of the five e2e scripts, and the E2E scenarios', () => {
+  it('has test cases and scenarios for every phase', () => {
     const pg = loadPlayground();
 
-    expect(pg.suites.map((s) => s.id)).toEqual(['devices', 'playlists', 'licenses', 'v4', 'moves']);
-    expect(pg.suites.reduce((n, s) => n + s.expected, 0)).toBe(142);
+    expect(pg.suites.map((s) => s.id)).toEqual([
+      'foundation',
+      'database',
+      'devices',
+      'playlists',
+      'licenses',
+      'v4',
+      'moves',
+      'accounts',
+    ]);
+    expect(pg.suites.reduce((n, s) => n + s.expected, 0)).toBe(236);
+    expect(new Set(pg.suites.map((s) => s.phase))).toEqual(new Set([1, 2, 3, 4, 5]));
+    expect(new Set(pg.scenarios.map((s) => s.phase))).toEqual(new Set([1, 2, 3, 4, 5]));
     expect(pg.scenarios.map((s) => s.id)).toEqual([
+      'F1',
       'D1',
       'D2',
       'D3',
@@ -84,6 +96,9 @@ describe('device playground', () => {
       'M1',
       'C1',
       'X1',
+      'A1',
+      'A3',
+      'A5',
     ]);
     for (const s of pg.scenarios) expect(s.steps.length, s.id).toBeGreaterThan(0);
   });
