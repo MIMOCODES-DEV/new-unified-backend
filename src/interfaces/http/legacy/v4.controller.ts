@@ -215,6 +215,7 @@ export class V4Controller {
   async savePlaylist(
     @Param('appType') pathType: string,
     @Body() body: JsonBody,
+    @Ip() ip: string,
     @Headers('authorization') authorization?: string,
   ) {
     const platform = this.platform(pathType);
@@ -278,6 +279,8 @@ export class V4Controller {
           source,
           // Protected without a PIN: keep the stored PIN. Not protected: remove it.
           newPin: isProtected ? pin || undefined : null,
+          // A new link on another host is reported as a provider move (DOM-1).
+          ip,
         })
       : await this.addPlaylist.execute({
           deviceId: device.id,

@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ClsModule } from 'nestjs-cls';
-import { DomainMigrationsModule } from './modules/domain-migrations/index.js';
 import { TenantsModule } from './modules/tenants/index.js';
 import { ConfigModule } from './shared/config/config.module.js';
 import { DatabaseModule } from './shared/database/database.module.js';
 import {
   DevicesWithBrandConfig,
+  DomainMigrationsWithDevices,
   LicensingWithDevices,
   PlaylistsWithDevices,
 } from './module-settings.js';
@@ -28,7 +28,7 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     DevicesWithBrandConfig,
     LicensingWithDevices,
     PlaylistsWithDevices,
-    DomainMigrationsModule,
+    DomainMigrationsWithDevices,
   ],
 })
 export class CliModule {}

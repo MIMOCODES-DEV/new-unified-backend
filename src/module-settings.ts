@@ -4,18 +4,36 @@ import {
   type DeviceSettings,
   DevicesModule,
   FindDeviceByIdUseCase,
+  FindDeviceByRecoveryCodeUseCase,
   FindDeviceUseCase,
+  DeleteStaleTrialDeviceUseCase,
+  ListStaleTrialDevicesUseCase,
+  RecoverDeviceUseCase,
+  SetRecoveryCodeUseCase,
+  SwitchDeviceMacUseCase,
 } from './modules/devices/index.js';
 import {
   type LicensedDevices,
+  type LicensedPlaylists,
   type LicenseLock,
   LicensingModule,
+  type MacSwitchOutcome,
+  type RecoveryOutcome,
 } from './modules/licensing/index.js';
 import {
+  ApprovedHostMovesUseCase,
+  DomainMigrationsModule,
+  type MoveDevices,
+  ReportHostMoveUseCase,
+} from './modules/domain-migrations/index.js';
+import {
+  DeleteDevicePlaylistsUseCase,
   type MacOnlyRateLimit,
+  MoveDevicePlaylistsUseCase,
   PLAYLIST_PIN_KEY_SECRET,
   type PlaylistBrand,
   type PlaylistDevices,
+  type PlaylistHostMoves,
   type PlaylistPinKey,
   PlaylistsModule,
 } from './modules/playlists/index.js';
@@ -24,6 +42,7 @@ import {
   GetTenantSecretUseCase,
   TenantsModule,
 } from './modules/tenants/index.js';
+import { Logger } from '@nestjs/common';
 import { RedisLock } from './shared/redis/redis-lock.js';
 import { RedisRateLimiter } from './shared/redis/redis-rate-limiter.js';
 import { TenantContext } from './shared/tenancy/tenant-context.js';
@@ -45,16 +64,34 @@ export const DevicesWithBrandConfig = DevicesModule.forRootAsync({
     useFactory: (getConfig: GetTenantConfigUseCase, context: TenantContext): DeviceSettings => ({
       trialDays: async () => (await getConfig.execute(context.current)).trial.days,
       reviewBuilds: async () => (await getConfig.execute(context.current)).review.builds,
+      maxMacSwitches: async () => (await getConfig.execute(context.current)).macSwitch.maxPerDevice,
     }),
   },
 });
 
+/** Provider moves count reports from paid devices only. */
+export const DomainMigrationsWithDevices = DomainMigrationsModule.forRootAsync({
+  imports: [DevicesWithBrandConfig],
+  devices: {
+    inject: [FindDeviceByIdUseCase],
+    useFactory: (findDevice: FindDeviceByIdUseCase): MoveDevices => ({
+      isPaid: async (deviceId) => {
+        const found = await findDevice.execute(deviceId);
+        return found.ok && found.value.paid;
+      },
+    }),
+  },
+});
+
+const hostMovesLogger = new Logger('ProviderMoves');
+
 /**
  * Playlists find devices by MAC, keep the trial devices' playlist counters in step, encrypt PINs
- * with the brand secret `playlists.pinKey`, and shape replies by the brand's settings and config.
+ * with the brand secret `playlists.pinKey`, shape replies by the brand's settings and config, report
+ * link edits as provider moves and serve the approved ones.
  */
 export const PlaylistsWithDevices = PlaylistsModule.forRootAsync({
-  imports: [DevicesWithBrandConfig, TenantsModule],
+  imports: [DevicesWithBrandConfig, TenantsModule, DomainMigrationsWithDevices],
   devices: {
     inject: [FindDeviceUseCase, ChangePlaylistCountUseCase],
     useFactory: (
@@ -89,16 +126,74 @@ export const PlaylistsWithDevices = PlaylistsModule.forRootAsync({
       take: (ip) => limiter.take(`playlists:mac-only:${context.current.id}:${ip}`, MAC_ONLY_LIMIT),
     }),
   },
+  hostMoves: {
+    inject: [ReportHostMoveUseCase, ApprovedHostMovesUseCase, TenantContext],
+    useFactory: (
+      report: ReportHostMoveUseCase,
+      approved: ApprovedHostMovesUseCase,
+      context: TenantContext,
+    ): PlaylistHostMoves => ({
+      linkChanged: async (change) => {
+        // Bookkeeping next to a person's own edit: a failure here must not fail the edit.
+        try {
+          await report.execute({ tenantId: context.current.id, ...change });
+        } catch (error) {
+          hostMovesLogger.warn(`Could not record a provider move: ${(error as Error).message}`);
+        }
+      },
+      approved: () => approved.execute(),
+    }),
+  },
 });
 
-/** Licensing finds devices, moves a trial device to devices on payment, and locks per device. */
+/** A devices-side switch refusal, as licensing sees it. */
+const SWITCH_REFUSALS: Record<string, Exclude<MacSwitchOutcome['status'], 'done'>> = {
+  'devices.not_found': 'not_found',
+  'kernel.invalid_mac_address': 'invalid_mac',
+  'devices.usable_mac_required': 'invalid_mac',
+  'devices.same_mac': 'same_mac',
+  'devices.mac_switch_limit': 'limit_reached',
+  'devices.new_mac_not_registered': 'not_registered',
+  'devices.mac_in_use': 'mac_taken',
+};
+
+/** A devices-side recovery refusal, as licensing sees it. */
+const RECOVERY_REFUSALS: Record<string, Exclude<RecoveryOutcome['status'], 'done'>> = {
+  'devices.not_found': 'not_found',
+  'kernel.invalid_mac_address': 'invalid_mac',
+  'devices.usable_mac_required': 'invalid_mac',
+  'devices.same_mac': 'same_mac',
+  'devices.new_mac_not_registered': 'not_registered',
+  'devices.mac_in_use': 'mac_taken',
+};
+
+/**
+ * Licensing finds devices, moves a trial device to devices on payment, locks per device, moves a
+ * license to a new MAC (with the new TV's trial playlists), recovers a device on a new TV with a
+ * code, and removes stale trial devices with their playlists.
+ */
 export const LicensingWithDevices = LicensingModule.forRootAsync({
-  imports: [DevicesWithBrandConfig],
+  imports: [DevicesWithBrandConfig, PlaylistsWithDevices],
   devices: {
-    inject: [FindDeviceByIdUseCase, ApplyLicenseUseCase],
+    inject: [
+      FindDeviceByIdUseCase,
+      ApplyLicenseUseCase,
+      SwitchDeviceMacUseCase,
+      SetRecoveryCodeUseCase,
+      FindDeviceByRecoveryCodeUseCase,
+      RecoverDeviceUseCase,
+      ListStaleTrialDevicesUseCase,
+      DeleteStaleTrialDeviceUseCase,
+    ],
     useFactory: (
       findDevice: FindDeviceByIdUseCase,
       applyLicense: ApplyLicenseUseCase,
+      switchMac: SwitchDeviceMacUseCase,
+      setRecoveryCode: SetRecoveryCodeUseCase,
+      findByRecoveryCode: FindDeviceByRecoveryCodeUseCase,
+      recover: RecoverDeviceUseCase,
+      listStale: ListStaleTrialDevicesUseCase,
+      deleteStale: DeleteStaleTrialDeviceUseCase,
     ): LicensedDevices => ({
       find: async (deviceId) => {
         const found = await findDevice.execute(deviceId);
@@ -113,6 +208,63 @@ export const LicensingWithDevices = LicensingModule.forRootAsync({
         if (applied.ok) return 'done';
         return applied.error.code === 'devices.not_found' ? 'not_found' : 'conflict';
       },
+      switchMac: async (deviceId, newMac, takeOver) => {
+        const switched = await switchMac.execute({ deviceId, newMac, takeOver });
+        if (!switched.ok) return { status: SWITCH_REFUSALS[switched.error.code] ?? 'not_found' };
+        const { device, absorbedTrialId } = switched.value;
+        const record = device.switch!;
+        return {
+          status: 'done',
+          from: record.from,
+          to: record.to,
+          at: record.at,
+          count: record.count,
+          absorbedTrialId,
+        };
+      },
+      setRecoveryCode: async (deviceId, code, expiresAt) => {
+        const set = await setRecoveryCode.execute({ deviceId, code, expiresAt });
+        if (set.ok) return 'done';
+        return set.error.code === 'devices.recovery_code_taken' ? 'taken' : 'not_found';
+      },
+      findByRecoveryCode: async (code) => {
+        const found = await findByRecoveryCode.execute(code);
+        return found.ok ? { id: found.value.id, expiresAt: found.value.recovery!.expiresAt } : null;
+      },
+      recover: async (deviceId, newMac, removeTrial) => {
+        const recovered = await recover.execute({ deviceId, newMac, removeTrial });
+        if (!recovered.ok) {
+          return { status: RECOVERY_REFUSALS[recovered.error.code] ?? 'not_found' };
+        }
+        const { device, removedTrialId } = recovered.value;
+        const record = device.recovery!;
+        return {
+          status: 'done',
+          from: record.recoveredFrom!,
+          to: device.macAddress,
+          at: record.recoveredAt!,
+          removedTrialId,
+        };
+      },
+      listStaleTrials: async (rule, limit) =>
+        (await listStale.execute({ ...rule, limit })).map((t) => ({
+          id: t.id,
+          macAddress: t.macAddress,
+          trialEndsAt: t.trialEndsAt,
+          lastSeenAt: t.lastSeenAt,
+        })),
+      deleteStaleTrial: (deviceId, rule, removePlaylists) =>
+        deleteStale.execute({ deviceId, ...rule, removePlaylists }),
+    }),
+  },
+  playlists: {
+    inject: [MoveDevicePlaylistsUseCase, DeleteDevicePlaylistsUseCase],
+    useFactory: (
+      move: MoveDevicePlaylistsUseCase,
+      deleteAll: DeleteDevicePlaylistsUseCase,
+    ): LicensedPlaylists => ({
+      moveAll: (fromDeviceId, toDeviceId) => move.execute({ fromDeviceId, toDeviceId }),
+      deleteAll: (deviceId) => deleteAll.execute(deviceId),
     }),
   },
   lock: {

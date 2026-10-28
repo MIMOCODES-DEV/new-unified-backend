@@ -17,6 +17,7 @@
     "e2e:licenses": "node tools/dev/e2e-licenses.mjs",
     "e2e:v4": "node tools/dev/e2e-v4.mjs",
     "e2e:legacy": "node tools/dev/e2e-legacy.mjs",
+    "e2e:moves": "node tools/dev/e2e-moves.mjs",
     "seed": "pnpm cli migrate:central && pnpm cli tenants:seed --dev && pnpm cli migrate:tenants && pnpm cli playlists:pin-keys && pnpm cli seed:examples",
     "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && swc src -d dist --strip-leading-paths --config-file .swcrc --ignore \"**/*.spec.ts\"",
     "start:api": "node dist/main.api.js",

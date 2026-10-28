@@ -8,8 +8,14 @@ import { CliModule } from './cli.module.js';
 import { parseValue, patchFromPath, readStdin } from './cli-args.js';
 import { centralMigrations, tenantMigrations } from './migrations.js';
 import { SeedDeviceExamples } from './modules/devices/index.js';
-import { SeedDomainMigrationExamples } from './modules/domain-migrations/index.js';
-import { SeedLicenseExamples } from './modules/licensing/index.js';
+import {
+  DecideHostMoveUseCase,
+  type HostMoveFilter,
+  ListHostMovesUseCase,
+  MOVE_STATUSES,
+  SeedDomainMigrationExamples,
+} from './modules/domain-migrations/index.js';
+import { CleanUpTrialDevicesUseCase, SeedLicenseExamples } from './modules/licensing/index.js';
 import { PLAYLIST_PIN_KEY_SECRET, SeedPlaylistExamples } from './modules/playlists/index.js';
 import {
   AddTenantHostsUseCase,
@@ -31,9 +37,29 @@ import { CENTRAL_DB } from './shared/database/database.tokens.js';
 import { runMigrations } from './shared/database/migrations/migration-runner.js';
 import { TenantDbRegistry } from './shared/database/tenant-db.registry.js';
 import type { DomainError } from './shared/kernel/domain-error.js';
+import { LockUnavailableError, RedisLock } from './shared/redis/redis-lock.js';
 import { TenantContext } from './shared/tenancy/tenant-context.js';
 
 type Command = (app: INestApplicationContext, logger: Logger, args: string[]) => Promise<void>;
+
+/** One cleanup per brand at a time, whichever server it is started on. */
+const CLEANUP_LOCK = { ttlMs: 30 * 60 * 1000 };
+/** The cleanup's default rule: not seen for this many days (and the trial ended). To agree (LIC-4). */
+const CLEANUP_DEFAULT_DAYS = 180;
+const CLEANUP_DEFAULT_LIMIT = 10_000;
+
+/** `--name value` options and the other arguments, from a command's arguments. */
+function options(args: string[], names: string[]): { values: Map<string, string>; rest: string[] } {
+  const values = new Map<string, string>();
+  const rest: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const name = args[i]!.replace(/^--/, '');
+    if (args[i]!.startsWith('--') && names.includes(name) && i + 1 < args.length) {
+      values.set(name, args[++i]!);
+    } else rest.push(args[i]!);
+  }
+  return { values, rest };
+}
 
 function fail(logger: Logger, error: DomainError): void {
   logger.error(`${error.code}: ${error.message} ${JSON.stringify(error.details ?? {})}`);
@@ -73,7 +99,7 @@ const commands: Record<string, Command> = {
       logger.log(`${t.slug} (${t.dbName}): ${applied.length ? applied.join(', ') : 'up to date'}`);
     }
   },
-  // pnpm cli seed:examples [slug...]   (example rows of every Phase 1 collection; never in production)
+  // pnpm cli seed:examples [slug...]   (example rows of every device core collection; never in production)
   'seed:examples': async (app, logger, slugs) => {
     if (app.get(AppConfig).env.NODE_ENV === 'production') {
       logger.error('seed:examples writes example data and never runs in production');
@@ -115,6 +141,68 @@ const commands: Record<string, Command> = {
       if (!result.ok) return fail(logger, result.error);
       logger.log(`${t.slug}: created ${PLAYLIST_PIN_KEY_SECRET}`);
     }
+  },
+  // pnpm cli devices:cleanup [--apply] [--days N] [--limit N] [slug...]   (LIC-4; a dry run unless --apply)
+  'devices:cleanup': async (app, logger, args) => {
+    const apply = args.includes('--apply');
+    const { values, rest } = options(
+      args.filter((a) => a !== '--apply'),
+      ['days', 'limit'],
+    );
+    const days = Number(values.get('days') ?? CLEANUP_DEFAULT_DAYS);
+    const limit = Number(values.get('limit') ?? CLEANUP_DEFAULT_LIMIT);
+    if (!Number.isInteger(days) || days < 1 || !Number.isInteger(limit) || limit < 1) {
+      return usage(logger, 'devices:cleanup [--apply] [--days N] [--limit N] [slug...]');
+    }
+    const context = app.get(TenantContext);
+    const lock = app.get(RedisLock);
+    for (const t of await selectTenants(app, logger, rest)) {
+      const brand = {
+        id: t.id,
+        slug: t.slug,
+        name: t.name,
+        dbName: t.dbName,
+        settings: t.settings,
+      };
+      try {
+        const report = await lock.withLock(`licensing:cleanup:${t.id}`, CLEANUP_LOCK, () =>
+          context.run(brand, () =>
+            app
+              .get(CleanUpTrialDevicesUseCase)
+              .execute({ dryRun: !apply, notSeenDays: days, limit }),
+          ),
+        );
+        logger.log(`${t.slug}: ${JSON.stringify(report)}`);
+      } catch (error) {
+        if (!(error instanceof LockUnavailableError)) throw error;
+        logger.error(`${t.slug}: another cleanup of this brand is running`);
+        process.exitCode = 1;
+      }
+    }
+    if (!apply) logger.log('Dry run: nothing was deleted. Run again with --apply to delete.');
+  },
+  // pnpm cli domain-moves:list [awaiting|pending|approved|blocked]   (default: awaiting approval)
+  'domain-moves:list': async (app, logger, [filter = 'awaiting']) => {
+    if (filter !== 'awaiting' && !(MOVE_STATUSES as readonly string[]).includes(filter)) {
+      return usage(logger, `domain-moves:list [awaiting|${MOVE_STATUSES.join('|')}]`);
+    }
+    const moves = await app.get(ListHostMovesUseCase).execute(filter as HostMoveFilter);
+    for (const m of moves) logger.log(JSON.stringify(m));
+    logger.log(`${moves.length} ${filter} provider move(s)`);
+  },
+  // pnpm cli domain-moves:approve <id> <by>   (DOM-2: served in playlist replies within a minute)
+  'domain-moves:approve': async (app, logger, [id = '', by = '']) => {
+    if (!id || !by) return usage(logger, 'domain-moves:approve <id> <by>');
+    const result = await app.get(DecideHostMoveUseCase).execute({ id, decision: 'approve', by });
+    if (!result.ok) return fail(logger, result.error);
+    logger.log(`Approved: ${JSON.stringify(result.value)}`);
+  },
+  // pnpm cli domain-moves:block <id> <by>   (never served, however many confirmations it gets)
+  'domain-moves:block': async (app, logger, [id = '', by = '']) => {
+    if (!id || !by) return usage(logger, 'domain-moves:block <id> <by>');
+    const result = await app.get(DecideHostMoveUseCase).execute({ id, decision: 'block', by });
+    if (!result.ok) return fail(logger, result.error);
+    logger.log(`Blocked: ${JSON.stringify(result.value)}`);
   },
   // pnpm cli tenant:create <slug> "<name>" <host> [host...]   (also prepares the brand's database)
   'tenant:create': async (app, logger, [slug = '', name = '', ...hosts]) => {

@@ -48,6 +48,12 @@ export const tenantConfigSchema = z.strictObject({
         .default([]),
     })
     .prefault({}),
+  macSwitch: z
+    .strictObject({
+      /** How many times a paid device may switch to a new MAC (DEV-7); 0 turns switching off. */
+      maxPerDevice: z.number().int().min(0).max(100).default(1),
+    })
+    .prefault({}),
   stararcs: z
     .strictObject({
       /** The name StarArcs knows this brand's app by (`iboplayer`, `bobplayer`); null = not set up. */

@@ -5,13 +5,13 @@ import { DevHttpModule } from './interfaces/http/dev/dev-http.module.js';
 import { LegacyHttpModule } from './interfaces/http/legacy/legacy-http.module.js';
 import { HealthModule } from './interfaces/http/health/health.module.js';
 import { TenantHttpModule } from './interfaces/http/tenant/tenant-http.module.js';
-import { DomainMigrationsModule } from './modules/domain-migrations/index.js';
 import { AccessGuard } from './shared/auth/access.guard.js';
 import { ConfigModule } from './shared/config/config.module.js';
 import { DatabaseModule } from './shared/database/database.module.js';
 import { GlobalExceptionFilter } from './shared/errors/global-exception.filter.js';
 import {
   DevicesWithBrandConfig,
+  DomainMigrationsWithDevices,
   LicensingWithDevices,
   PlaylistsWithDevices,
 } from './module-settings.js';
@@ -37,7 +37,7 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     DevicesWithBrandConfig,
     LicensingWithDevices,
     PlaylistsWithDevices,
-    DomainMigrationsModule,
+    DomainMigrationsWithDevices,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AccessGuard },
