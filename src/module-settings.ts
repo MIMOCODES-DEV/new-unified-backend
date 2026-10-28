@@ -1,4 +1,9 @@
 import {
+  type CustomerMailer,
+  type CustomerDevices,
+  CustomersModule,
+} from './modules/customers/index.js';
+import {
   ApplyLicenseUseCase,
   ChangePlaylistCountUseCase,
   type DeviceSettings,
@@ -7,6 +12,9 @@ import {
   FindDeviceByRecoveryCodeUseCase,
   FindDeviceUseCase,
   DeleteStaleTrialDeviceUseCase,
+  LinkDeviceToCustomerUseCase,
+  ListCustomerDevicesUseCase,
+  UnlinkDeviceFromCustomerUseCase,
   ListStaleTrialDevicesUseCase,
   RecoverDeviceUseCase,
   SetRecoveryCodeUseCase,
@@ -43,6 +51,9 @@ import {
   TenantsModule,
 } from './modules/tenants/index.js';
 import { Logger } from '@nestjs/common';
+import { SmtpCustomerMailer } from './interfaces/http/accounts/smtp-customer.mailer.js';
+import { AppConfig } from './shared/config/app-config.js';
+import { MacAddress } from './shared/kernel/mac-address.js';
 import { RedisLock } from './shared/redis/redis-lock.js';
 import { RedisRateLimiter } from './shared/redis/redis-rate-limiter.js';
 import { TenantContext } from './shared/tenancy/tenant-context.js';
@@ -273,5 +284,71 @@ export const LicensingWithDevices = LicensingModule.forRootAsync({
       withDevice: (deviceId, fn) =>
         lock.withLock(`licensing:device:${context.current.id}:${deviceId}`, LICENSE_LOCK, fn),
     }),
+  },
+});
+
+/** The secret holding a brand's SMTP server, e.g. `smtps://user:password@smtp.example.com:465`. */
+const SMTP_URL_SECRET = 'smtp.url';
+
+const LINK_REFUSALS = {
+  'devices.device_key_mismatch': 'mismatch',
+  'devices.not_paid': 'not_paid',
+  'devices.linked_elsewhere': 'linked_elsewhere',
+} as const;
+
+/**
+ * Customers link the brand's paid devices by MAC and device key, and get their emails from the
+ * brand's own SMTP server and sender, with links to the brand site.
+ */
+export const CustomersWithDevices = CustomersModule.forRootAsync({
+  imports: [DevicesWithBrandConfig, TenantsModule],
+  devices: {
+    inject: [
+      LinkDeviceToCustomerUseCase,
+      UnlinkDeviceFromCustomerUseCase,
+      ListCustomerDevicesUseCase,
+    ],
+    useFactory: (
+      link: LinkDeviceToCustomerUseCase,
+      unlink: UnlinkDeviceFromCustomerUseCase,
+      list: ListCustomerDevicesUseCase,
+    ): CustomerDevices => {
+      const view = (d: { id: string; macAddress: string; platform: string; lastSeenAt: Date }) => ({
+        id: d.id,
+        macAddress: d.macAddress,
+        platform: d.platform,
+        lastSeenAt: d.lastSeenAt,
+      });
+      return {
+        link: async (rawMac, key, customerId) => {
+          const mac = MacAddress.parse(rawMac);
+          if (!mac.ok) return { status: 'mismatch' };
+          const linked = await link.execute({ mac: mac.value, key, customerId });
+          if (linked.ok) return { status: 'linked', device: view(linked.value) };
+          const code = linked.error.code;
+          return { status: LINK_REFUSALS[code] ?? 'mismatch' };
+        },
+        unlink: async (deviceId, customerId) => (await unlink.execute({ deviceId, customerId })).ok,
+        listFor: async (customerId) => (await list.execute(customerId)).map(view),
+      };
+    },
+  },
+  mailer: {
+    inject: [GetTenantConfigUseCase, GetTenantSecretUseCase, TenantContext, AppConfig],
+    useFactory: (
+      getConfig: GetTenantConfigUseCase,
+      getSecret: GetTenantSecretUseCase,
+      context: TenantContext,
+      config: AppConfig,
+    ): CustomerMailer =>
+      new SmtpCustomerMailer(async () => {
+        const brand = context.current;
+        return {
+          brandName: brand.name,
+          smtpUrl: await getSecret.execute(brand.id, SMTP_URL_SECRET),
+          from: (await getConfig.execute(brand)).email.from,
+          siteUrl: brand.settings.frontendUrl,
+        };
+      }, config.isProduction),
   },
 });

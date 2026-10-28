@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ClsModule } from 'nestjs-cls';
+import { AccountsHttpModule } from './interfaces/http/accounts/accounts-http.module.js';
 import { DevHttpModule } from './interfaces/http/dev/dev-http.module.js';
 import { LegacyHttpModule } from './interfaces/http/legacy/legacy-http.module.js';
 import { HealthModule } from './interfaces/http/health/health.module.js';
@@ -32,6 +33,8 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     TenantHttpModule,
     // The old apps' routes (same paths and formats as the old backends).
     LegacyHttpModule,
+    // Customer accounts and staff (Phase 5); also gives the guard its staff check.
+    AccountsHttpModule,
     // Dev-only routes to try the device rules (404 in production).
     DevHttpModule,
     DevicesWithBrandConfig,

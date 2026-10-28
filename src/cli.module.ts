@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ClsModule } from 'nestjs-cls';
+import { StaffModule } from './modules/staff/index.js';
 import { TenantsModule } from './modules/tenants/index.js';
 import { ConfigModule } from './shared/config/config.module.js';
 import { DatabaseModule } from './shared/database/database.module.js';
@@ -29,6 +30,8 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     LicensingWithDevices,
     PlaylistsWithDevices,
     DomainMigrationsWithDevices,
+    // staff:create and permissions:sync.
+    StaffModule,
   ],
 })
 export class CliModule {}

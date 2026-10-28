@@ -5,6 +5,8 @@ import type { INestApplicationContext } from '@nestjs/common';
 import type { Db } from 'mongodb';
 import { Logger } from 'nestjs-pino';
 import { CliModule } from './cli.module.js';
+import { ADMIN_CONTROLLERS } from './interfaces/http/accounts/accounts-http.module.js';
+import { declaredPermissions } from './interfaces/http/accounts/permission-keys.js';
 import { parseValue, patchFromPath, readStdin } from './cli-args.js';
 import { centralMigrations, tenantMigrations } from './migrations.js';
 import { SeedDeviceExamples } from './modules/devices/index.js';
@@ -17,6 +19,12 @@ import {
 } from './modules/domain-migrations/index.js';
 import { CleanUpTrialDevicesUseCase, SeedLicenseExamples } from './modules/licensing/index.js';
 import { PLAYLIST_PIN_KEY_SECRET, SeedPlaylistExamples } from './modules/playlists/index.js';
+import {
+  ALL_BRANDS,
+  CreateStaffUseCase,
+  SUPER_ADMIN_ROLE_ID,
+  SyncPermissionsUseCase,
+} from './modules/staff/index.js';
 import {
   AddTenantHostsUseCase,
   CreateTenantUseCase,
@@ -312,6 +320,36 @@ const commands: Record<string, Command> = {
     }
     for (const e of report.errors) logger.error(`${e.slug}: ${e.code} ${e.message}`);
     if (report.errors.length > 0) process.exitCode = 1;
+  },
+  // pnpm cli staff:create <email> <name> [--role id] [--brands a,b]   (default: super_admin, every brand)
+  // The password is read from stdin (`echo … | pnpm cli staff:create …`), or made and shown once.
+  'staff:create': async (app, logger, args) => {
+    const { values, rest } = options(args, ['role', 'brands']);
+    const [email = '', ...nameParts] = rest;
+    if (!email || nameParts.length === 0) {
+      return usage(logger, 'staff:create <email> <name> [--role id] [--brands a,b]');
+    }
+    const piped = await readStdin();
+    const password = piped || randomBytes(12).toString('base64url');
+    const result = await app.get(CreateStaffUseCase).execute({
+      email,
+      name: nameParts.join(' '),
+      password,
+      roleId: values.get('role') ?? SUPER_ADMIN_ROLE_ID,
+      tenantAccess: (values.get('brands') ?? ALL_BRANDS).split(','),
+    });
+    if (!result.ok) return fail(logger, result.error);
+    logger.log(
+      `Created staff ${result.value.email} (${result.value.id}), role ${result.value.roleId}`,
+    );
+    if (!piped) logger.log(`Password (shown once, change it after the first login): ${password}`);
+  },
+  // pnpm cli permissions:sync   (PRM-1: the API also runs it on every start)
+  'permissions:sync': async (app, logger) => {
+    const report = await app
+      .get(SyncPermissionsUseCase)
+      .execute(declaredPermissions(ADMIN_CONTROLLERS));
+    logger.log(`Permission keys synced: ${JSON.stringify(report)}`);
   },
 };
 

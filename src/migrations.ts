@@ -1,7 +1,9 @@
+import { customersMigrations } from './modules/customers/index.js';
 import { devicesMigrations } from './modules/devices/index.js';
 import { domainMigrationsMigrations } from './modules/domain-migrations/index.js';
 import { licensingMigrations } from './modules/licensing/index.js';
 import { playlistsMigrations } from './modules/playlists/index.js';
+import { staffMigrations } from './modules/staff/index.js';
 import { tenantsMigrations } from './modules/tenants/index.js';
 import type { Migration } from './shared/database/migrations/migration.js';
 
@@ -9,6 +11,7 @@ import type { Migration } from './shared/database/migrations/migration.js';
 export const centralMigrations: readonly Migration[] = [
   ...tenantsMigrations,
   ...domainMigrationsMigrations,
+  ...staffMigrations,
 ];
 
 /**
@@ -19,4 +22,5 @@ export const tenantMigrations: readonly Migration[] = [
   ...devicesMigrations,
   ...licensingMigrations,
   ...playlistsMigrations,
+  ...customersMigrations,
 ];
