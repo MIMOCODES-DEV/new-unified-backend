@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Collection, Filter } from 'mongodb';
+import { type Collection, type Filter, MongoServerError } from 'mongodb';
 import type { MacAddress } from '../../../shared/kernel/mac-address.js';
 import { TenantDb } from '../../../shared/tenancy/tenant-db.js';
 import { PaidDeviceRepository } from '../application/ports/paid-device.repository.js';
@@ -45,6 +45,41 @@ export class MongoPaidDeviceRepository extends PaidDeviceRepository {
 
   findByLegacyId(legacyId: string): Promise<PaidDevice | null> {
     return this.findOne({ 'legacy.id': legacyId });
+  }
+
+  findByRecoveryCode(code: string): Promise<PaidDevice | null> {
+    return this.findOne({ 'recovery.code': code });
+  }
+
+  async setRecoveryCode(
+    id: string,
+    code: string,
+    expiresAt: Date,
+    at: Date,
+  ): Promise<'set' | 'missing' | 'taken'> {
+    try {
+      // A pipeline update, because `recovery` may still be null.
+      const result = await (
+        await this.collection()
+      ).updateOne({ _id: id }, [
+        {
+          $set: {
+            recovery: {
+              $mergeObjects: [
+                { enabled: false, recoveredFrom: null, recoveredAt: null },
+                { $ifNull: ['$recovery', {}] },
+                { code, expiresAt },
+              ],
+            },
+            updatedAt: at,
+          },
+        },
+      ]);
+      return result.matchedCount > 0 ? 'set' : 'missing';
+    } catch (error) {
+      if (error instanceof MongoServerError && error.code === 11000) return 'taken';
+      throw error;
+    }
   }
 
   async insert(device: PaidDevice): Promise<void> {

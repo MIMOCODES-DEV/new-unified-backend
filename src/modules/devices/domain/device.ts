@@ -1,5 +1,5 @@
 /**
- * The two device collections of a brand (Phase 1 schema, docs/phase-1/README.md §2):
+ * The two device collections of a brand (device core schema, docs/SCHEMA.md §2–3):
  * a device that never paid is a TrialDevice (`trialDevices`), one that paid at least once is a
  * PaidDevice (`devices`). Paying moves it and keeps its id, MAC and device key. A MAC is in only
  * one of the two collections; the device key is not unique.
@@ -87,6 +87,8 @@ export interface MacSwitch {
   readonly at: Date;
   /** The MAC the device had before its first switch. */
   readonly originMac: string | null;
+  /** How many times the device has switched; the brand's `macSwitch.maxPerDevice` caps it. */
+  readonly count: number;
 }
 
 /** A code made on the website (paid devices only, 30 minutes) that moves this device to a new TV. */

@@ -113,4 +113,18 @@ export const devicesMigrations: readonly Migration[] = [
         ],
       ),
   },
+  {
+    id: '0008-device-recovery-code',
+    description: 'devices: a recovery code belongs to one device, and the device is found by it',
+    up: async (db) => {
+      await db.collection(PAID_DEVICES_COLLECTION).createIndex(
+        { 'recovery.code': 1 },
+        {
+          name: 'recovery_code_unique',
+          unique: true,
+          partialFilterExpression: { 'recovery.code': { $type: 'string' } },
+        },
+      );
+    },
+  },
 ];

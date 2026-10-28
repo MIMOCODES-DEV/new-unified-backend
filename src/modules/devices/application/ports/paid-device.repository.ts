@@ -9,6 +9,18 @@ export abstract class PaidDeviceRepository {
   abstract findByUid(uid: string): Promise<PaidDevice | null>;
   /** By the old backend's `_id` (`legacy.id`). */
   abstract findByLegacyId(legacyId: string): Promise<PaidDevice | null>;
+  /** The device holding this recovery code, expired or not. */
+  abstract findByRecoveryCode(code: string): Promise<PaidDevice | null>;
+  /**
+   * Gives the device a new recovery code, replacing its old one; the rest of its recovery record
+   * stays. `taken` when another device holds the same code, `missing` when the device is not there.
+   */
+  abstract setRecoveryCode(
+    id: string,
+    code: string,
+    expiresAt: Date,
+    at: Date,
+  ): Promise<'set' | 'missing' | 'taken'>;
   abstract insert(device: PaidDevice): Promise<void>;
   /** Sets platform, lastSeenAt, ip, appVersion and apiVersion only; false when it is not there. */
   abstract recordVisit(id: string, visit: DeviceVisit): Promise<boolean>;

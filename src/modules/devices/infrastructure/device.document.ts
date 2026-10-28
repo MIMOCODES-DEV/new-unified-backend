@@ -52,6 +52,8 @@ export const paidDeviceDocumentSchema = z.object({
       to: z.string().regex(MAC),
       at: z.date(),
       originMac: z.string().regex(MAC).nullable(),
+      // Rows switched before the count existed made one switch.
+      count: z.number().int().min(1).default(1),
     })
     .nullable(),
   recovery: z

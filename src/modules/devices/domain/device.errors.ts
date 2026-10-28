@@ -71,3 +71,23 @@ export class UsableMacRequiredError extends DomainError {
 export class OlderApiRefusedError extends DomainError {
   readonly code = 'devices.older_api_refused';
 }
+
+/** A MAC switch to the MAC the device already has. */
+export class SameMacError extends DomainError {
+  readonly code = 'devices.same_mac';
+}
+
+/** The device has made as many MAC switches as the brand allows (`macSwitch.maxPerDevice`). */
+export class MacSwitchLimitError extends DomainError {
+  readonly code = 'devices.mac_switch_limit';
+}
+
+/** Another device holds the same recovery code (rare: a new code is drawn). */
+export class RecoveryCodeTakenError extends DomainError {
+  readonly code = 'devices.recovery_code_taken';
+}
+
+/** A MAC switch goes only to a MAC whose app already registered (old: "install the app first"). */
+export class NewMacNotRegisteredError extends DomainError {
+  readonly code = 'devices.new_mac_not_registered';
+}

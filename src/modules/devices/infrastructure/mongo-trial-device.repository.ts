@@ -96,6 +96,21 @@ export class MongoTrialDeviceRepository extends TrialDeviceRepository {
     return result.matchedCount > 0;
   }
 
+  async listStale(endedBefore: Date, notSeenSince: Date, limit: number): Promise<TrialDevice[]> {
+    const docs = await (
+      await this.collection()
+    )
+      .find({
+        trialEndsAt: { $lt: endedBefore },
+        playlistCount: 0,
+        lastSeenAt: { $lt: notSeenSince },
+      })
+      .sort({ trialEndsAt: 1 })
+      .limit(limit)
+      .toArray();
+    return docs.map(toTrialDevice);
+  }
+
   async delete(id: string): Promise<boolean> {
     return (await (await this.collection()).deleteOne({ _id: id })).deletedCount > 0;
   }

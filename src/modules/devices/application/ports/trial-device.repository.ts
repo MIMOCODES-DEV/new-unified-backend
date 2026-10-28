@@ -9,6 +9,11 @@ export abstract class TrialDeviceRepository {
   abstract findByUid(uid: string): Promise<TrialDevice | null>;
   /** By the old backend's `_id` (`legacy.id`). */
   abstract findByLegacyId(legacyId: string): Promise<TrialDevice | null>;
+  /**
+   * Trial devices whose trial ended before `endedBefore`, with no playlist (`playlistCount` 0), not
+   * seen since `notSeenSince`; the longest ended first, at most `limit`.
+   */
+  abstract listStale(endedBefore: Date, notSeenSince: Date, limit: number): Promise<TrialDevice[]>;
   abstract insert(device: TrialDevice): Promise<void>;
   /** Sets platform, lastSeenAt, ip, appVersion and apiVersion only; false when it is not there. */
   abstract recordVisit(id: string, visit: DeviceVisit): Promise<boolean>;

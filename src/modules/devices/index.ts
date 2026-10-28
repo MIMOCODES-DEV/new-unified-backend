@@ -19,5 +19,11 @@ export { ChangeDeviceKeyUseCase } from './application/use-cases/change-device-ke
 export { SetParentPinUseCase } from './application/use-cases/set-parent-pin.use-case.js';
 export { BindAppUidUseCase } from './application/use-cases/bind-app-uid.use-case.js';
 export { AnswerAppCaptchaUseCase } from './application/use-cases/answer-app-captcha.use-case.js';
+export { SwitchDeviceMacUseCase } from './application/use-cases/switch-device-mac.use-case.js';
+export { SetRecoveryCodeUseCase } from './application/use-cases/set-recovery-code.use-case.js';
+export { FindDeviceByRecoveryCodeUseCase } from './application/use-cases/find-device-by-recovery-code.use-case.js';
+export { RecoverDeviceUseCase } from './application/use-cases/recover-device.use-case.js';
+export { ListStaleTrialDevicesUseCase } from './application/use-cases/list-stale-trial-devices.use-case.js';
+export { DeleteStaleTrialDeviceUseCase } from './application/use-cases/delete-stale-trial-device.use-case.js';
 export { SeedDeviceExamples } from './application/seed-device-examples.js';
 export { devicesMigrations } from './infrastructure/devices.migrations.js';

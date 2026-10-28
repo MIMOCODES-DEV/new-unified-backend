@@ -6,4 +6,6 @@ export abstract class DeviceSettings {
   abstract trialDays(): Promise<number>;
   /** App builds in store review (`review.builds`); empty by default. */
   abstract reviewBuilds(): Promise<readonly ReviewBuild[]>;
+  /** How many MAC switches a paid device may make (`macSwitch.maxPerDevice`); 1 by default. */
+  abstract maxMacSwitches(): Promise<number>;
 }

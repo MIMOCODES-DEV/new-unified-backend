@@ -30,7 +30,13 @@ import { RegisterDeviceUseCase } from './application/use-cases/register-device.u
 import { SetParentPinUseCase } from './application/use-cases/set-parent-pin.use-case.js';
 import { BindAppUidUseCase } from './application/use-cases/bind-app-uid.use-case.js';
 import { AnswerAppCaptchaUseCase } from './application/use-cases/answer-app-captcha.use-case.js';
+import { SwitchDeviceMacUseCase } from './application/use-cases/switch-device-mac.use-case.js';
 import { VerifyDeviceKeyUseCase } from './application/use-cases/verify-device-key.use-case.js';
+import { SetRecoveryCodeUseCase } from './application/use-cases/set-recovery-code.use-case.js';
+import { FindDeviceByRecoveryCodeUseCase } from './application/use-cases/find-device-by-recovery-code.use-case.js';
+import { RecoverDeviceUseCase } from './application/use-cases/recover-device.use-case.js';
+import { ListStaleTrialDevicesUseCase } from './application/use-cases/list-stale-trial-devices.use-case.js';
+import { DeleteStaleTrialDeviceUseCase } from './application/use-cases/delete-stale-trial-device.use-case.js';
 import { MongoCaptchaRepository } from './infrastructure/mongo-captcha.repository.js';
 import { MongoPaidDeviceRepository } from './infrastructure/mongo-paid-device.repository.js';
 import { MongoTrialDeviceRepository } from './infrastructure/mongo-trial-device.repository.js';
@@ -55,6 +61,12 @@ const useCases = [
   IssueUidRecoveryCaptchaUseCase,
   CheckCaptchaCodeUseCase,
   LoginV4DeviceUseCase,
+  SwitchDeviceMacUseCase,
+  SetRecoveryCodeUseCase,
+  FindDeviceByRecoveryCodeUseCase,
+  RecoverDeviceUseCase,
+  ListStaleTrialDevicesUseCase,
+  DeleteStaleTrialDeviceUseCase,
 ];
 
 const providers = [

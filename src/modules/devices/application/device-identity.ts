@@ -19,6 +19,18 @@ import { TrialDeviceRepository } from './ports/trial-device.repository.js';
 /** changeLockedMac found the device on a MAC other than the one locked. */
 const MAC_MOVED = Symbol('MAC_MOVED');
 
+/** What else a MAC change does, besides giving the paid device the new MAC. */
+export interface MacChangeOptions {
+  /**
+   * A trial device on the new MAC does not block the change: this runs first (to take over what
+   * the trial device had), then the trial device is deleted. A paid device on the new MAC always
+   * blocks it. Without it, any device on the new MAC blocks the change.
+   */
+  absorb?: (trial: TrialDevice) => Promise<void>;
+  /** A trial device saved on the old MAC once it is free (an ended trial, so it gets no new one). */
+  leaveBehind?: (oldMac: string) => TrialDevice;
+}
+
 /** What paying adds to a device when it moves from trialDevices to devices. */
 export interface PaidDeviceFields {
   currentLicenseId: string;
@@ -166,12 +178,14 @@ export class DeviceIdentity {
 
   /**
    * Gives a paid device a new MAC, when no other device has it. `apply` adds whatever else the
-   * caller changes (the switch record for a MAC switch, the recovery record for a recovery).
+   * caller changes (the switch record for a MAC switch, the recovery record for a recovery);
+   * `options` what happens to the device on the new MAC and to the old MAC.
    */
   async changeMac(
     deviceId: string,
     newMac: MacAddress,
     apply: (device: PaidDevice) => PaidDevice,
+    options: MacChangeOptions = {},
   ): Promise<Result<PaidDevice, DeviceNotFoundError | MacInUseError>> {
     for (;;) {
       const before = await this.paid.findById(deviceId);
@@ -179,11 +193,31 @@ export class DeviceIdentity {
       const oldMac = normalizedMac(before.macAddress);
 
       const result = await this.lock.withMacs([oldMac, newMac], () =>
-        this.changeLockedMac(deviceId, oldMac, newMac, apply),
+        this.changeLockedMac(deviceId, oldMac, newMac, apply, options),
       );
       // The MAC changed between the read and the lock, so the current one is not locked: start again.
       if (result !== MAC_MOVED) return result;
     }
+  }
+
+  /**
+   * Deletes a trial device, under the lock for its MAC, when `still` holds for it there (the reason
+   * to delete it may be gone: it was seen again, or paid). `cleanUp` runs first (its playlists).
+   * False when nothing was deleted.
+   */
+  async deleteTrial(
+    deviceId: string,
+    still: (trial: TrialDevice) => boolean,
+    cleanUp: (trial: TrialDevice) => Promise<void>,
+  ): Promise<boolean> {
+    const before = await this.trials.findById(deviceId);
+    if (!before) return false;
+    return this.lock.withMacs([normalizedMac(before.macAddress)], async () => {
+      const trial = await this.trials.findById(deviceId);
+      if (!trial || trial.macAddress !== before.macAddress || !still(trial)) return false;
+      await cleanUp(trial);
+      return this.trials.delete(deviceId);
+    });
   }
 
   private async changeLockedMac(
@@ -191,6 +225,7 @@ export class DeviceIdentity {
     oldMac: MacAddress,
     newMac: MacAddress,
     apply: (device: PaidDevice) => PaidDevice,
+    { absorb, leaveBehind }: MacChangeOptions,
   ): Promise<Result<PaidDevice, DeviceNotFoundError | MacInUseError> | typeof MAC_MOVED> {
     const device = await this.paid.findById(deviceId);
     if (!device) return err(new DeviceNotFoundError('Paid device not found', { deviceId }));
@@ -198,13 +233,18 @@ export class DeviceIdentity {
     if (device.macAddress !== oldMac.value) return MAC_MOVED;
 
     const owner = await this.findByMac(newMac);
-    if (owner) {
+    if (owner?.paid || (owner && !absorb)) {
       return err(
         new MacInUseError('This MAC already belongs to another device', { mac: newMac.value }),
       );
     }
+    if (owner && !owner.paid && absorb) {
+      await absorb(owner.device);
+      await this.trials.delete(owner.device.id);
+    }
     const updated: PaidDevice = { ...apply(device), id: device.id, macAddress: newMac.value };
     await this.paid.update(updated);
+    if (leaveBehind) await this.trials.insert(leaveBehind(oldMac.value));
     return ok(updated);
   }
 }

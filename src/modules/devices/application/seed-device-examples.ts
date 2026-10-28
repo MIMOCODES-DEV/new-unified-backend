@@ -209,9 +209,10 @@ function paidExamples(now: Date): PaidExample[] {
           to: '02:00:00:00:02:03',
           at: new Date(now.getTime() - 3 * DAY),
           originMac: '02:00:00:00:02:13',
+          count: 1,
         },
         recovery: {
-          code: '482913',
+          code: 'K7TN4QRW',
           expiresAt: new Date(now.getTime() + 30 * MINUTE),
           enabled: true,
           recoveredFrom: null,
