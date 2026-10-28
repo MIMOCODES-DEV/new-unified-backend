@@ -7,7 +7,14 @@ import {
 import { Reflector } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
 import type { TenantContext } from '../tenancy/tenant-context.js';
-import { CentralStaff, Customer, Public, Staff, Store } from './access.decorators.js';
+import {
+  CentralStaff,
+  Customer,
+  DeviceSession,
+  Public,
+  Staff,
+  Store,
+} from './access.decorators.js';
 import { AccessGuard } from './access.guard.js';
 import type { AuthContext, Caller } from './auth-context.js';
 import type { SessionStore, SessionSubject } from './session-store.js';
@@ -28,6 +35,9 @@ class TestController {
 
   @Customer()
   account(): void {}
+
+  @DeviceSession()
+  dashboard(): void {}
 
   undecorated(): void {}
 }
@@ -137,5 +147,18 @@ describe('AccessGuard', () => {
     });
     expect(await status(guard.canActivate(contextFor('account', 'other')))).toBe(401);
     expect(await status(guard.canActivate(contextFor('account', 'staff')))).toBe(401);
+  });
+
+  it('lets a site device session in on its own brand only; no other kind of session', async () => {
+    const { guard, set } = guardWith({
+      tv: { kind: 'device', id: 'd1', tenantId: BRAND.id },
+      otherBrand: { kind: 'device', id: 'd2', tenantId: 'tenant-b' },
+      customer: { kind: 'customer', id: 'c1', tenantId: BRAND.id },
+    });
+    expect(await guard.canActivate(contextFor('dashboard', 'tv'))).toBe(true);
+    expect(set[0]).toEqual({ kind: 'device', deviceId: 'd1', tenantId: BRAND.id, token: 'tv' });
+    expect(await status(guard.canActivate(contextFor('dashboard', 'otherBrand')))).toBe(401);
+    expect(await status(guard.canActivate(contextFor('dashboard', 'customer')))).toBe(401);
+    expect(await status(guard.canActivate(contextFor('account', 'tv')))).toBe(401);
   });
 });

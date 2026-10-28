@@ -3,6 +3,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ClsModule } from 'nestjs-cls';
 import { AccountsHttpModule } from './interfaces/http/accounts/accounts-http.module.js';
 import { DevHttpModule } from './interfaces/http/dev/dev-http.module.js';
+import { SiteHttpModule } from './interfaces/http/site/site-http.module.js';
 import { LegacyHttpModule } from './interfaces/http/legacy/legacy-http.module.js';
 import { HealthModule } from './interfaces/http/health/health.module.js';
 import { TenantHttpModule } from './interfaces/http/tenant/tenant-http.module.js';
@@ -35,6 +36,8 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     LegacyHttpModule,
     // Customer accounts and staff (Phase 5); also gives the guard its staff check.
     AccountsHttpModule,
+    // The brand site's device dashboard and public tools (Phase 6).
+    SiteHttpModule,
     // Dev-only routes to try the device rules (404 in production).
     DevHttpModule,
     DevicesWithBrandConfig,

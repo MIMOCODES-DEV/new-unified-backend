@@ -1,8 +1,11 @@
-/** Who a session belongs to. `staff-2fa` is the short step between the password and the code. */
+/**
+ * Who a session belongs to. `staff-2fa` is the short step between the password and the code;
+ * `device` is a TV logged in on the brand site with its MAC and device key.
+ */
 export interface SessionSubject {
-  readonly kind: 'staff' | 'staff-2fa' | 'customer';
+  readonly kind: 'staff' | 'staff-2fa' | 'customer' | 'device';
   readonly id: string;
-  /** The brand of a customer session; null for staff (one account for every brand). */
+  /** The brand of a customer or device session; null for staff (one account for every brand). */
   readonly tenantId: string | null;
 }
 

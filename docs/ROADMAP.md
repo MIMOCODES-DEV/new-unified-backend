@@ -18,6 +18,7 @@ admin / reseller apps against our APIs.
 | [**Phase 3 · Core features**](phases/phase-3-core-features.md) | `phase/3-core-features` | devices, playlists, licenses, the V4 app routes, dev routes and playground | ✓ built, in review |
 | [**Phase 4 · Moves and cleanup**](phases/phase-4-moves-and-cleanup.md) | `phase/4-moves-and-cleanup` | MAC switch, recovery, provider domain moves, cleanup of old trial devices | ✓ built, in review |
 | [**Phase 5 · Accounts and staff**](phases/phase-5-accounts-and-staff.md) | `phase/5-accounts-and-staff` | customers (per brand), staff users, roles and permissions | ✓ built, in review |
+| [**Phase 6 · Website API**](phases/phase-6-website-api.md) | `phase/6-website-api` | the brand site's device login and dashboard, and the public tools, replacing the old `/frontend/device/*` | in progress |
 | Later phases | — | old-app routes, money, payments, store, … ([below](#later-phases)) | not planned yet |
 
 Always write a phase as its number and its name, e.g. **Phase 4 · Moves and cleanup**.
@@ -29,6 +30,7 @@ flowchart LR
   P2 --> P3["phase/3-core-features"]
   P3 --> P4["phase/4-moves-and-cleanup"]
   P4 --> P5["phase/5-accounts-and-staff"]
+  P5 --> P6["phase/6-website-api"]
 ```
 
 Each branch is the previous one plus its phase, and passes every check on its own: format, lint,

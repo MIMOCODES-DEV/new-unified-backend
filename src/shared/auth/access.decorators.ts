@@ -16,7 +16,8 @@ export type Access =
       scope: 'brand' | 'central';
     }
   | { kind: 'reseller' }
-  | { kind: 'customer' };
+  | { kind: 'customer' }
+  | { kind: 'device-session' };
 
 const access = (value: Access) => SetMetadata(ACCESS_METADATA, value);
 
@@ -40,3 +41,5 @@ export const CentralStaff = (permission?: string) =>
 export const Reseller = () => access({ kind: 'reseller' });
 /** A customer session of the brand being served. */
 export const Customer = () => access({ kind: 'customer' });
+/** A device logged in on the brand site (MAC + device key) of the brand being served. */
+export const DeviceSession = () => access({ kind: 'device-session' });

@@ -50,7 +50,10 @@ import {
   UnlinkDeviceFromCustomerUseCase,
 } from './application/use-cases/customer-devices.use-cases.js';
 
+import { AnswerWebCaptchaUseCase } from './application/use-cases/answer-web-captcha.use-case.js';
+
 const useCases = [
+  AnswerWebCaptchaUseCase,
   LinkDeviceToCustomerUseCase,
   UnlinkDeviceFromCustomerUseCase,
   ListCustomerDevicesUseCase,

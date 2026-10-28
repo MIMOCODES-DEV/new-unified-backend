@@ -20,8 +20,8 @@ const refuse = (status: 401 | 403, code: string, message: string) =>
 
 /**
  * Global guard. Fails closed: a route without an access decorator is refused.
- * Staff and customer routes need a session (`Authorization: Bearer <token>`); a customer session
- * works only on its own brand's host. Other kinds get their check when their interface is built.
+ * Staff, customer and site device routes need a session (`Authorization: Bearer <token>`); a
+ * customer or device session works only on its own brand's host. Other kinds get their check when their interface is built.
  */
 @Injectable()
 export class AccessGuard implements CanActivate {
@@ -56,10 +56,17 @@ export class AccessGuard implements CanActivate {
     if (access.kind === 'legacy-device') {
       return true;
     }
-    if (access.kind === 'staff' || access.kind === 'customer') {
+    if (access.kind === 'staff' || access.kind === 'customer' || access.kind === 'device-session') {
       const headers = context.switchToHttp().getRequest<{ headers: IncomingHttpHeaders }>().headers;
       const token = bearerToken(headers.authorization);
       const session = await this.sessions.find(token);
+      if (access.kind === 'device-session') {
+        if (session?.kind !== 'device' || !this.tenant.isCurrent(session.tenantId ?? undefined)) {
+          throw refuse(401, 'auth.unauthenticated', 'Log in first');
+        }
+        this.auth.set({ kind: 'device', deviceId: session.id, tenantId: session.tenantId!, token });
+        return true;
+      }
       if (access.kind === 'customer') {
         if (session?.kind !== 'customer' || !this.tenant.isCurrent(session.tenantId ?? undefined)) {
           throw refuse(401, 'auth.unauthenticated', 'Log in first');
