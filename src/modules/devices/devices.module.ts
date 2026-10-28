@@ -28,6 +28,8 @@ import { ChangePlaylistCountUseCase } from './application/use-cases/change-playl
 import { ChangeDeviceKeyUseCase } from './application/use-cases/change-device-key.use-case.js';
 import { RegisterDeviceUseCase } from './application/use-cases/register-device.use-case.js';
 import { SetParentPinUseCase } from './application/use-cases/set-parent-pin.use-case.js';
+import { BindAppUidUseCase } from './application/use-cases/bind-app-uid.use-case.js';
+import { AnswerAppCaptchaUseCase } from './application/use-cases/answer-app-captcha.use-case.js';
 import { VerifyDeviceKeyUseCase } from './application/use-cases/verify-device-key.use-case.js';
 import { MongoCaptchaRepository } from './infrastructure/mongo-captcha.repository.js';
 import { MongoPaidDeviceRepository } from './infrastructure/mongo-paid-device.repository.js';
@@ -47,6 +49,8 @@ const useCases = [
   ChangeDeviceKeyUseCase,
   VerifyDeviceKeyUseCase,
   SetParentPinUseCase,
+  BindAppUidUseCase,
+  AnswerAppCaptchaUseCase,
   IssueCaptchaUseCase,
   IssueUidRecoveryCaptchaUseCase,
   CheckCaptchaCodeUseCase,

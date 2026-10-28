@@ -14,13 +14,15 @@ flowchart LR
 The end-to-end level is new in this phase: scripts in `tools/dev/` call a running API over HTTP (the dev-only
 routes and the V4 app routes), on the real MongoDB and Redis.
 
-## Unit tests added or grown (24 files)
+## Unit tests added or grown (26 files)
 
 | File | Cases | Proves | Tasks |
 |---|---|---|---|
 | `src/modules/devices/application/use-cases/register-device.use-case.spec.ts` | 23 | new MAC → trial device with key and trial end; ended trial gets no new one; visits recorded; fallback MACs and app device ids; one device for the three IBO apps; platform rule; V4 lock; review builds | DEV-1, 2, 3, 6 |
 | `src/modules/devices/application/use-cases/captcha.use-cases.spec.ts` | 16 | captcha issued, expires, answered once; a solved one is kept and skips the next; uid recovery captcha | DEV-4 |
 | `src/modules/devices/application/use-cases/owner-settings.use-cases.spec.ts` | 13 | device key change (old one stops), 6 digits; parent PIN on, changed, off | DEV-5 |
+| `src/modules/devices/application/use-cases/old-app-login.use-cases.spec.ts` | 6 | the old mobile apps' uid: a new one is stored, the same one changes nothing, an unknown MAC and bad uids are refused; the Android registration captcha: the right answer once, a wrong one uses it up, a captcha issued for a MAC is not taken | DEV-4 |
+| `src/interfaces/http/legacy/legacy-info.spec.ts` | 23 | the replies of the routes before V4 per old backend (ibo, bob and cr fields; new and known device; Android and TV), cr's CRPlayer and smart TV, Roku and mobile device and items, trial and paid numbers, app types to platforms | DEV-1, PL-4, LIC-3 |
 | `src/modules/devices/application/use-cases/change-playlist-count.use-case.spec.ts` | 4 | the first playlist is counted and its date kept (also after a delete); never below 0; a paid device is not counted | PL-2 |
 | `src/modules/devices/application/device-identity.spec.ts` | 11 → 14 | the device that already has an app device id is returned; a trial whose app device id a paid device has is not moved; the MAC is locked again when the device moved before the lock | UNQ |
 | `src/modules/devices/domain/device-mac.spec.ts` | 5 | a real MAC is accepted; a MAC made from an id is the same for the same id, different for different ids, and locally administered unicast | DEV-2 |
@@ -60,6 +62,7 @@ routes and the V4 app routes), on the real MongoDB and Redis.
 | `pnpm e2e:playlists` | 24 | Xtream parsing, each type, duplicates, counters, edit, delete, PIN on the dashboard and in the app, reply profiles, demo, backups, sync, add and delete by MAC, status sync, host move |
 | `pnpm e2e:licenses` | 19 | trial state, a year keeps the trial days, stacking, lifetime, same source once, parallel activations, every source recorded, revoke, pay again, history |
 | `pnpm e2e:v4` | 49 | the V4 app routes in the apps' envelope: captcha, login, token, device info, forged token refused, payment shown, playlist shape, uid captcha, app type checks; manage add, update and delete with each type and refusal, another device's playlist, wrong MAC or route type, no token; `changeParentPin` by form and JSON; `device/add` against a stand-in StarArcs (run with `STARARCS_STUB_PORT`, else 47 checks) |
+| `pnpm e2e:legacy` | 69 | the routes before V4 on ibo, bob and cr7: `playlist_info` per backend (new and known TV, Android), unreadable and incomplete requests, the offline sync (add, list, remove, another device's id ignored), AES and signed routes (no or wrong signature, v2 Android and TV, ibo TV v3 `u_id` and device key, bob's v3 and Mxcv routes), `check_active_status`, both `v4/recaptcha`, Roku login, register, playlists, status and tokens, iOS uid bind and reset, cr's CRPlayer key and captcha code then the V4 lock, cr add and remove, smart TV `device_info`, cr Android captcha registration |
 
 Scenarios the device core must cover, and what checks each:
 
@@ -78,7 +81,7 @@ Scenarios the device core must cover, and what checks each:
 pnpm test && pnpm test:int                 # see Phase 1 for running without Docker
 npm run seed                               # once; ends by itself (the CLI exits after each command)
 pnpm dev:api                               # in another terminal
-pnpm e2e:devices && pnpm e2e:playlists && pnpm e2e:licenses && pnpm e2e:v4
+pnpm e2e:devices && pnpm e2e:playlists && pnpm e2e:licenses && pnpm e2e:v4 && pnpm e2e:legacy
 # PORT=3001 pnpm e2e:devices … when the API runs on another port
 ```
 
@@ -91,3 +94,4 @@ brand; `npm run seed` resets the example rows.
 |---|---|---|---|---|---|
 | 27 Oct 2026 | format, lint, typecheck, knip green | **455/455** | **43/43** | OK | devices 46/46, playlists 24/24, licenses 19/19, v4 21/21 |
 | 28 Oct 2026 (app routes) | format, lint, typecheck, knip green | **472/472** | **43/43** | OK | devices 46/46, playlists 24/24, licenses 19/19, v4 49/49 (with the stand-in StarArcs) |
+| 28 Oct 2026 (routes before V4) | format, lint, typecheck, knip green | **501/501** | **43/43** | OK | devices 46/46, playlists 24/24, licenses 19/19, v4 47/47 (no StarArcs stand-in), legacy 69/69 |

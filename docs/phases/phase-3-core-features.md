@@ -201,6 +201,62 @@ The last four (added 28 Oct) complete what the IBO, Bob and CR TV apps call; all
   `X-Secret-Token`) under the brand's `stararcs.appName`; without the key or the name the app gets `{status: "error"}`.
 - **changeParentPin**: 4 digits turn parental control on, `""` or `null` off.
 
+### Old routes before V4 (added 28 Oct)
+
+App builds older than V4 call these. Same paths, request formats and reply fields as the old backends, from the
+contracts read out of their code (ibo, bob and cr). The same path answered with **different fields on each old
+backend**, so each brand says which one its apps expect: the brand setting **`legacy.dialect`** (`ibo`, `bob` or `cr`;
+default `ibo`). The app keys are **brand secrets**, because each old backend had its own.
+
+| Method | Path | Who calls it | Body → answer |
+|---|---|---|---|
+| GET | `/api/status_check` | every app | `{status, message}` |
+| GET | `/api/get_app_setting/:mac` | bob | `{status: "success"}` |
+| POST | `/api/playlist_info` | TV apps | `{data: envelope({mac_address, app_type, version, app_device_id})}` → device info |
+| POST | `/api/playlist_information` | oldest Android | `{data: AES}` → `{data: AES}` |
+| GET | `/api/playlist_information/:mac/:appType?` | ibo's oldest TV builds | plain device info |
+| POST | `/api/playlist_list` | ibo | envelope; the playlists only, never makes a device |
+| POST | `/api/MBBPj5UwlCmTstXGb/android/playlist_information`, `/api/Mxcvfghytrhjsjj/tv/playlist_information` | signed Android, bob TV | `{data: AES, signature}` → `{data: AES}` |
+| POST | `/api/MBBPj5UwlCmTstXGb/tv/v3/playlist_information` | signed TV v3 | ibo: TV keys and a `u_id` made from the MAC; bob: Android keys, no `u_id` |
+| POST | `/api/MBBPj5UwlCmTstXGb/android/v3/playlist_information` | ibo | never answered with data (broken key handling); kept so |
+| POST | `/api/check_active_status` | Android | `{data: AES({mac_address})}` → `{data: AES({status, expire_date})}` |
+| POST | `/api/v4/recaptcha` | TV apps' first start | ibo `{captcha, token}` (or `already_verified`); cr `{captcha}` |
+| POST | `/api/tv/v4/playlist_info` | cr's CRPlayer | static app key (`Authorization` or `token`) and the typed captcha code → device info; counts as V4 |
+| POST | `/api/device_info` | cr smart TV builds | envelope, by `app_device_id`; a made-up MAC when new |
+| POST | `/api/update_playlist` | TV apps' offline sync | envelope `{mac_address, playlists, remove_ids}` → one line per saved playlist |
+| POST | `/api/add_playlist`, `/api/remove_playlist` | cr TV apps | envelope (a plain form with `legacy.plainBodyAddRemove`) |
+| POST | `/api/MBBPj5UwlCmTstXGb/manage/{add,update,delete}_playlist` | signed Android | `{data: AES, signature}` → plain `{status, msg}` or `{status, result}` |
+| POST | `/api/device_login`, `/api/register_device` | Roku | `{mac, model?}` → token and device (and playlists) |
+| POST | `/api/validate_status`, `/api/activate_free_trial`; GET and POST `/api/playlist` | Roku | `Authorization: <token>` |
+| POST | `/api/{ios,android}/{v2,v3}/device_login`, `…/reset_uid`, `…/validate_status`; GET and POST `…/playlist` | old iOS and Android | `{mac, uid}`; the device is bound to the app's uid |
+| POST | `/api/android/v3/generate_captcha` | cr Android | `{svg, token}`; a new Android device on cr registers only with it |
+
+Rules (the modules' own): a call that names a device records the visit, and a new device gets a trial (DEV-1); a
+device that moved to V4 is refused by these older routes (DEV-6), as the old backends did; the replies come from the
+same license and playlist rules as V4 (`legacy-info.ts` picks each backend's fields).
+
+**Kept from the old code on purpose:** the paths, the fields and their types (a new device's key as a number, then as
+text; `is_trial` 0/1/2/3; `trial_days` as text on bob), the refusal messages, the Roku `{error, message, status}`
+reply with HTTP 200, and `reset_uid` with the MAC as the only proof (the old apps have nothing else to send; see
+Open questions below).
+
+**Not copied (bugs or holes in the old code):**
+
+- crashes that left a request unanswered and killed the server process: each such input now gets the nearest error;
+- `update_playlist` moved or deleted **any** device's playlist by id, and answered with the values from before the
+  change: it now only touches the calling device's own playlists and answers with the saved values; CRPlayer's `name`
+  is read (the old cr route read `playlist_name` and saved nameless playlists);
+- cr's smart TV `device_info` without an id answered with a stranger's device: the id is now required;
+- the signed `manage/*` routes looked the MAC up as a pattern (`.*` matched any device): a MAC is now parsed;
+- tokens on the Roku and mobile routes are checked against the device id and MAC (the old ones used the MAC alone);
+- dates are full `YYYY-MM-DD`; "expired" means today, not the time the old server process started; the demo entry is
+  built fresh each time (the old one was changed in memory by earlier calls); cr's Android `GET …/playlist` answers
+  (it always failed before); no honeypot replies and no test-device wipe.
+
+**Later phases:** the IP guards and Cloudflare blocks (Protection); themes, languages, notifications and Android
+update offers are empty (Content); bob's pull of IBO activations; recovery (`apply_recovery`, `tv/v3/recover-*`) in
+Phase 4.
+
 Dev-only routes (`@Public()`, 404 in production), used by the playground and the e2e scripts:
 
 | Area | Routes |
@@ -217,8 +273,23 @@ pnpm cli playlists:pin-keys [slug...]   # creates each brand's playlist PIN key;
 npm run seed                            # now also runs playlists:pin-keys
 ```
 
-New variables (optional; the old-app routes need them): `LEGACY_DEVICE_TOKEN_KEY` (V4 token), and the keys of the
-signed TV v3 / v2 routes for later phases (`LEGACY_TV_V3_*`, `LEGACY_V2_*`).
+New variables (optional; the old-app routes need them): `LEGACY_DEVICE_TOKEN_KEY` (the V4 token, also the Roku and
+mobile tokens).
+
+The routes before V4 also need, per brand:
+
+```sh
+pnpm cli tenant:set <slug> legacy.dialect cr                  # ibo (default), bob or cr: whose replies its apps expect
+pnpm cli tenant:set-secret <slug> legacy.androidAesSecret     # old ANDROID_AES_SECRET
+pnpm cli tenant:set-secret <slug> legacy.androidAesNewSecret  # old ANDROID_AES_NEW_SECRET (signed v2)
+pnpm cli tenant:set-secret <slug> legacy.androidSigningSecret # old ANDROID_SIGNING_SECRET
+pnpm cli tenant:set-secret <slug> legacy.tvAesSecret          # ibo: old TV_AES_NEW_SECRET (signed TV v3)
+pnpm cli tenant:set-secret <slug> legacy.tvSigningSecret      # ibo: old TV_SIGNING_SECRET
+pnpm cli tenant:set-secret <slug> legacy.tvKey                # cr: old TV_KEY_V4 (CRPlayer)
+```
+
+The values are the old backends' (in each backend's `.env`; never committed). A route whose key is not set refuses
+every call.
 
 StarArcs (`device/add`): `STARARCS_GUEST_TOKEN` (the partner key, one for every brand, never committed) and
 `STARARCS_URL` (default `https://backend.stararcs.com`), plus each brand's app name:
@@ -230,7 +301,7 @@ old cr `APP_<TENANT>_APP_NAME` variables).
 ```sh
 npm run seed
 pnpm dev:api                           # http://ibo.localhost:3000/dev/playground
-pnpm e2e:devices && pnpm e2e:playlists && pnpm e2e:licenses && pnpm e2e:v4
+pnpm e2e:devices && pnpm e2e:playlists && pnpm e2e:licenses && pnpm e2e:v4 && pnpm e2e:legacy
 pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test && pnpm test:int && pnpm build
 ```
 
@@ -243,7 +314,22 @@ Checked on this branch (27 Oct 2026): format, lint, typecheck, knip and build gr
 at runtime or in the data move, V4 login for old devices, the IBO store-review flag, and yearly stacking with what
 a revoke takes away (#6, which changes LIC-1 and LIC-3).
 
+**Routes before V4, to settle (Omar to Ali, 28 Oct 2026):**
+
+1. **Each brand needs `legacy.dialect`.** The default is `ibo`. Before launch: `bob` on the BOB brand, `cr` on every
+   brand that came from cr-unified (22 of them), and the app keys (brand secrets `legacy.*` above), copied from each
+   old backend's `.env`.
+2. **`reset_uid` (old iOS and Android apps).** A reinstalled app sends the device's MAC and its new install id, and
+   takes the device over. The MAC is the only proof; the old apps have nothing else to send. Kept as it was. Option:
+   refuse it for paid devices and send the owner to the website.
+3. **ibo's signed Android v3 route** never answered with data (its key handling was broken), so no app uses its
+   answer. Kept as it was: valid calls get `Request Not Processed`. Option: build what it was meant to do.
+4. **bob's `playlist_information`** answered with an envelope no app can read (no key). We answer as ibo did: AES
+   with the old Android key. Option: treat it as dead.
+5. **The IP guards** of ibo and bob (which also deleted devices when they blocked an IP) are not rebuilt here; they
+   belong to Protection and jobs.
+
 ## Not in this phase
 
-MAC switch, recovery, provider domain moves and the cleanup of old trial devices come in Phase 4 · Moves and
-cleanup ([ROADMAP.md](../ROADMAP.md)).
+MAC switch, recovery (with the old `apply_recovery` and `tv/v3/recover-*` routes), provider domain moves and the
+cleanup of old trial devices come in Phase 4 · Moves and cleanup ([ROADMAP.md](../ROADMAP.md)).

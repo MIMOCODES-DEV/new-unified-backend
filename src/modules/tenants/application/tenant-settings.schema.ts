@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import type { TenantSettingsPatch } from '../../../shared/kernel/tenant-settings.js';
+import {
+  LEGACY_DIALECTS,
+  type TenantSettingsPatch,
+} from '../../../shared/kernel/tenant-settings.js';
 
 /** `https://example.com` — scheme, host and optional port, nothing else. */
 function isOrigin(value: string): boolean {
@@ -22,6 +25,7 @@ export const tenantSettingsPatchSchema = z
       .partial(),
     legacy: z
       .strictObject({
+        dialect: z.enum(LEGACY_DIALECTS),
         plainBodyAddRemove: z.boolean(),
         raspEnforce: z.boolean().nullable(),
         notificationFields: z.boolean(),

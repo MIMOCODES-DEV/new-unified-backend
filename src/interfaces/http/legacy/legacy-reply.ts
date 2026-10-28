@@ -145,3 +145,17 @@ const PATH_PLATFORMS: Record<string, Platform> = {
 export function platformOfPath(appType: string): Platform | null {
   return PATH_PLATFORMS[appType.toLowerCase()] ?? null;
 }
+
+/** Old-route app types that are not V4 path types. */
+const OLD_APP_PLATFORMS: Record<string, Platform> = {
+  ios: 'ios',
+  tvos: 'tvos',
+  fire_tv: 'android_tv',
+  roku: 'roku',
+};
+
+/** The platform of an old route's `app_type` (any case); `unknown` when the app sent none we know. */
+export function platformOfAppType(appType: string): Platform {
+  const type = appType.trim().toLowerCase();
+  return platformOfPath(type) ?? OLD_APP_PLATFORMS[type] ?? 'unknown';
+}

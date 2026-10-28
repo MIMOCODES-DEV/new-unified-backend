@@ -1,6 +1,10 @@
 /** How playlist URLs are shaped for old apps: Xtream-style parts (`xc`) or the full URL (`general`). */
 export type PlaylistProfile = 'xc' | 'general';
 
+/** The old backend a brand came from: its old apps expect that backend's reply shapes. */
+export const LEGACY_DIALECTS = ['ibo', 'bob', 'cr'] as const;
+export type LegacyDialect = (typeof LEGACY_DIALECTS)[number];
+
 /**
  * Per-brand behaviour, stored on the tenant in the central registry and available on every request.
  * Code that behaves differently per brand reads one of these flags — never `if (slug === 'x')`.
@@ -13,6 +17,11 @@ export interface TenantSettings {
     readonly rawPlaylistsForAndroid44: boolean;
   };
   readonly legacy: {
+    /**
+     * Which old backend's replies the brand's old (pre-V4) apps expect: the same route answered
+     * with different fields on each (`playlist_info`, the Roku and mobile logins).
+     */
+    readonly dialect: LegacyDialect;
     /** Legacy add/remove playlist calls arrive as a plain form instead of an envelope. */
     readonly plainBodyAddRemove: boolean;
     /** V4 `device_info` sends `rasp_enforce` with this value (cr brands: false); null = not sent. */
@@ -50,6 +59,7 @@ export interface TenantSettingsPatch {
 export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   features: { maintenance: false, rawPlaylistsForAndroid44: false },
   legacy: {
+    dialect: 'ibo',
     plainBodyAddRemove: false,
     raspEnforce: null,
     notificationFields: true,
