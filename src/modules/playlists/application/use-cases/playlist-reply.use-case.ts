@@ -6,7 +6,9 @@ import {
   shapePlaylist,
 } from '../../domain/playlist-reply.js';
 import { PlaylistPins } from '../playlist-pins.js';
+import { withServedHostMoves } from '../../domain/served-host-move.js';
 import { PlaylistBrand } from '../ports/playlist-brand.js';
+import { PlaylistHostMoves } from '../ports/playlist-host-moves.js';
 import { PlaylistRepository } from '../ports/playlist.repository.js';
 
 export interface PlaylistReplyInput {
@@ -32,6 +34,8 @@ export interface PlaylistReply {
  * - A device with no playlist gets the brand's demo playlist; so does one whose playlists are all
  *   Stalker portals while Stalker is off, because the app would show nothing.
  * - The PIN is only included when asked (Roku, iOS).
+ * - A link on a provider host that moved, with the move approved by staff, goes out on the new host,
+ *   with the old one as its first backup (DOM-2); the stored playlist stays as it is.
  */
 @Injectable()
 export class PlaylistReplyUseCase {
@@ -39,15 +43,17 @@ export class PlaylistReplyUseCase {
     private readonly playlists: PlaylistRepository,
     private readonly brand: PlaylistBrand,
     private readonly pins: PlaylistPins,
+    private readonly hostMoves: PlaylistHostMoves,
   ) {}
 
   async execute(input: PlaylistReplyInput): Promise<PlaylistReply> {
     const profile = await this.profile(input);
     const own = await this.playlists.listByDevice(input.deviceId);
+    const moves = own.length > 0 ? await this.hostMoves.approved() : [];
 
     const shaped: PlaylistReply['playlists'] = [];
     for (const playlist of own) {
-      const item = shapePlaylist(playlist, profile);
+      const item = shapePlaylist(withServedHostMoves(playlist, moves), profile);
       shaped.push(input.includePins ? { ...item, pin: await this.pins.reveal(playlist) } : item);
     }
 

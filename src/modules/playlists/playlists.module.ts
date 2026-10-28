@@ -7,6 +7,7 @@ import {
 import { Clock, SystemClock } from '../../shared/kernel/clock.js';
 import { PlaylistPins } from './application/playlist-pins.js';
 import { MacOnlyRateLimit } from './application/ports/mac-only-rate-limit.js';
+import { PlaylistHostMoves } from './application/ports/playlist-host-moves.js';
 import { PinCipher } from './application/ports/pin-cipher.js';
 import { PlaylistBrand } from './application/ports/playlist-brand.js';
 import { PlaylistDevices } from './application/ports/playlist-devices.js';
@@ -20,6 +21,8 @@ import { DeletePlaylistsByMacUseCase } from './application/use-cases/delete-play
 import { EditPlaylistUseCase } from './application/use-cases/edit-playlist.use-case.js';
 import { ListPlaylistsUseCase } from './application/use-cases/list-playlists.use-case.js';
 import { DashboardPlaylistsUseCase } from './application/use-cases/dashboard-playlists.use-case.js';
+import { MoveDevicePlaylistsUseCase } from './application/use-cases/move-device-playlists.use-case.js';
+import { DeleteDevicePlaylistsUseCase } from './application/use-cases/delete-device-playlists.use-case.js';
 import { MoveProviderHostUseCase } from './application/use-cases/move-provider-host.use-case.js';
 import { PlaylistReplyUseCase } from './application/use-cases/playlist-reply.use-case.js';
 import { SetPlaylistPinUseCase } from './application/use-cases/set-playlist-pin.use-case.js';
@@ -45,6 +48,8 @@ const useCases = [
   DeletePlaylistsByMacUseCase,
   SyncPlaylistStatusUseCase,
   MoveProviderHostUseCase,
+  MoveDevicePlaylistsUseCase,
+  DeleteDevicePlaylistsUseCase,
 ];
 
 export interface PlaylistsModuleOptions {
@@ -58,6 +63,8 @@ export interface PlaylistsModuleOptions {
   brand: Omit<FactoryProvider<PlaylistBrand>, 'provide'>;
   /** The per-IP limit on adding and deleting by MAC alone. */
   macOnlyRateLimit: Omit<FactoryProvider<MacOnlyRateLimit>, 'provide'>;
+  /** Provider host moves: reported by edits, served in replies once approved. */
+  hostMoves: Omit<FactoryProvider<PlaylistHostMoves>, 'provide'>;
 }
 
 /** Playlists of each brand. Needs DatabaseModule and TenancyModule (both global). */
@@ -76,6 +83,7 @@ export class PlaylistsModule {
         { provide: PlaylistPinKey, ...options.pinKey },
         { provide: PlaylistBrand, ...options.brand },
         { provide: MacOnlyRateLimit, ...options.macOnlyRateLimit },
+        { provide: PlaylistHostMoves, ...options.hostMoves },
         { provide: PinCipher, useClass: AesPinCipher },
         PlaylistPins,
       ],

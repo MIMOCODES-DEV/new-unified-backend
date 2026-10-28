@@ -19,6 +19,7 @@ import {
   type WrongPinError,
 } from '../../domain/playlist.errors.js';
 import { PlaylistPins } from '../playlist-pins.js';
+import { PlaylistHostMoves } from '../ports/playlist-host-moves.js';
 import { PlaylistRepository } from '../ports/playlist.repository.js';
 
 export interface EditPlaylistInput {
@@ -34,13 +35,23 @@ export interface EditPlaylistInput {
   pin?: string | null;
   /** A new PIN (4 digits) to protect it or change its PIN; null removes the protection. */
   newPin?: string | null;
+  /** Where the edit came from: a new link on another host is reported as a provider move (DOM-1). */
+  ip?: string;
+}
+
+/** The link a provider move is learned from: an M3U link, or an Xtream playlist's server. */
+function providerLink(playlist: Playlist): string | null {
+  if (playlist.type === 'm3u') return playlist.url;
+  if (playlist.type === 'xtream') return playlist.xtream?.server ?? null;
+  return null;
 }
 
 /**
  * PL-2: changes a playlist of the calling device: its name, what it points to, its EPG link.
  * Only these fields can change; another device's playlist is reported as not found. On the
  * dashboard a protected playlist needs its PIN, and the edit form can set or remove the PIN in the
- * same write (PL-3).
+ * same write (PL-3). When only the host of its link changed, the edit also reports a provider move
+ * (DOM-1); the report never fails the edit.
  */
 @Injectable()
 export class EditPlaylistUseCase {
@@ -48,6 +59,7 @@ export class EditPlaylistUseCase {
     private readonly playlists: PlaylistRepository,
     private readonly pins: PlaylistPins,
     private readonly clock: Clock,
+    private readonly hostMoves: PlaylistHostMoves,
   ) {}
 
   async execute(
@@ -112,6 +124,14 @@ export class EditPlaylistUseCase {
     }
     if (saved === 'missing') {
       return err(new PlaylistNotFoundError('Playlist not found', { playlistId: input.playlistId }));
+    }
+    if (input.ip && input.source !== undefined && current.type === changed.type) {
+      await this.hostMoves.linkChanged({
+        deviceId: input.deviceId,
+        ip: input.ip,
+        before: providerLink(current),
+        after: providerLink(changed),
+      });
     }
     return ok(changed);
   }

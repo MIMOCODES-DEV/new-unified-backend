@@ -13,6 +13,9 @@ export { AddPlaylistByMacUseCase } from './application/use-cases/add-playlist-by
 export { DeletePlaylistsByMacUseCase } from './application/use-cases/delete-playlists-by-mac.use-case.js';
 export { MacOnlyRateLimit } from './application/ports/mac-only-rate-limit.js';
 export { SyncPlaylistStatusUseCase } from './application/use-cases/sync-playlist-status.use-case.js';
+export { MoveDevicePlaylistsUseCase } from './application/use-cases/move-device-playlists.use-case.js';
+export { PlaylistHostMoves } from './application/ports/playlist-host-moves.js';
+export { DeleteDevicePlaylistsUseCase } from './application/use-cases/delete-device-playlists.use-case.js';
 export { MoveProviderHostUseCase } from './application/use-cases/move-provider-host.use-case.js';
 export { SetPlaylistBackupUseCase } from './application/use-cases/set-playlist-backup.use-case.js';
 export { UnlockPlaylistUseCase } from './application/use-cases/unlock-playlist.use-case.js';
