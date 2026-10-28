@@ -91,3 +91,13 @@ export class RecoveryCodeTakenError extends DomainError {
 export class NewMacNotRegisteredError extends DomainError {
   readonly code = 'devices.new_mac_not_registered';
 }
+
+/** Only a device that paid can be linked to a customer account (CUS-3; trial devices have no owner field). */
+export class DeviceNotPaidError extends DomainError {
+  readonly code = 'devices.not_paid';
+}
+
+/** The device is linked to another customer account. */
+export class DeviceLinkedElsewhereError extends DomainError {
+  readonly code = 'devices.linked_elsewhere';
+}

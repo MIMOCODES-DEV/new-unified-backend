@@ -127,4 +127,16 @@ export const devicesMigrations: readonly Migration[] = [
       );
     },
   },
+  {
+    id: '0010-devices-customer',
+    description: 'devices: a customer account lists its linked devices (CUS-3)',
+    up: async (db) => {
+      await db
+        .collection(PAID_DEVICES_COLLECTION)
+        .createIndex(
+          { customerId: 1 },
+          { name: 'customer', partialFilterExpression: { customerId: { $type: 'string' } } },
+        );
+    },
+  },
 ];

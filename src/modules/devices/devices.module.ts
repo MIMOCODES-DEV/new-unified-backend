@@ -44,7 +44,16 @@ import { RandomDeviceKeyGenerator } from './infrastructure/random-device-key.gen
 import { RedisDeviceLock } from './infrastructure/redis-device-lock.js';
 import { SvgCaptchaImage } from './infrastructure/svg-captcha.image.js';
 
+import {
+  LinkDeviceToCustomerUseCase,
+  ListCustomerDevicesUseCase,
+  UnlinkDeviceFromCustomerUseCase,
+} from './application/use-cases/customer-devices.use-cases.js';
+
 const useCases = [
+  LinkDeviceToCustomerUseCase,
+  UnlinkDeviceFromCustomerUseCase,
+  ListCustomerDevicesUseCase,
   RegisterDeviceUseCase,
   FindDeviceUseCase,
   ChangePlaylistCountUseCase,

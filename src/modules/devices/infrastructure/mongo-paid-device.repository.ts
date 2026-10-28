@@ -51,6 +51,28 @@ export class MongoPaidDeviceRepository extends PaidDeviceRepository {
     return this.findOne({ 'recovery.code': code });
   }
 
+  async findByCustomer(customerId: string): Promise<PaidDevice[]> {
+    const docs = await (
+      await this.collection()
+    )
+      .find({ customerId })
+      .sort({ macAddress: 1 })
+      .toArray();
+    return docs.map((doc) => toPaidDevice(doc));
+  }
+
+  async setCustomer(
+    id: string,
+    customerId: string | null,
+    expected: string | null,
+    at: Date,
+  ): Promise<boolean> {
+    const result = await (
+      await this.collection()
+    ).updateOne({ _id: id, customerId: expected }, { $set: { customerId, updatedAt: at } });
+    return result.matchedCount > 0;
+  }
+
   async setRecoveryCode(
     id: string,
     code: string,

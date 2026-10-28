@@ -25,5 +25,10 @@ export { FindDeviceByRecoveryCodeUseCase } from './application/use-cases/find-de
 export { RecoverDeviceUseCase } from './application/use-cases/recover-device.use-case.js';
 export { ListStaleTrialDevicesUseCase } from './application/use-cases/list-stale-trial-devices.use-case.js';
 export { DeleteStaleTrialDeviceUseCase } from './application/use-cases/delete-stale-trial-device.use-case.js';
+export {
+  LinkDeviceToCustomerUseCase,
+  ListCustomerDevicesUseCase,
+  UnlinkDeviceFromCustomerUseCase,
+} from './application/use-cases/customer-devices.use-cases.js';
 export { SeedDeviceExamples } from './application/seed-device-examples.js';
 export { devicesMigrations } from './infrastructure/devices.migrations.js';

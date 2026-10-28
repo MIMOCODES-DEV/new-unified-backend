@@ -54,6 +54,12 @@ export const tenantConfigSchema = z.strictObject({
       maxPerDevice: z.number().int().min(0).max(100).default(1),
     })
     .prefault({}),
+  email: z
+    .strictObject({
+      /** Sender of the brand's emails, e.g. `IBO Player <no-reply@iboplayer.com>`; the server is the secret `smtp.url`. */
+      from: z.string().trim().min(3).max(200).nullable().default(null),
+    })
+    .prefault({}),
   stararcs: z
     .strictObject({
       /** The name StarArcs knows this brand's app by (`iboplayer`, `bobplayer`); null = not set up. */

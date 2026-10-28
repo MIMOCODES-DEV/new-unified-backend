@@ -21,6 +21,18 @@ export abstract class PaidDeviceRepository {
     expiresAt: Date,
     at: Date,
   ): Promise<'set' | 'missing' | 'taken'>;
+  /** The devices linked to this customer account, by MAC. */
+  abstract findByCustomer(customerId: string): Promise<PaidDevice[]>;
+  /**
+   * Sets the device's customer only while it still has `expected` (null = nobody), so two people
+   * linking the same TV at once cannot both win. False when it changed or is not there.
+   */
+  abstract setCustomer(
+    id: string,
+    customerId: string | null,
+    expected: string | null,
+    at: Date,
+  ): Promise<boolean>;
   abstract insert(device: PaidDevice): Promise<void>;
   /** Sets platform, lastSeenAt, ip, appVersion and apiVersion only; false when it is not there. */
   abstract recordVisit(id: string, visit: DeviceVisit): Promise<boolean>;
