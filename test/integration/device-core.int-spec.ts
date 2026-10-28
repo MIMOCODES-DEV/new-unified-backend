@@ -52,6 +52,7 @@ function m3u(id: string, deviceId: string): Playlist {
     xtream: null,
     stalker: null,
     code: null,
+    account: null,
     epgUrl: null,
     backup: { enabled: false, hosts: [] },
     protected: false,
@@ -158,15 +159,48 @@ describe('Phase 1 device core on MongoDB and Redis', () => {
         const playlists = new MongoPlaylistRepository(new TenantDb(context, registry));
         await playlists.insert(m3u('pl-1', 'device-1'));
 
-        await expect(playlists.insert(m3u('pl-2', 'device-1'))).rejects.toMatchObject({
-          code: 11000,
+        await expect(playlists.insert(m3u('pl-2', 'device-1'))).resolves.toBe('duplicate');
+        await expect(playlists.insert(m3u('pl-3', 'device-2'))).resolves.toBe('inserted');
+        // Editing another playlist into a copy of pl-1 is refused the same way.
+        await playlists.insert({
+          ...m3u('pl-4', 'device-1'),
+          name: 'Other',
+          url: 'http://other.example/list',
         });
-        await expect(playlists.insert(m3u('pl-3', 'device-2'))).resolves.toBeUndefined();
+        await expect(
+          playlists.update({
+            ...m3u('pl-4', 'device-1'),
+            name: 'Other',
+            url: m3u('pl-1', 'device-1').url,
+          }),
+        ).resolves.toBe('duplicate');
+        await expect(playlists.update(m3u('pl-missing', 'device-1'))).resolves.toBe('missing');
+        // One name per device, whatever the case.
+        await expect(
+          playlists.insert({ ...m3u('pl-5', 'device-1'), name: 'LIST', url: 'http://n.example/x' }),
+        ).resolves.toBe('name_taken');
       });
     });
   });
 
   describe('repositories (SCH-2)', () => {
+    it('counts playlists on a trial device in one write each, never below 0', async () => {
+      const device = trialDevice({ id: 'count-1', macAddress: '10:00:00:00:00:21' });
+      const at = new Date('2026-10-26T10:00:00Z');
+      await context.run(A, async () => {
+        await trials.insert(device);
+        // Five adds at once all count.
+        await Promise.all([1, 2, 3, 4, 5].map(() => trials.changePlaylistCount('count-1', 1, at)));
+        await trials.changePlaylistCount('count-1', -9, new Date(at.getTime() + 1000));
+
+        expect(await trials.findById('count-1')).toMatchObject({
+          playlistCount: 0,
+          firstPlaylistAt: at,
+        });
+        expect(await trials.changePlaylistCount('nobody', 1, at)).toBe(false);
+      });
+    });
+
     it('keeps each brand to its own database', async () => {
       const device = trialDevice({
         id: 'iso-1',
@@ -186,6 +220,24 @@ describe('Phase 1 device core on MongoDB and Redis', () => {
 
     it('cannot be used outside a brand', async () => {
       await expect(trials.findById('iso-1')).rejects.toThrow('No tenant in context');
+    });
+
+    it('finds playlists on a host as text, never as a pattern (PL-8)', async () => {
+      await context.run(A, async () => {
+        const playlists = new MongoPlaylistRepository(new TenantDb(context, registry));
+        const on = (id: string, url: string) => ({ ...m3u(id, 'host-dev'), name: id, url });
+        await playlists.insert(on('h1', 'http://line.example.com:8080/a.m3u'));
+        await playlists.insert(on('h2', 'https://user:pass@LINE.example.com/b.m3u'));
+        await playlists.insert(on('h3', 'http://lineXexample.com/c.m3u'));
+        await playlists.insert(on('h4', 'http://sub.line.example.com/d.m3u'));
+        await playlists.insert(on('h5', 'http://other.example.com/line.example.com'));
+
+        const found = await playlists.listOnHost('line.example.com', ['host-dev']);
+        const none = await playlists.listOnHost('line.example.com', ['someone-else']);
+
+        expect(found.map((p) => p.id).sort()).toEqual(['h1', 'h2']);
+        expect(none).toEqual([]);
+      });
     });
 
     it('reads and writes licenses, playlists and captchas for the current brand', async () => {
@@ -223,6 +275,31 @@ describe('Phase 1 device core on MongoDB and Redis', () => {
         expect((await licenses.listByDevice('device-9')).map((l) => l.id)).toEqual(['lic-1']);
         expect((await licenses.findBySource('device-9', 'tx-1'))?.id).toBe('lic-1');
         expect((await captchas.findSolved(mac('10:00:00:00:00:09'), 'v4'))?.token).toBe('tok-1');
+
+        // An open captcha: found while open, solved only once, then kept with no expiry.
+        await captchas.insert({
+          id: 'cap-2',
+          token: 'tok-2',
+          kind: 'v4',
+          macAddress: '10:00:00:00:00:0a',
+          appDeviceId: null,
+          platform: 'lg',
+          answerHash: 'hash',
+          verifiedAt: null,
+          expiresAt: new Date(at.getTime() + 5 * 60_000),
+          createdAt: at,
+        });
+        const tv = mac('10:00:00:00:00:0a');
+        expect((await captchas.findOpen(tv, 'v4', at))?.id).toBe('cap-2');
+        expect(await captchas.findOpen(tv, 'v4', new Date(at.getTime() + 6 * 60_000))).toBeNull();
+        expect(await captchas.markSolved('cap-2', at)).toBe(true);
+        expect(await captchas.markSolved('cap-2', at)).toBe(false);
+        expect(await captchas.findByToken('tok-2')).toMatchObject({
+          verifiedAt: at,
+          expiresAt: null,
+        });
+        expect(await captchas.delete('cap-2')).toBe(true);
+        expect(await captchas.delete('cap-2')).toBe(false);
       });
     });
 

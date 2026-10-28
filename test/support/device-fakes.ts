@@ -1,7 +1,15 @@
+import { CaptchaImage } from '../../src/modules/devices/application/ports/captcha-image.js';
+import type { CaptchaRepository } from '../../src/modules/devices/application/ports/captcha.repository.js';
 import type { DeviceLock } from '../../src/modules/devices/application/ports/device-lock.js';
+import type { Captcha, CaptchaKind } from '../../src/modules/devices/domain/captcha.js';
 import type { PaidDeviceRepository } from '../../src/modules/devices/application/ports/paid-device.repository.js';
 import type { TrialDeviceRepository } from '../../src/modules/devices/application/ports/trial-device.repository.js';
-import type { PaidDevice, TrialDevice } from '../../src/modules/devices/domain/device.js';
+import type {
+  DeviceSettingsChange,
+  DeviceVisit,
+  PaidDevice,
+  TrialDevice,
+} from '../../src/modules/devices/domain/device.js';
 import type { MacAddress } from '../../src/shared/kernel/mac-address.js';
 
 const at = new Date('2026-10-25T10:00:00Z');
@@ -92,7 +100,28 @@ export class InMemoryTrialDeviceRepository implements TrialDeviceRepository {
     if ([...this.items.values()].some((d) => d.macAddress === device.macAddress)) {
       throw new Error('E11000 duplicate key: trialDevices.macAddress');
     }
+    if (
+      device.appDeviceId &&
+      [...this.items.values()].some((d) => d.appDeviceId === device.appDeviceId)
+    ) {
+      throw new Error('E11000 duplicate key: trialDevices.appDeviceId');
+    }
     this.items.set(device.id, device);
+  }
+  async recordVisit(id: string, visit: DeviceVisit): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    const { at, ...rest } = visit;
+    this.items.set(id, { ...device, ...rest, lastSeenAt: at, updatedAt: at });
+    return true;
+  }
+  async changeSettings(id: string, change: DeviceSettingsChange): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    this.items.set(id, { ...device, ...change });
+    return true;
   }
   async update(device: TrialDevice): Promise<boolean> {
     await tick();
@@ -104,10 +133,40 @@ export class InMemoryTrialDeviceRepository implements TrialDeviceRepository {
     await tick();
     return this.items.delete(id);
   }
+  async changePlaylistCount(id: string, delta: number, at: Date): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    this.items.set(id, {
+      ...device,
+      playlistCount: Math.max(0, device.playlistCount + delta),
+      firstPlaylistAt: delta > 0 ? (device.firstPlaylistAt ?? at) : device.firstPlaylistAt,
+      updatedAt: at,
+    });
+    return true;
+  }
 }
 
 export class InMemoryPaidDeviceRepository implements PaidDeviceRepository {
   readonly items = new Map<string, PaidDevice>();
+
+  async setCurrentLicense(
+    id: string,
+    licenseId: string,
+    resellerId: string | null,
+    at: Date,
+  ): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    this.items.set(id, {
+      ...device,
+      currentLicenseId: licenseId,
+      resellerId: resellerId ?? device.resellerId,
+      updatedAt: at,
+    });
+    return true;
+  }
 
   private async find(match: (d: PaidDevice) => boolean): Promise<PaidDevice | null> {
     await tick();
@@ -134,7 +193,28 @@ export class InMemoryPaidDeviceRepository implements PaidDeviceRepository {
     if ([...this.items.values()].some((d) => d.macAddress === device.macAddress)) {
       throw new Error('E11000 duplicate key: devices.macAddress');
     }
+    if (
+      device.appDeviceId &&
+      [...this.items.values()].some((d) => d.appDeviceId === device.appDeviceId)
+    ) {
+      throw new Error('E11000 duplicate key: devices.appDeviceId');
+    }
     this.items.set(device.id, device);
+  }
+  async recordVisit(id: string, visit: DeviceVisit): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    const { at, ...rest } = visit;
+    this.items.set(id, { ...device, ...rest, lastSeenAt: at, updatedAt: at });
+    return true;
+  }
+  async changeSettings(id: string, change: DeviceSettingsChange): Promise<boolean> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return false;
+    this.items.set(id, { ...device, ...change });
+    return true;
   }
   async update(device: PaidDevice): Promise<boolean> {
     await tick();
@@ -166,5 +246,70 @@ export class InProcessDeviceLock implements DeviceLock {
       result.catch(() => undefined),
     );
     return result;
+  }
+}
+
+export class InMemoryCaptchaRepository implements CaptchaRepository {
+  readonly items = new Map<string, Captcha>();
+
+  async findByToken(token: string): Promise<Captcha | null> {
+    await tick();
+    return [...this.items.values()].find((c) => c.token === token) ?? null;
+  }
+  async findSolved(mac: MacAddress, kind: CaptchaKind): Promise<Captcha | null> {
+    await tick();
+    const solved = [...this.items.values()]
+      .filter((c) => c.macAddress === mac.value && c.kind === kind && c.verifiedAt !== null)
+      .sort((a, b) => b.verifiedAt!.getTime() - a.verifiedAt!.getTime());
+    return solved[0] ?? null;
+  }
+  async findOpen(mac: MacAddress, kind: CaptchaKind, now: Date): Promise<Captcha | null> {
+    await tick();
+    const open = [...this.items.values()]
+      .filter(
+        (c) =>
+          c.macAddress === mac.value &&
+          c.kind === kind &&
+          c.verifiedAt === null &&
+          c.expiresAt !== null &&
+          c.expiresAt > now,
+      )
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return open[0] ?? null;
+  }
+  async insert(captcha: Captcha): Promise<void> {
+    await tick();
+    this.items.set(captcha.id, captcha);
+  }
+  async update(captcha: Captcha): Promise<boolean> {
+    await tick();
+    if (!this.items.has(captcha.id)) return false;
+    this.items.set(captcha.id, captcha);
+    return true;
+  }
+  async markSolved(id: string, at: Date): Promise<boolean> {
+    await tick();
+    const captcha = this.items.get(id);
+    if (!captcha || captcha.verifiedAt !== null) return false;
+    this.items.set(id, { ...captcha, verifiedAt: at, expiresAt: null });
+    return true;
+  }
+  async delete(id: string): Promise<boolean> {
+    await tick();
+    return this.items.delete(id);
+  }
+}
+
+/** Draws nothing: the text is fixed (or given), and the SVG is a marker the test can read. */
+export class FakeCaptchaImage extends CaptchaImage {
+  constructor(public text = 'AB7K') {
+    super();
+  }
+  random(length: number): { text: string; svg: string } {
+    const text = this.text.slice(0, length);
+    return { text, svg: `<svg>${text}</svg>` };
+  }
+  draw(text: string): string {
+    return `<svg>${text}</svg>`;
   }
 }

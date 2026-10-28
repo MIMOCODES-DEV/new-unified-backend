@@ -32,7 +32,8 @@ describe('UpdateTenantSettingsUseCase', () => {
 
     expect(result.ok && result.value.settings).toEqual({
       ...DEFAULT_TENANT_SETTINGS,
-      legacy: { plainBodyAddRemove: true },
+      // Only the flag given changes; the other legacy settings keep their defaults.
+      legacy: { ...DEFAULT_TENANT_SETTINGS.legacy, plainBodyAddRemove: true },
       corsOrigins: ['https://ibostb.com'],
     });
     expect((await repository.findBySlug('ibostb'))?.settings.legacy.plainBodyAddRemove).toBe(true);
