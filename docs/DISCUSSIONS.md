@@ -562,3 +562,23 @@ the others come from reading the code.
 
 Which of these to fix in Phase 4 before it is done (#8), and who fixes them. 1, 3, 5 and 8 change what users get.
 
+
+## 12. Phase 5 choices made while building (28 Oct)
+
+Status: **open**. Omar, 28 Oct 2026. Phase 5 is built on `phase/5-accounts-and-staff`
+([tests](phases/phase-5-accounts-and-staff-tests.md): unit 583, integration 59, e2e 194). These choices were made
+while building and need a yes or a change.
+
+| # | Choice | Why | The other way |
+|---|---|---|---|
+| 1 | Only **paid** devices can be linked to a customer | `customerId` exists on `devices` only (Phase 2 schema); trial devices have no owner field | add `customerId` to `trialDevices` and carry it over on payment |
+| 2 | Admin routes take the **brand from the host**, like every route; staff log in on any brand host | the tenant middleware runs on every route; staff are central anyway | an admin host plus a brand header or `/admin/brands/:slug/…` paths |
+| 3 | A customer **cannot log in until the email is verified** | the plan's flow verifies first | allow login and show a "verify your email" banner |
+| 4 | A password reset link also **verifies the email** | opening a link sent to the address proves it | keep the two separate |
+| 5 | Nobody can disable themselves or change their own role; a role still given to someone cannot be deleted | no locking yourself out; no staff without a role | allow both with a warning |
+| 6 | 2FA is **optional** per staff member; a super admin can reset it (`resetTwoFactor`) | old admins have none today | require it for every staff member, or for super_admin |
+| 7 | Brand email over each brand's own SMTP server (`smtp.url` secret, `email.from` config) | #9.3 | one shared provider (SES, Postmark) with a sender per brand |
+
+### What we need to decide
+
+Yes or change for each row, at the meeting.

@@ -1,14 +1,12 @@
 # Phase 5 · Accounts and staff
 
-Branch `phase/5-accounts-and-staff` (not created yet) · built on: `phase/4-moves-and-cleanup` · status:
-**planned, not started**
-
-**Tests:** [phase-5-accounts-and-staff-tests.md](phase-5-accounts-and-staff-tests.md) (planned): every test this phase adds, what it proves, how to run it, and the result on this branch.
+Branch `phase/5-accounts-and-staff` · built on: `phase/4-moves-and-cleanup` · status: **built, in review** (Omar
+built it, Ali reviews; answers in [DISCUSSIONS #9](../DISCUSSIONS.md), choices made while building in #12)
 
 The people who log in: **customers** (per brand: own devices, log in to the brand site) and **staff** (central:
 our team, log in to the admin panel), with **roles** and **permissions** that decide what each staff member may
-do on which brands. This page is the plan; nothing here is built yet. Schema agreed in the Old Database Map
-(Customers, Admin).
+do on which brands. Schema agreed in the Old Database Map (Customers, Admin). Tests and results:
+[phase-5-accounts-and-staff-tests.md](phase-5-accounts-and-staff-tests.md).
 
 ## Contents
 
@@ -18,7 +16,7 @@ do on which brands. This page is the plan; nothing here is built yet. Schema agr
 4. [Flows](#flows)
 5. [APIs this phase adds](#apis-this-phase-adds)
 6. [Data move](#data-move)
-7. [Open questions](#open-questions)
+7. [How it was built](#how-it-was-built)
 8. [Not in this phase](#not-in-this-phase)
 
 ## Goal
@@ -96,7 +94,7 @@ Rules from the schema:
 
 ## Tasks and expected outputs
 
-Who does what is to agree. Ids are proposals.
+Omar built every task; Ali reviews (DISCUSSIONS #9.7).
 
 | Id | Task | Expected output | Done when |
 |---|---|---|---|
@@ -168,7 +166,7 @@ sequenceDiagram
 
 ## APIs this phase adds
 
-Paths are proposals; the frontend team builds against them (OpenAPI).
+Built as listed (additions under [How it was built](#how-it-was-built)); the frontend team builds against them.
 
 | Area | Routes | Access |
 |---|---|---|
@@ -187,15 +185,29 @@ Paths are proposals; the frontend team builds against them (OpenAPI).
 | `Admin` with `is_admin` 1 (ibo, bob, cr) | one `staffUsers` row per email, `legacyRefs` for every old row; role `super_admin` (full access today); `tenantAccess` = the brands they were admin of |
 | `Admin` with `is_admin` 0 | resellers (a later phase), not staff |
 
-## Open questions
+## How it was built
 
-1. Sessions: signed tokens (JWT) with a short life and a refresh token, or server sessions in Redis (easier to cut
-   off a disabled staff member at once)?
-2. Two-factor login for staff (PLAN M5 mentions 2FA): in this phase or later?
-3. Which email service sends verification and reset links, per brand sender?
-4. Are cr customer passwords bcrypt hashes we can verify as they are? (cr admins use bcrypt; check `User`.)
-5. Day-one roles: only `super_admin`, or also Support, Billing and Content editor from a seed?
-6. Customer devices: link by MAC + device key (as the old site logs in), or only through recovery and payments?
+| Question (DISCUSSIONS #9) | Built |
+|---|---|
+| 1. Sessions | Server sessions in Redis: an opaque random token (`Authorization: Bearer …`), only its SHA-256 is stored; a per-person index ends every session at once. Staff 12 hours, customers 30 days. With Redis down nobody is logged in (fails closed). |
+| 2. Two-factor login | In this phase: authenticator-app codes (TOTP, RFC 6238, ±30 s). `POST /admin/me/two-factor/setup` → `enable` with a first code; login then answers a 5-minute challenge, finished at `POST /admin/login/two-factor`. The secret is sealed with `TENANT_SECRETS_KEY`, bound to the staff id. |
+| 3. Email | Each brand's own SMTP server: secret `smtp.url` (`smtps://user:password@host:465`), sender in config `email.from`, links to `TenantSettings.frontendUrl` (`/verify-email?token=…`, `/reset-password?token=…`). Without SMTP outside production the email goes to the log and the dev-only `GET /dev/outbox?to=…`. |
+| 4. cr passwords | bcrypt (cost 10 in cr); they verify as they are. New hashes use cost 12 (`bcryptjs`, no native build). |
+| 5. Day-one roles | Migration `0005-staff` makes `super_admin` (system) and Support (`devices.view`), Billing (`devices.view`, `devices.activate`) and Content editor (none). |
+| 6. Customer devices | Link by MAC + device key; paid devices only (#12). 10 tries an hour per account and per IP: a key is only 6 digits. |
+
+Also built: `customerTokens` (per brand, one-time email links stored as hashes, TTL index), the `devices.customer`
+index (`0010-devices-customer`), the access guard for `@Staff(key)` (brand from the host must be in `tenantAccess`),
+`@CentralStaff(key?)` (no brand check) and `@Customer()` (own brand's host only), login rate limits (10 per 15 minutes
+per IP and per email), and the first admin device routes `GET /admin/devices/:mac` (`devices.view`) and
+`POST /admin/devices/:mac/activate` (`devices.activate`, recorded as source `admin` with the staff id).
+
+Routes as built: customer `POST /customer/password-reset/confirm` (token + new password) and
+`POST /customer/me/resend-verification` were added to the list above; `PATCH /customer/me` needs `currentPassword` to
+change the email or the password. Errors are `{ error: { code, message } }` with 400, 401, 403, 404, 409 or 429.
+
+CLI: `echo '<password>' | pnpm cli staff:create <email> <name> [--role id] [--brands a,b]` (default super_admin on
+every brand; without a piped password one is made and shown once), and `pnpm cli permissions:sync`.
 
 ## Not in this phase
 
