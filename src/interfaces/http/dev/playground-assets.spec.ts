@@ -62,11 +62,11 @@ describe('device playground', () => {
     }
   });
 
-  it('has the 110 checks of the four e2e scripts, and the E2E scenarios', () => {
+  it('has the 142 checks of the five e2e scripts, and the E2E scenarios', () => {
     const pg = loadPlayground();
 
-    expect(pg.suites.map((s) => s.id)).toEqual(['devices', 'playlists', 'licenses', 'v4']);
-    expect(pg.suites.reduce((n, s) => n + s.expected, 0)).toBe(110);
+    expect(pg.suites.map((s) => s.id)).toEqual(['devices', 'playlists', 'licenses', 'v4', 'moves']);
+    expect(pg.suites.reduce((n, s) => n + s.expected, 0)).toBe(142);
     expect(pg.scenarios.map((s) => s.id)).toEqual([
       'D1',
       'D2',
@@ -79,6 +79,11 @@ describe('device playground', () => {
       'P1',
       'P2',
       'P3',
+      'S1',
+      'R1',
+      'M1',
+      'C1',
+      'X1',
     ]);
     for (const s of pg.scenarios) expect(s.steps.length, s.id).toBeGreaterThan(0);
   });

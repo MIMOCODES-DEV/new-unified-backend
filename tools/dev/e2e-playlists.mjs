@@ -1,4 +1,4 @@
-// End-to-end check of the Phase 1 playlist rules (PL-1 to PL-8) over HTTP, against a running API
+// End-to-end check of the playlist rules (PL-1 to PL-8) over HTTP, against a running API
 // and a real database, through the dev-only /dev/playlists routes.
 //
 //   pnpm seed             # once

@@ -47,6 +47,9 @@ class Settings extends DeviceSettings {
   reviewBuilds() {
     return Promise.resolve(this.builds);
   }
+  maxMacSwitches() {
+    return Promise.resolve(1);
+  }
 }
 
 class CountingKeys extends DeviceKeyGenerator {

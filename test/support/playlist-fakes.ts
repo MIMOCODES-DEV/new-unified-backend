@@ -1,5 +1,10 @@
 import { PinCipher } from '../../src/modules/playlists/application/ports/pin-cipher.js';
 import { PlaylistDevices } from '../../src/modules/playlists/application/ports/playlist-devices.js';
+import {
+  PlaylistHostMoves,
+  type PlaylistLinkChange,
+} from '../../src/modules/playlists/application/ports/playlist-host-moves.js';
+import type { ServedHostMove } from '../../src/modules/playlists/domain/served-host-move.js';
 import type { PlaylistRepository } from '../../src/modules/playlists/application/ports/playlist.repository.js';
 import type { Playlist } from '../../src/modules/playlists/domain/playlist.js';
 import type { MacAddress } from '../../src/shared/kernel/mac-address.js';
@@ -116,6 +121,20 @@ export class FakePlaylistDevices extends PlaylistDevices {
   playlistCountChanged(deviceId: string, delta: number): Promise<void> {
     this.counts.set(deviceId, (this.counts.get(deviceId) ?? 0) + delta);
     return Promise.resolve();
+  }
+}
+
+/** Records reported link changes, and serves the approved moves a test sets. */
+export class FakeHostMoves extends PlaylistHostMoves {
+  readonly changes: PlaylistLinkChange[] = [];
+  moves: ServedHostMove[] = [];
+
+  linkChanged(change: PlaylistLinkChange): Promise<void> {
+    this.changes.push(change);
+    return Promise.resolve();
+  }
+  approved(): Promise<readonly ServedHostMove[]> {
+    return Promise.resolve(this.moves);
   }
 }
 

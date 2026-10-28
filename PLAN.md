@@ -1,6 +1,6 @@
 # Unified Backend — Master Plan
 
-> Status: **Phase 1 (device core) in progress** — the current work, its schema and tasks are in [docs/phase-1/README.md](docs/phase-1/README.md), which wins over this document where they differ.
+> Status: the phases, what each delivers and where it stands are in [docs/ROADMAP.md](docs/ROADMAP.md). The device core schema is [docs/SCHEMA.md](docs/SCHEMA.md) and its rules are in [docs/modules/](docs/modules/); those win over this document where they differ.
 > Scope: merge `iboplayer-backend`, `bobplayer-backend` and `cr-unified-backend` into one multi-tenant backend with a central database.
 > Each milestone below is intentionally high-level; it gets its own detailed plan when we reach it.
 
@@ -97,7 +97,7 @@ In the unified backend, ibo/bob/cr-tenant-to-tenant traffic becomes **internal q
 | D11 | **Port all payment providers** but track them in a provider registry with usage metrics so unused ones can be removed later | Confirmed |
 | D12 | Cutover tenant-by-tenant, documented as a runbook only | Confirmed |
 | D13 | `NewUnifiedBackend/` (earlier attempt) is ignored | Confirmed |
-| D14 | **Rebuild, don't copy** (2026-10-13): every feature is re-implemented cleanly from its intent, without old bugs. Only the wire format of non-updatable apps and the store contract are matched, inside thin adapters. Supersedes the phase-1 "copy quirks + `LEGACY-QUIRK` markers" approach in §8.0. See `docs/ARCHITECTURE.md`, `docs/FEATURES.md`, `docs/TASKS.md`. | Confirmed |
+| D14 | **Rebuild, don't copy** (2026-10-13): every feature is re-implemented cleanly from its intent, without old bugs. Only the wire format of non-updatable apps and the store contract are matched, inside thin adapters. Supersedes the old two-phase plan's "copy quirks + `LEGACY-QUIRK` markers" approach in §8.0. See `docs/ARCHITECTURE.md`, `docs/FEATURES.md`, `docs/ROADMAP.md`. | Confirmed |
 | D15 | **One unified frontend** (2026-10-14): a single customer website serves every brand (the 3 IBO apps, BOB, cr brands, the unified app), built by the frontend team. The old websites' `/frontend/*` routes are **not** kept: the customer API is designed fresh for the unified frontend, covering the union of today's website features. Frozen contracts are only what installed apps (TV/phone) and the external store call. | Confirmed |
 | D16 | **Two device collections + licenses** (2026-10-21/25): `trialDevices` (never paid) and `devices` (paid at least once); paying moves a device and keeps its id, MAC and device key. Every license is its own row in `licenses`, kept as history; trial / expired / revoked are worked out, never stored. Replaces `pendingDevices` and the embedded `license`. | Confirmed |
 | D17 | **One `playlists` collection** (2026-10-25): a `type` (m3u, xtream, stalker, code) with only that part filled; `url` and the Xtream password are **not encrypted**; the PIN per playlist is kept encrypted (`pinEnc`) because Roku/iOS replies return it. Orphan playlists are left out of the migration. | Confirmed |
@@ -238,7 +238,7 @@ Conventions: camelCase, real types (Date, Boolean, ObjectId, Decimal128 or integ
 | `paymentProviders` | Provider registry: code, enabled tenants, usage counters, last success, health |
 | `languages` / `translationKeys` / `translations` | Global i18n with optional per-tenant overrides |
 | `countryCodes`, `coinList` | Global lookups |
-| `domainMigrations` | Provider host moves (global evidence is more useful than per-tenant); admin approval state. Built in Phase 1 (docs/phase-1 §2.7) |
+| `domainMigrations` | Provider host moves (global evidence is more useful than per-tenant); admin approval state. Built in Phase 2 · Database ([docs/SCHEMA.md](docs/SCHEMA.md) §7) |
 | `abuseIpReputation`, `abuseEvents` | Shared abuse intelligence across tenants |
 | `auditLog` | Every admin/reseller/store mutation |
 
@@ -263,7 +263,7 @@ Conventions: camelCase, real types (Date, Boolean, ObjectId, Decimal128 or integ
 ### 5.3 Device model (key decisions)
 
 The full field lists (trialDevices, devices, licenses, playlists, captchas, domainMigrations) are in
-[docs/phase-1/README.md §2](docs/phase-1/README.md#2-database-schema) and `docs/phase-1/database-schema.html`. In short:
+[docs/SCHEMA.md](docs/SCHEMA.md) and `docs/schema.html`. In short:
 
 ```
 trialDevices  ──pays──▶  devices  ──currentLicenseId──▶  licenses (one row per license, kept as history)
@@ -298,7 +298,7 @@ that is how one customer uses two apps and how cross-app transfers work; the cen
 |---|---|---|
 | 0 | new trial, or deactivated loser of a MAC switch | `trialDevices`, trial dates from `expire_date` (a switched-away record follows the switch rules) |
 | 1 | Roku/iOS trial, **or** deactivated (expiry = yesterday), **or** cr reseller-code activation < 500 months | needs context per source; an old revoked device (`is_trial` 1) goes to `trialDevices` (decided 25 Oct) |
-| 2 | lifetime (expiry = now + 5000 or 500 months, or `2438-07-06`) | `devices` + a `licenses` row `type=lifetime`, `expiresAt=null` (keep original in `legacy.expireDate`); past-dated lifetime records follow each old backend's own interpretation — no logic change in phase 1 |
+| 2 | lifetime (expiry = now + 5000 or 500 months, or `2438-07-06`) | `devices` + a `licenses` row `type=lifetime`, `expiresAt=null` (keep original in `legacy.expireDate`); past-dated lifetime records follow each old backend's own interpretation — no logic change |
 | 3 | one year | `devices` + a `licenses` row `type=yearly`, `expiresAt` = date 23:59:59 in the agreed timezone |
 
 Date strings exist in `Y-MM-DD`, `Y-M-D` (unpadded — Roku/iOS), ISO slices and free text; all parsed with explicit format lists, unparseable values flagged in the migration report.
@@ -331,7 +331,7 @@ Layers:
      is never cleaned up.
    - A trial device stays in `trialDevices` after its trial ends, so it never gets a second trial.
    - **Cleanup** of ended trials that never added a playlist (`playlistCount` 0) is one safe job with a dry run and a
-     report (Phase 1 task LIC-4); it removes their playlists with them, so no orphans appear.
+     report (task LIC-4, Phase 4 · Moves and cleanup); it removes their playlists with them, so no orphans appear.
 5. **Quarantine, never delete.** Suspicious devices get `flags.quarantined` (not served, not counted), reviewed in admin; activated/paid devices are never auto-removed.
 6. **Uniqueness.** A unique MAC index per device collection plus the Redis lock on the MAC across both (D18) ends duplicate-device races and the "remove duplicated MAC" tools.
 7. **Attestation for new builds only (v5):** Play Integrity / App Attest, per-install keys, short-lived signed tokens. Legacy secrets are already extracted from APKs — legacy signatures are treated as noise, not authentication.
@@ -394,20 +394,23 @@ Examples of what is not ported: PHP import tools; `activateOpayDevices` (~770 li
 
 ## 8. Milestones
 
-### 8.0 Two phases
+### 8.0 Milestones and phases
 
-> **Superseded by D14.** There is no quirk-copying phase: features are rebuilt clean from the start; only wire formats are matched. The execution plan is `docs/TASKS.md`. The text below is kept for history.
+The milestones below describe **what** has to exist. The work is done in **phases** ([docs/ROADMAP.md](docs/ROADMAP.md)),
+which cut across milestones:
 
-**Phase 1 — Faithful clean rebuild (M1–M13).** Rebuild the backend with the new architecture and clean code while keeping **every client-visible contract exactly as it is today**:
-- *Kept exactly:* paths, methods, request formats, response formats and outputs — including odd ones clients may depend on (literal `"undefined"` in error envelopes, HTTP 302 on store errors, `'ascii'` decoding, …). Endpoints we're unsure about are kept.
-- *Not reproduced:* hangs, worker crashes, race conditions and corrupted writes (where old code hung or crashed, the new code returns the old error format).
-- *Architecture is phase 1:* central DB, typed schema, unique MAC, Redis/BullMQ, trial devices kept apart from paid ones — internal changes clients cannot see.
-- *Known bugs and security gaps copied on purpose* are marked in code with `// LEGACY-QUIRK(<inventory id>): <what and why>` so phase 2 can find every one of them.
-- *Never rebuilt:* the unauthenticated one-off maintenance tools (PHP import/wipe routes, `clearLanguageWord`, `removeDuplicatedMacAddress`, `saveCountryCode`) and developer test routes (`/email-test`, `/test`, `*-test` pages, test-MAC wipes).
+| Phase | Name | Milestones it covers |
+|---|---|---|
+| 1 | Foundation | M1 (evidence), M2, M3 |
+| 2 | Database | M4 (devices, licensing, playlists: collections) |
+| 3 | Core features | M4 (devices, licensing, playlists: rules), the first M6 routes (V4) |
+| 4 | Moves and cleanup | M4 (MAC switch, recovery, cleanup), provider domain moves |
+| 5+ | Later phases | M4 (content, i18n), M5–M14 |
 
-**Phase 2 — Fixes & cleanup (mandatory before go-live).** Work through every `LEGACY-QUIRK` marker and every `port-with-fix` verdict in `docs/inventory/`: payment verification, ownership checks, input validation, idempotency, atomic updates; then remove dead endpoints, validated against the real apps/frontends. Cutover (M14) may only start after phase 2 is complete.
-
-> Where milestone texts below mention fixes (e.g. "Fixes:" lines, M8 webhook verification), those fixes belong to **phase 2** unless they are architectural.
+An earlier version of this section split the work into "Phase 1, faithful rebuild with `LEGACY-QUIRK` markers" and
+"Phase 2, fixes before go-live". That split was **dropped by D14** (rebuild clean, match only wire formats) and has
+nothing to do with the phase numbers above. Where a milestone below still says "Fixes:", those fixes are part of
+that milestone.
 
 Format per milestone: **Goal · Scope · Deliverables · Exit criteria · Blockers/dependencies · Gains · Fixes.**
 
@@ -475,7 +478,7 @@ Format per milestone: **Goal · Scope · Deliverables · Exit criteria · Blocke
 
 - **Goal:** all providers ported behind one interface, all confirmations verified.
 - **Scope:** `PaymentProvider` interface (create, verifyWebhook, confirmServerSide, refund?), adapters: PayPal (device + reseller), Stripe, Paymob, Paysky, Opay, Opay1, Telr, PayEG, Geidea, Cowpay, Cashcall, CoinPayments, Paymentwall, MDLS/MimoStore, Apple IAP, Google Play (replace unverified `app_purchase`/`google_pay` — legacy route keeps its shape but requires verification or is disabled per tenant), Mollie (dependency only today — confirm). Webhook endpoints at the old paths where providers are configured with them. Idempotency, amount/currency checks, reconciliation job, provider registry with usage metrics, currency conversion service (one job, not 24).
-- **Exit:** every provider ported behind the interface with its current behaviour, covered by contract tests. (Verification of every confirmation is phase 2.)
+- **Exit:** every provider ported behind the interface with its current behaviour, covered by contract tests. (Under the superseded two-phase plan, verifying every confirmation was left for later; under D14 it is part of this milestone.)
 - **Gains:** revenue integrity; one place to add/remove providers.
 - **Fixes:** all of U4, Paymob `amount_cents ×1e6`, Telr USD/AED mislabel, PayEG forced live, Stripe never activating, inconsistent lifetime durations (500 vs 5000 months).
 

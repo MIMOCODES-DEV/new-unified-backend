@@ -26,6 +26,7 @@ describe('device documents', () => {
         to: '00:1a:2b:3c:4d:60',
         at: new Date('2026-10-25T12:00:00Z'),
         originMac: null,
+        count: 1,
       },
       recovery: {
         code: '481516',
@@ -37,6 +38,20 @@ describe('device documents', () => {
     });
 
     expect(toPaidDevice(toPaidDeviceDocument(device))).toEqual(device);
+  });
+
+  it('reads a switch record saved before the count existed as one switch', () => {
+    const old = {
+      ...toPaidDeviceDocument(paidDevice()),
+      switch: {
+        from: '00:1a:2b:3c:4d:5f',
+        to: '00:1a:2b:3c:4d:60',
+        at: new Date(),
+        originMac: null,
+      },
+    };
+
+    expect(toPaidDevice(old).switch?.count).toBe(1);
   });
 
   it('keeps the device key as 6 digits but does not need it to be unique', () => {

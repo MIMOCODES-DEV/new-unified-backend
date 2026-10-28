@@ -91,7 +91,7 @@ describe('seed:examples (npm run seed)', () => {
     await infra?.stop();
   });
 
-  it('writes an example of every Phase 1 collection, and a second run changes no counts', async () => {
+  it('writes an example of every device core collection, and a second run changes no counts', async () => {
     const first = { ...(await seedBrand()), ...(await seedCentral()) };
     const second = { ...(await seedBrand()), ...(await seedCentral()) };
 

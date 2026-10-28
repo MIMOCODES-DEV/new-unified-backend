@@ -65,7 +65,7 @@ function m3u(id: string, deviceId: string): Playlist {
   };
 }
 
-describe('Phase 1 device core on MongoDB and Redis', () => {
+describe('Device core on MongoDB and Redis', () => {
   let infra: TestInfrastructure;
   const pool = new MongoClientPool();
   let registry: TenantDbRegistry;

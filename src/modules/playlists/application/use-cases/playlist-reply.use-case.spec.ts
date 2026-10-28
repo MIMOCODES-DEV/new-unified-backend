@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  FakeHostMoves,
   FakePinCipher,
   InMemoryPlaylistRepository,
 } from '../../../../../test/support/playlist-fakes.js';
@@ -54,6 +55,7 @@ function stored(source: PlaylistSource, overrides: Partial<Playlist> = {}): Play
 
 describe('PlaylistReplyUseCase (PL-4)', () => {
   let playlists: InMemoryPlaylistRepository;
+  let hostMoves: FakeHostMoves;
   let brand: Brand;
   let reply: PlaylistReplyUseCase;
 
@@ -70,7 +72,13 @@ describe('PlaylistReplyUseCase (PL-4)', () => {
   beforeEach(() => {
     playlists = new InMemoryPlaylistRepository();
     brand = new Brand();
-    reply = new PlaylistReplyUseCase(playlists, brand, new PlaylistPins(new FakePinCipher()));
+    hostMoves = new FakeHostMoves();
+    reply = new PlaylistReplyUseCase(
+      playlists,
+      brand,
+      new PlaylistPins(new FakePinCipher()),
+      hostMoves,
+    );
   });
 
   describe('links by brand profile', () => {
@@ -264,6 +272,86 @@ describe('PlaylistReplyUseCase (PL-4)', () => {
       );
 
       expect((await ask()).playlists[0]?.backupUrls).toEqual([]);
+    });
+  });
+
+  describe('approved provider moves (DOM-2)', () => {
+    const MOVE = {
+      fromHost: 'line.example:8080',
+      toHost: 'line2.example:8080',
+      toScheme: '' as const,
+    };
+
+    it('a link on a moved host goes out on the new host, the old host as its first backup', async () => {
+      hostMoves.moves = [MOVE];
+      await playlists.insert(stored({ kind: 'link', url: XTREAM }));
+      brand.profile = 'general';
+
+      const [item] = (await ask()).playlists;
+
+      expect(item!.url).toBe(
+        'http://line2.example:8080/get.php?username=u1&password=p1&type=m3u_plus&output=ts',
+      );
+      expect(item!.backupUrls[0]).toBe(
+        'http://line.example:8080/get.php?username=u1&password=p1&type=m3u_plus&output=ts',
+      );
+    });
+
+    it('xc: the Xtream server moves, the login stays', async () => {
+      hostMoves.moves = [MOVE];
+      await playlists.insert(stored({ kind: 'link', url: XTREAM }));
+
+      const [item] = (await ask()).playlists;
+
+      expect(item).toMatchObject({
+        url: 'http://line2.example:8080/',
+        username: 'u1',
+        password: 'p1',
+        backupUrls: ['http://line.example:8080/'],
+      });
+    });
+
+    it('a move to https changes the scheme; the default port is not written', async () => {
+      hostMoves.moves = [{ fromHost: 'cdn.example', toHost: 'cdn2.example', toScheme: 'https' }];
+      await playlists.insert(stored({ kind: 'link', url: 'http://cdn.example/list.m3u' }));
+
+      const [item] = (await ask()).playlists;
+
+      expect(item!.url).toBe('https://cdn2.example/list.m3u');
+      expect(item!.backupUrls).toEqual(['http://cdn.example/list.m3u']);
+    });
+
+    it('keeps the playlist own backups after the old host', async () => {
+      hostMoves.moves = [{ fromHost: 'cdn.example', toHost: 'cdn2.example', toScheme: '' }];
+      await playlists.insert(
+        stored(
+          { kind: 'link', url: M3U },
+          { backup: { enabled: true, hosts: ['mirror.example'] } },
+        ),
+      );
+
+      const [item] = (await ask()).playlists;
+
+      expect(item!.url).toBe('https://cdn2.example/list.m3u');
+      expect(item!.backupUrls).toEqual([
+        'https://cdn.example/list.m3u',
+        'https://mirror.example/list.m3u',
+      ]);
+    });
+
+    it('changes nothing stored, and leaves links on other hosts and ports alone', async () => {
+      hostMoves.moves = [MOVE];
+      const other = stored({ kind: 'link', url: 'http://line.example:9090/a.m3u' });
+      const own = stored({ kind: 'link', url: XTREAM });
+      await playlists.insert(other);
+      await playlists.insert(own);
+      brand.profile = 'general';
+
+      const items = (await ask()).playlists;
+
+      expect(items[0]!.url).toBe('http://line.example:9090/a.m3u');
+      expect(items[0]!.backupUrls).toEqual([]);
+      expect((await playlists.findById(own.id))?.url).toBe(XTREAM);
     });
   });
 });

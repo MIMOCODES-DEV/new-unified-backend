@@ -5,9 +5,11 @@ One multi-tenant backend replacing `iboplayer-backend`, `bobplayer-backend` and 
 - Why and scope: [PLAN.md](PLAN.md)
 - What it does: [docs/FEATURES.md](docs/FEATURES.md)
 - How it is built: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- Who does what: [docs/TASKS.md](docs/TASKS.md)
-- **Current work, Phase 1 (device core):** [docs/phase-1/README.md](docs/phase-1/README.md): schema, tasks, guide
-- How to check that everything still works: [docs/phase-1/TESTS.md](docs/phase-1/TESTS.md)
+- **The implementation plan: phases, tasks, expected outputs and status:** [docs/ROADMAP.md](docs/ROADMAP.md); each
+  phase has its own page (tasks, schema, APIs, diagrams) in [docs/phases/](docs/phases/) and its own branch `phase/<n>-<name>`
+- The device core: its collections [docs/SCHEMA.md](docs/SCHEMA.md), the rules of each module [docs/modules/](docs/modules/)
+- Open questions between us: [docs/DISCUSSIONS.md](docs/DISCUSSIONS.md)
+- How to check that everything still works: [docs/TESTING.md](docs/TESTING.md)
 - How we work: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Stack
@@ -37,7 +39,7 @@ REDIS_URL=redis://localhost:6379
 ```
 
 Step by step, with the commands for this machine, in
-[docs/phase-1/TESTS.md](docs/phase-1/TESTS.md#1-local-setup-without-docker). On Windows start MongoDB with
+[docs/TESTING.md](docs/TESTING.md#1-local-setup-without-docker). On Windows start MongoDB with
 `--ipv6 --bind_ip 127.0.0.1,::1`: `localhost` resolves to `::1` first, and MongoDB Compass cannot connect otherwise.
 Open the same `MONGO_URI` in Compass to look at the data.
 
@@ -47,8 +49,9 @@ Open the same `MONGO_URI` in Compass to look at the data.
 
 1. `pnpm cli migrate:central`: central collections (tenants, secrets, `domainMigrations`).
 2. `pnpm cli tenants:seed --dev`: the brands in `seeds/tenants.seed.json`, each also on `<slug>.localhost`.
-3. `pnpm cli migrate:tenants`: the Phase 1 collections and indexes in every brand's database.
-4. `pnpm cli seed:examples [slug...]`: an example of everything Phase 1 stores, in every brand (or the brands named).
+3. `pnpm cli migrate:tenants`: the device core collections and indexes in every brand's database.
+4. `pnpm cli playlists:pin-keys`: a playlist PIN key in every brand's secrets (a missing one is created, an existing one is never replaced).
+5. `pnpm cli seed:examples [slug...]`: an example of everything the device core stores, in every brand (or the brands named).
 
 `seed:examples` refuses to run with `NODE_ENV=production`. Every example id starts with `example-` and every example
 MAC with `02:00:` (never a real device), so a second run refreshes the same rows. Each brand gets:
@@ -81,10 +84,11 @@ so a MAC is never in both collections.
 | `pnpm test`                            | Unit tests                                                                           |
 | `pnpm test:int`                        | Integration tests against real MongoDB + Redis (containers, or servers you can wipe) |
 | `pnpm format`                          | Prettier                                                                             |
+| `pnpm e2e:<area>`                      | End-to-end checks against a running API: devices, playlists, licenses, v4, moves     |
 
 Before merging, run what CI runs: `pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test &&
 pnpm test:int && pnpm build`. The full checklist and the end-to-end checks are in
-[docs/phase-1/TESTS.md](docs/phase-1/TESTS.md).
+[docs/TESTING.md](docs/TESTING.md).
 
 Without Docker, `pnpm test:int` uses servers you are happy to wipe, **never your dev database** (the tests leave data
 behind, so empty them before each run):
@@ -109,6 +113,16 @@ pnpm cli tenant:config:set <slug> trial.days 3
 
 Changes reach running API processes immediately (Redis host cache and pub/sub notices).
 
+## Device core operations
+
+```sh
+pnpm cli devices:cleanup [--days N] [--limit N] [slug...]   # LIC-4: report stale trial devices (dry run)
+pnpm cli devices:cleanup --apply [--days N] [slug...]       # … and delete them, with their playlists
+pnpm cli domain-moves:list [awaiting|pending|approved|blocked]   # DOM-2: provider moves (default: awaiting)
+pnpm cli domain-moves:approve <id> <who>                    # served in playlist replies within a minute
+pnpm cli domain-moves:block <id> <who>                      # never served
+```
+
 ## Layout
 
 ```
@@ -128,7 +142,14 @@ src/
 test/
   unit/  integration/  support/
 docs/
-  phase-1/       the current work: README (schema, tasks, guide), TESTS, database-schema.html, implementation-plan.html
+  ROADMAP.md     the implementation plan: phases, tasks, expected outputs, status (the only status page)
+  phases/        one page per phase: tasks, schema, APIs, diagrams (Phase 5 is a plan)
+  SCHEMA.md      the device core collections; schema.html shows them next to the old models
+  modules/       the rules of each module, by task id (devices, licensing, playlists, recovery, domain-moves)
+  TESTING.md     local setup, the checks, the end-to-end scenarios, the run log
+  DISCUSSIONS.md open questions between Ali and Omar
+  ARCHITECTURE.md · FEATURES.md · adr/   how it is built, what the old backends did, decisions
+  inventory/ · data-profiles/            evidence from the old backends
 ```
 
 Every HTTP route must declare who may call it (`@Public()`, `@LegacyDevice()`, `@Store()`, `@Staff()`, `@Reseller()`, `@Customer()`, `@Platform()`). Undeclared routes are refused at runtime and fail `test/unit/route-access.spec.ts`.

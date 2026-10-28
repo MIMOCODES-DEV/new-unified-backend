@@ -1,4 +1,4 @@
-// End-to-end check of the Phase 1 device rules over HTTP, against a running API and a real
+// End-to-end check of the device rules over HTTP, against a running API and a real
 // database, through the dev-only /dev/devices routes.
 //
 //   pnpm seed          # once: migrations, dev brands and the example devices this script uses

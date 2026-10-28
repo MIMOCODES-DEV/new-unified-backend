@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  FakeHostMoves,
   FakePinCipher,
   FakePlaylistDevices,
   InMemoryPlaylistRepository,
@@ -31,6 +32,7 @@ const mac = (value: string) => {
 
 describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
   let playlists: InMemoryPlaylistRepository;
+  let hostMoves: FakeHostMoves;
   let devices: FakePlaylistDevices;
   let add: AddPlaylistUseCase;
   let edit: EditPlaylistUseCase;
@@ -50,7 +52,8 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
     const clock = new FixedClock(now);
     const pins = new PlaylistPins(new FakePinCipher());
     add = new AddPlaylistUseCase(playlists, devices, pins, clock);
-    edit = new EditPlaylistUseCase(playlists, pins, clock);
+    hostMoves = new FakeHostMoves();
+    edit = new EditPlaylistUseCase(playlists, pins, clock, hostMoves);
     remove = new DeletePlaylistUseCase(playlists, devices, pins);
     setPin = new SetPlaylistPinUseCase(playlists, pins, clock);
     setBackup = new SetPlaylistBackupUseCase(playlists, pins, clock);
@@ -201,6 +204,71 @@ describe('Playlists: add, edit, delete, list, sync (PL-2)', () => {
       });
 
       expect(!result.ok && result.error.code).toBe('playlists.exists');
+    });
+
+    it('reports a new link as a possible provider move (DOM-1), with where it came from', async () => {
+      const m3u = await addLink('device-1', M3U);
+      const xtream = await addLink('device-1', XTREAM);
+      await edit.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: m3u.id,
+        source: { kind: 'link', url: 'https://cdn2.example/list.m3u' },
+        ip: '203.0.113.5',
+      });
+      await edit.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: xtream.id,
+        source: {
+          kind: 'xtream',
+          server: 'http://line2.example:8080',
+          username: 'u1',
+          password: 'p1',
+        },
+        ip: '203.0.113.5',
+      });
+
+      expect(hostMoves.changes).toEqual([
+        {
+          deviceId: 'device-1',
+          ip: '203.0.113.5',
+          before: M3U,
+          after: 'https://cdn2.example/list.m3u',
+        },
+        {
+          deviceId: 'device-1',
+          ip: '203.0.113.5',
+          before: 'http://line.example:8080/',
+          after: 'http://line2.example:8080/',
+        },
+      ]);
+    });
+
+    it('reports nothing for a name change, a change of kind, or an edit without an IP', async () => {
+      const playlist = await addLink('device-1', M3U);
+      await edit.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: playlist.id,
+        name: 'X',
+        ip: '203.0.113.5',
+      });
+      await edit.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: playlist.id,
+        source: { kind: 'link', url: 'https://cdn2.example/list.m3u' },
+      });
+      await edit.execute({
+        deviceId: 'device-1',
+        by: 'app',
+        playlistId: playlist.id,
+        source: { kind: 'link', url: XTREAM },
+        ip: '203.0.113.5',
+      });
+
+      expect(hostMoves.changes).toEqual([]);
     });
   });
 

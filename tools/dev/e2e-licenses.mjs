@@ -1,4 +1,4 @@
-// End-to-end check of the Phase 1 license rules (LIC-1 to LIC-3) over HTTP, against a running API,
+// End-to-end check of the license rules (LIC-1 to LIC-3) over HTTP, against a running API,
 // a real database and the real Redis lock, through the dev-only /dev/licenses routes.
 //
 //   pnpm seed            # once

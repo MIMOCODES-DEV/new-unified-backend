@@ -94,6 +94,15 @@ export class InMemoryTrialDeviceRepository implements TrialDeviceRepository {
   findByLegacyId(legacyId: string) {
     return this.find((d) => d.legacy?.id === legacyId);
   }
+  async listStale(endedBefore: Date, notSeenSince: Date, limit: number): Promise<TrialDevice[]> {
+    await tick();
+    return [...this.items.values()]
+      .filter(
+        (d) => d.trialEndsAt < endedBefore && d.playlistCount === 0 && d.lastSeenAt < notSeenSince,
+      )
+      .sort((a, b) => a.trialEndsAt.getTime() - b.trialEndsAt.getTime())
+      .slice(0, limit);
+  }
   async insert(device: TrialDevice): Promise<void> {
     await tick();
     // Same rule as the unique index on trialDevices.macAddress.
@@ -187,6 +196,26 @@ export class InMemoryPaidDeviceRepository implements PaidDeviceRepository {
   }
   findByLegacyId(legacyId: string) {
     return this.find((d) => d.legacy?.id === legacyId);
+  }
+  findByRecoveryCode(code: string) {
+    return this.find((d) => d.recovery?.code === code);
+  }
+  async setRecoveryCode(
+    id: string,
+    code: string,
+    expiresAt: Date,
+    at: Date,
+  ): Promise<'set' | 'missing' | 'taken'> {
+    await tick();
+    const device = this.items.get(id);
+    if (!device) return 'missing';
+    // Same rule as the recovery_code_unique index.
+    if ([...this.items.values()].some((d) => d.id !== id && d.recovery?.code === code)) {
+      return 'taken';
+    }
+    const recovery = device.recovery ?? { enabled: false, recoveredFrom: null, recoveredAt: null };
+    this.items.set(id, { ...device, recovery: { ...recovery, code, expiresAt }, updatedAt: at });
+    return 'set';
   }
   async insert(device: PaidDevice): Promise<void> {
     await tick();
