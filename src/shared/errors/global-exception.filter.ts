@@ -44,6 +44,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
+      // Thrown with our own body (`{ error: { code, message } }`): sent as it is.
+      const response = exception.getResponse();
+      if (isErrorBody(response)) return [status, response];
       return [status, { error: { code: `http_${status}`, message: exception.message } }];
     }
     return [
@@ -51,4 +54,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       { error: { code: 'internal_error', message: 'Internal server error' } },
     ];
   }
+}
+
+function isErrorBody(value: unknown): value is ErrorBody {
+  const error = (value as Partial<ErrorBody> | null)?.error;
+  return typeof error?.code === 'string' && typeof error.message === 'string';
 }

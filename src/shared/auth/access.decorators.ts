@@ -8,7 +8,13 @@ export type Access =
   | { kind: 'legacy-device' }
   | { kind: 'store' }
   | { kind: 'platform' }
-  | { kind: 'staff'; roles: readonly string[] }
+  | {
+      kind: 'staff';
+      /** The permission key the role must have; null = any active staff member. */
+      permission: string | null;
+      /** `brand`: the brand served (from the host) must be in the member's tenantAccess. */
+      scope: 'brand' | 'central';
+    }
   | { kind: 'reseller' }
   | { kind: 'customer' };
 
@@ -22,9 +28,15 @@ export const LegacyDevice = () => access({ kind: 'legacy-device' });
 export const Store = () => access({ kind: 'store' });
 /** @public Internal platform calls (PLATFORM_KEY). */
 export const Platform = () => access({ kind: 'platform' });
-/** @public Staff (admin) JWT, optionally limited to roles. */
-export const Staff = (...roles: string[]) => access({ kind: 'staff', roles });
+/**
+ * A staff session acting on the brand being served: the role must have `permission` (PRM-1: the key
+ * is synced to `permissions` on startup) and the brand must be in the member's tenantAccess.
+ */
+export const Staff = (permission: string) => access({ kind: 'staff', permission, scope: 'brand' });
+/** A staff session on central data (staff, roles); no brand check. No key = any active member. */
+export const CentralStaff = (permission?: string) =>
+  access({ kind: 'staff', permission: permission ?? null, scope: 'central' });
 /** @public Reseller JWT. */
 export const Reseller = () => access({ kind: 'reseller' });
-/** @public Customer website JWT. */
+/** A customer session of the brand being served. */
 export const Customer = () => access({ kind: 'customer' });

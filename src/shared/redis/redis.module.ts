@@ -4,6 +4,8 @@ import { AppConfig } from '../config/app-config.js';
 import { createRedisConnection, REDIS } from './redis.connection.js';
 import { RedisLock } from './redis-lock.js';
 import { RedisRateLimiter } from './redis-rate-limiter.js';
+import { RedisSessionStore } from './redis-session.store.js';
+import { SessionStore } from '../auth/session-store.js';
 
 @Global()
 @Module({
@@ -15,8 +17,9 @@ import { RedisRateLimiter } from './redis-rate-limiter.js';
     },
     RedisLock,
     RedisRateLimiter,
+    { provide: SessionStore, useClass: RedisSessionStore },
   ],
-  exports: [REDIS, RedisLock, RedisRateLimiter],
+  exports: [REDIS, RedisLock, RedisRateLimiter, SessionStore],
 })
 export class RedisModule implements OnApplicationShutdown {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
