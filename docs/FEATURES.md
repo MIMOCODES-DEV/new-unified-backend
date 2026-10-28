@@ -52,7 +52,7 @@ The V4 routes are written once in a loop over the app types, so 10 lines of code
 | One device row shared by several apps (IBO Player, Pro, TV) † | ✅ | — | — |
 | "V4 lock" — device that used V4 is refused by legacy routes | ✅ | (x) 4 routes † | ✅ |
 | Store-review bypass (lifetime for a specific test build on Samsung/LG/Vidaa/Windows) | ✅ | ✅ | (x) dead flags |
-| Old/expired device cleanup | (x) 6 months | (x) 120 days | (x) 400 days | → replaced by trialDevices + one correct cleanup job (Phase 1, LIC-4) |
+| Old/expired device cleanup | (x) 6 months | (x) 120 days | (x) 400 days | → replaced by trialDevices + one correct cleanup job (LIC-4, Phase 4 · Moves and cleanup) |
 | Suspect-device quarantine / restore | ✅ | — | — | → replaced by pending/quarantine design |
 
 ## 3. Playlists

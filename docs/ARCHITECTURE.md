@@ -1,7 +1,7 @@
 # Architecture
 
 > Status: **Draft for review — Thursday 2026-10-15 kickoff**
-> Companion docs: `PLAN.md` (why + scope), `docs/FEATURES.md` (what), `docs/TASKS.md` (who/when).
+> Companion docs: `PLAN.md` (why + scope), `docs/FEATURES.md` (what), `docs/ROADMAP.md` (who/when and status).
 
 ---
 
@@ -155,7 +155,7 @@ Cloudflare (origin locked)
 Two kinds of database (details in PLAN §5):
 - **Central DB:** `tenants`, `tenantSecrets`, `staffUsers`, `resellers`, `walletAccounts`, `walletLedger`, `activationCodes`, `coupons`, `deviceRegistry`, `licenseTransfers`, `paymentProviders`, i18n, `domainMigrations`, `abuse*`, `auditLog`.
 - **Tenant DB:** `trialDevices` (never paid), `devices` (paid at least once), `licenses` (one row per license, kept as history), `playlists`, `captchas`, `customers`, `subscriptions`, `plans`, `packages`, `transactions`, `tenantConfig`, content, `contactMessages`, `appVersions`/`androidApps`.
-- **Phase 1** (devices, licensing, playlists, recovery, provider domain moves) builds `trialDevices`, `devices`, `licenses`, `playlists`, `captchas` and the central `domainMigrations`; field lists in [docs/phase-1/README.md](phase-1/README.md).
+- The **device core** (devices, licensing, playlists, recovery, provider domain moves; built in Phase 2 · Database, Phase 3 · Core features and Phase 4 · Moves and cleanup) builds `trialDevices`, `devices`, `licenses`, `playlists`, `captchas` and the central `domainMigrations`; field lists in [SCHEMA.md](SCHEMA.md), rules in [modules/](modules/).
 
 Conventions:
 - camelCase fields, real types (Date UTC, boolean, ObjectId, money as integer minor units + currency).

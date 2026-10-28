@@ -99,3 +99,37 @@ The cr site was derived from the IBO site: ibo's backend defines PayPal under bo
 2. **Per-brand route sets differ by app, not only by backend.** CRPlayer depends on legacy CRUD + `tv/v4/playlist_info`; BobPlayer only on V4. The legacy adapters must cover both families per tenant.
 3. **Secrets in clients:** AES passphrase and HMAC secret (bob, dead code), static `TV_API_TOKEN` (cr), StarArcs/TMDB/weather keys, platform API key in the website bundle. All are public already; treat them as identifiers, not authentication (PLAN §6.7).
 4. **Missing routes are features clients expect:** `change-code` (CRPlayer activation codes) and `edit_playlist` on bob should exist in the rebuild.
+
+## More TV apps (25 Oct survey)
+
+> 2026-10-25 · read-only. A quick string scan of the 26 TV apps TVLab tracks, and a deep read of 9 of them. Approximate
+> counts; the other 17 apps and the three websites are not read in depth yet.
+
+**How many apps call each legacy route** (scan of all 26): `update_playlist` 25, `edit_playlist` 24, `add_playlist`
+23, `changeParentPin` 22, `playlist_info` 17, `playlist_information` 13, signed TV v3 `playlist_information` 12,
+`remove_playlist` 12, `device_login` / `device_info` 10–11. Per-app-type V4 is used only by BobPlayer-style apps.
+
+**The 9 apps read in depth fall into four groups:**
+
+| Group | Apps | Calls | Fallback MAC |
+|---|---|---|---|
+| A | macplayer, bobpremium | CRPlayer clone, quasi-V4 (`/api/v4/recaptcha` + `/api/tv/v4/playlist_info`, static Bearer `TV_API_TOKEN`) + legacy CRUD | `52:54:00:12:34:59` |
+| B | duplex, zeroplayer | cr legacy `/api/playlist_info` with no captcha or token + CRUD | `…:59` |
+| C | bobpro, abeplayer, virginiaplayer, king4kplayer | the same `v4_auth.js`: per-app-type V4 (`/api/{t}/v4/recaptcha`, `device_login`, `device_info`, `manage/*`, `device/add`, Bearer device token, u_id) + legacy `changeParentPin` and `PUT edit_playlist`; hosts from `cdn.jsdelivr.net/gh/mr-akme/app-config@HEAD/<app>/domain.json` | `…:57` |
+| D | bobplayer | V4 (above) | `…:57` |
+
+**What the rebuild must keep:**
+
+- `POST /api/change-code` (groups A and B) exists in **no** old backend.
+- `PUT /api/edit_playlist`, `add_playlist`, `remove_playlist` and `tv/v4/playlist_info` exist only on cr, but brands
+  outside cr call them: they must work for every brand that uses them.
+- zeroplayer lists `api.0player.com` / `api.0players.com` **without `/api`**, so its calls hit root paths.
+- duplex calls `tvduplex.com/api/playlist_info` with only `mac_address` and ignores the reply.
+- Every host must answer `GET /api/status_check` with `{"status":"success"}` and serve `/<app>/app_src_min/...`
+  static files.
+- Group C's legacy u_id is SHA256(lowercase MAC) mod a 57-character alphabet, and must match.
+- `app_type` values: `lg`, `samsung`, `vidaa`, `titanos`, `zeasn`, `windows`.
+- Typos the wire depends on: header `Acceept`, host `bobpremuim.com`, field `host_smasung_version`.
+- `…:57` apps send a u_id, `…:59` apps don't (DEV-2).
+- Some apps call third-party backends (`backend.stararcs.com`, `ibosub.com`, `dev.bai.com`); check which backend
+  each really uses before relying on it.
