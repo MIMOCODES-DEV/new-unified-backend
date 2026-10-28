@@ -203,12 +203,13 @@ One collection for all kinds. Each row has a `type`, and only the part for that 
 |---|---|---|---|
 | `_id` | String | new UUID | new id (old `_id` → `legacy.id`) |
 | `deviceId` | String | the device in `trialDevices` or `devices`; indexed | `device_id` (text, no index today) |
-| `name` | String | required, trimmed | `playlist_name` |
+| `name` | String | required, trimmed; **unique per device, case does not matter** (index `name_once_per_device`, decided 26 Oct) | `playlist_name` |
 | `type` | String | `m3u` \| `xtream` \| `stalker` \| `code` | `playlist_type` (general = m3u, xc = xtream, empty = m3u) |
 | `url` | String \| null | m3u and xtream: the link exactly as typed; **not encrypted** | `url` |
 | `xtream` | Object \| null | `{ server, username, password }`, parsed once when saved; **not encrypted** | `username`, `password`, or parsed from `url` |
 | `stalker` | Object \| null | `{ portalName, portalUrl, fallbackUrl, mac }` | `portal_name`, `portal_address`, `portal_fallback_address` / `fallback_portal_address`, `stalker_mac_address` |
-| `code` | Object \| null | `{ code, expiresAt, status }`: a provider code (digits) instead of a link; CRPlayer reports `expiresAt` and `status` back | `code` / `playlist_code`, `expiration_date`, `status` |
+| `code` | Object \| null | `{ code }`: a provider code (digits) instead of a link | `code` / `playlist_code` |
+| `account` | Object \| null | `{ status, expiresAt, checkedAt }`: what the provider said about the account, as the app last reported it (any type; CRPlayer sends it for every playlist). Null until reported | `status`, `expiration_date` |
 | `epgUrl` | String \| null | | `epg_url` |
 | `backup` | Object | `{ enabled, hosts[] }`, up to 8 hosts; hosts kept when turned off | `cross_dns_backup`, `backup_dns` (cr) |
 | `protected` | Boolean | opening it needs the PIN | `is_protected` (0, 1 or "") |
@@ -222,7 +223,8 @@ One collection for all kinds. Each row has a `type`, and only the part for that 
 Rules:
 
 - No limit on playlists per device.
-- The status sync from the apps (old `PUT edit_playlist`) may change only `code.status` and `code.expiresAt`.
+- A playlist name is unique per device ("My List" and "my list" are the same name); the same name on another device is fine. Older duplicates were renamed "Name (2)", "Name (3)" by migration `0007`.
+- The status sync from the apps (old `PUT edit_playlist`) may change only `account` (status and expiry), for any playlist type.
 - The demo playlist is **not a row**: it comes from brand config `app.demoUrl` when a device has none.
 
 ### 2.6 `captchas`
@@ -608,7 +610,7 @@ Done when: a device can add, edit, delete, protect and sync playlists and gets t
   - Add by QR code and by the Stalker form for a known MAC without a login.
   - Add and delete by MAC only as on cr, rate limited per IP.
 - **PL-7 Playlist status sync and code playlists**
-  - The status sync changes only `code.status` and `code.expiresAt`; any other field sent is ignored, with a test.
+  - The status sync changes only `account` (status, expiry), for any playlist type; any other field sent is ignored, with a test.
 - **PL-8 Bulk provider domain rewrite**
   - Touches only the calling brand; the domain is plain text, not a pattern.
   - Reports how many playlists changed; a count-only mode changes nothing.
