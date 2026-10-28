@@ -93,3 +93,6 @@ For `cr-unified-frontend` (branch `improvement/cleanup-and-multi-tenant`), which
 
 Result 28 Oct 2026: format, lint, typecheck, knip green; unit **598/598**; integration **59/59**; build OK; e2e site
 **48/48**, and no change to v4, devices, playlists, licenses, moves, accounts.
+Result 28 Oct 2026, rebuilt on Phase 5 with the Phase 3 routes before V4 and the Phase 4 recovery routes: format,
+lint, typecheck, knip green; unit **628/628**; integration **59/59**; build OK; e2e site **48/48**, legacy **82/82**,
+accounts 52/52, moves 32/32, v4 47/47 (no StarArcs stand-in), devices 46/46, playlists 24/24, licenses 19/19.
