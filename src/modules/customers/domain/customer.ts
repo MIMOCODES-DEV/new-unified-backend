@@ -13,9 +13,19 @@ export interface Customer {
   /** Null until the email is verified; cleared again when the email changes. */
   readonly emailVerifiedAt: Date | null;
   readonly legacy: { readonly id?: string; readonly brand?: string } | null;
+  /** The names the customer gave their linked TVs ("Living room"); the device itself has none. */
+  readonly deviceNames: readonly CustomerDeviceName[];
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
+
+export interface CustomerDeviceName {
+  readonly deviceId: string;
+  readonly name: string;
+}
+
+/** A device name: trimmed, 1 to 50 characters. */
+export const MAX_DEVICE_NAME = 50;
 
 export const CUSTOMER_TOKEN_KINDS = ['verifyEmail', 'resetPassword'] as const;
 export type CustomerTokenKind = (typeof CUSTOMER_TOKEN_KINDS)[number];

@@ -8,6 +8,7 @@ const DEFAULT_LABELS: Record<string, string> = {
   'devices.activate': 'Activate devices',
   'staff.manage': 'Manage staff',
   'roles.manage': 'Manage roles and permissions',
+  'contact.view': 'Read contact messages',
 };
 
 /**

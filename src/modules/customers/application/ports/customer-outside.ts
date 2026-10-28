@@ -4,6 +4,8 @@ export interface CustomerDevice {
   readonly macAddress: string;
   readonly platform: string;
   readonly lastSeenAt: Date;
+  /** What it may do now (trial, yearly, lifetime, expired, revoked) and until when; null if unknown. */
+  readonly license: { readonly state: string; readonly endsAt: Date | null } | null;
 }
 
 export type LinkOutcome =
@@ -23,6 +25,8 @@ export abstract class CustomerDevices {
 export abstract class CustomerMailer {
   abstract sendEmailVerification(to: string, token: string): Promise<void>;
   abstract sendPasswordReset(to: string, token: string): Promise<void>;
+  /** After a sign-up without a password: a link to choose one (it also proves the email). */
+  abstract sendSetPassword(to: string, token: string): Promise<void>;
 }
 
 /** Ends a customer's sessions in the current brand (password reset or change). */

@@ -28,6 +28,7 @@ import {
 import {
   LinkAccountDeviceUseCase,
   ListAccountDevicesUseCase,
+  NameAccountDeviceUseCase,
   UnlinkAccountDeviceUseCase,
 } from './application/use-cases/customer-devices.use-cases.js';
 import { MongoCustomerTokenRepository } from './infrastructure/mongo-customer-token.repository.js';
@@ -46,6 +47,7 @@ const useCases = [
   LinkAccountDeviceUseCase,
   UnlinkAccountDeviceUseCase,
   ListAccountDevicesUseCase,
+  NameAccountDeviceUseCase,
 ];
 
 export interface CustomersModuleOptions {

@@ -15,7 +15,15 @@ app.useLogger(app.get(Logger));
 app.enableCors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['authorization', 'content-type', 'custom-proxy-mode', 'token'],
+  // x-client-origin and x-site-key: the cr brand sites send them on every call.
+  allowedHeaders: [
+    'authorization',
+    'content-type',
+    'custom-proxy-mode',
+    'token',
+    'x-client-origin',
+    'x-site-key',
+  ],
 });
 app.enableShutdownHooks();
 

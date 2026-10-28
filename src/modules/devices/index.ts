@@ -11,6 +11,7 @@ export { FindDeviceByTokenIdUseCase } from './application/use-cases/find-device-
 export { HasSolvedCaptchaUseCase } from './application/use-cases/has-solved-captcha.use-case.js';
 export { ChangePlaylistCountUseCase } from './application/use-cases/change-playlist-count.use-case.js';
 export { AnswerWebCaptchaUseCase } from './application/use-cases/answer-web-captcha.use-case.js';
+export { SetDeviceUidUseCase } from './application/use-cases/set-device-uid.use-case.js';
 export { IssueCaptchaUseCase } from './application/use-cases/issue-captcha.use-case.js';
 export { IssueUidRecoveryCaptchaUseCase } from './application/use-cases/issue-uid-recovery-captcha.use-case.js';
 export { LoginV4DeviceUseCase } from './application/use-cases/login-v4-device.use-case.js';

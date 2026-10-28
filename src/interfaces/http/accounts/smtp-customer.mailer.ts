@@ -28,7 +28,11 @@ const OUTBOX_SIZE = 100;
 export const devOutbox: UnsentEmail[] = [];
 
 /** The page on the brand site that takes the token: built by the frontend team. */
-const PAGES = { verify: '/verify-email', reset: '/reset-password' } as const;
+const PAGES = {
+  verify: (token: string) => `/verify-email?token=${encodeURIComponent(token)}`,
+  // The cr site sets a new password, after sign-up or a reset request, on one page.
+  setPassword: (token: string) => `/set-password/${encodeURIComponent(token)}`,
+};
 
 /**
  * Sends customer emails over the brand's own SMTP server (DISCUSSIONS #9.3). A brand without SMTP
@@ -42,7 +46,7 @@ export class SmtpCustomerMailer implements CustomerMailer {
 
   async sendEmailVerification(to: string, token: string): Promise<void> {
     const brand = await this.brand();
-    const link = linkTo(brand, PAGES.verify, token);
+    const link = linkTo(brand, PAGES.verify(token));
     await this.send(brand, to, token, `Confirm your email for ${brand.brandName}`, [
       `Open this link to confirm your email address:`,
       link,
@@ -51,9 +55,20 @@ export class SmtpCustomerMailer implements CustomerMailer {
     ]);
   }
 
+  async sendSetPassword(to: string, token: string): Promise<void> {
+    const brand = await this.brand();
+    const link = linkTo(brand, PAGES.setPassword(token));
+    await this.send(brand, to, token, `Choose your ${brand.brandName} password`, [
+      `Welcome! Open this link to choose your password:`,
+      link,
+      ``,
+      `The link works once and for 24 hours. If you did not sign up, ignore this email.`,
+    ]);
+  }
+
   async sendPasswordReset(to: string, token: string): Promise<void> {
     const brand = await this.brand();
-    const link = linkTo(brand, PAGES.reset, token);
+    const link = linkTo(brand, PAGES.setPassword(token));
     await this.send(brand, to, token, `Reset your ${brand.brandName} password`, [
       `Open this link to choose a new password:`,
       link,
@@ -89,7 +104,7 @@ export class SmtpCustomerMailer implements CustomerMailer {
   }
 }
 
-function linkTo(brand: BrandMail, page: string, token: string): string {
+function linkTo(brand: BrandMail, page: string): string {
   const base = (brand.siteUrl ?? 'http://localhost:3000').replace(/\/+$/, '');
-  return `${base}${page}?token=${encodeURIComponent(token)}`;
+  return `${base}${page}`;
 }

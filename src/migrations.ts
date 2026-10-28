@@ -1,3 +1,4 @@
+import { contactMigrations } from './modules/contact/index.js';
 import { customersMigrations } from './modules/customers/index.js';
 import { devicesMigrations } from './modules/devices/index.js';
 import { domainMigrationsMigrations } from './modules/domain-migrations/index.js';
@@ -23,4 +24,5 @@ export const tenantMigrations: readonly Migration[] = [
   ...licensingMigrations,
   ...playlistsMigrations,
   ...customersMigrations,
+  ...contactMigrations,
 ];

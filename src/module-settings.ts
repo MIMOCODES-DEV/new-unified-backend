@@ -24,6 +24,7 @@ import {
   type LicensedDevices,
   type LicensedPlaylists,
   type LicenseLock,
+  DeviceLicenseUseCase,
   LicensingModule,
   type MacSwitchOutcome,
   type RecoveryOutcome,
@@ -301,35 +302,46 @@ const LINK_REFUSALS = {
  * brand's own SMTP server and sender, with links to the brand site.
  */
 export const CustomersWithDevices = CustomersModule.forRootAsync({
-  imports: [DevicesWithBrandConfig, TenantsModule],
+  imports: [DevicesWithBrandConfig, LicensingWithDevices, TenantsModule],
   devices: {
     inject: [
       LinkDeviceToCustomerUseCase,
       UnlinkDeviceFromCustomerUseCase,
       ListCustomerDevicesUseCase,
+      DeviceLicenseUseCase,
     ],
     useFactory: (
       link: LinkDeviceToCustomerUseCase,
       unlink: UnlinkDeviceFromCustomerUseCase,
       list: ListCustomerDevicesUseCase,
+      licenses: DeviceLicenseUseCase,
     ): CustomerDevices => {
-      const view = (d: { id: string; macAddress: string; platform: string; lastSeenAt: Date }) => ({
-        id: d.id,
-        macAddress: d.macAddress,
-        platform: d.platform,
-        lastSeenAt: d.lastSeenAt,
-      });
+      const view = async (d: {
+        id: string;
+        macAddress: string;
+        platform: string;
+        lastSeenAt: Date;
+      }) => {
+        const license = await licenses.execute(d.id);
+        return {
+          id: d.id,
+          macAddress: d.macAddress,
+          platform: d.platform,
+          lastSeenAt: d.lastSeenAt,
+          license: license.ok ? { state: license.value.state, endsAt: license.value.endsAt } : null,
+        };
+      };
       return {
         link: async (rawMac, key, customerId) => {
           const mac = MacAddress.parse(rawMac);
           if (!mac.ok) return { status: 'mismatch' };
           const linked = await link.execute({ mac: mac.value, key, customerId });
-          if (linked.ok) return { status: 'linked', device: view(linked.value) };
+          if (linked.ok) return { status: 'linked', device: await view(linked.value) };
           const code = linked.error.code;
           return { status: LINK_REFUSALS[code] ?? 'mismatch' };
         },
         unlink: async (deviceId, customerId) => (await unlink.execute({ deviceId, customerId })).ok,
-        listFor: async (customerId) => (await list.execute(customerId)).map(view),
+        listFor: async (customerId) => Promise.all((await list.execute(customerId)).map(view)),
       };
     },
   },

@@ -31,6 +31,12 @@ describe('declaredPermissions (PRM-1)', () => {
 
   it('the admin routes declare the keys the seeded roles use', () => {
     const keys = declaredPermissions(ADMIN_CONTROLLERS).map((p) => p.key);
-    expect(keys).toEqual(['devices.activate', 'devices.view', 'roles.manage', 'staff.manage']);
+    expect(keys).toEqual([
+      'contact.view',
+      'devices.activate',
+      'devices.view',
+      'roles.manage',
+      'staff.manage',
+    ]);
   });
 });

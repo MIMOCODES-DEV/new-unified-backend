@@ -4,17 +4,19 @@ import {
   LicensingWithDevices,
   PlaylistsWithDevices,
 } from '../../../module-settings.js';
+import { ContactModule } from '../../../modules/contact/index.js';
 import { AuthContext } from '../../../shared/auth/auth-context.js';
 import { DeviceSessionController } from './device-session.controller.js';
 import { SiteController } from './site.controller.js';
+import { XtreamAccountCheck } from './xtream-account-check.js';
 
 /**
  * The brand site's device API (Phase 6): a TV's dashboard after logging in with its MAC and device
  * key, and the public tools. Replaces the old `/frontend/device/*` routes (D15).
  */
 @Module({
-  imports: [DevicesWithBrandConfig, LicensingWithDevices, PlaylistsWithDevices],
+  imports: [DevicesWithBrandConfig, LicensingWithDevices, PlaylistsWithDevices, ContactModule],
   controllers: [DeviceSessionController, SiteController],
-  providers: [AuthContext],
+  providers: [AuthContext, XtreamAccountCheck],
 })
 export class SiteHttpModule {}

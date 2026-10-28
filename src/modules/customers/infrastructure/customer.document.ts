@@ -13,6 +13,10 @@ export const customerDocumentSchema = z.object({
   lastName: z.string().nullable(),
   emailVerifiedAt: z.date().nullable(),
   legacy: z.looseObject({ id: z.string().optional(), brand: z.string().optional() }).nullable(),
+  // Rows saved before device names existed have none.
+  deviceNames: z
+    .array(z.object({ deviceId: z.string().min(1), name: z.string().min(1).max(50) }))
+    .default([]),
   createdAt: z.date(),
   updatedAt: z.date(),
 });

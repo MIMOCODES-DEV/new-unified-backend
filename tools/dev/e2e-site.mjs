@@ -170,6 +170,67 @@ console.log('public tools');
   check('a bad MAC is a 400', badMac.status === 400, badMac.json);
 }
 
+console.log('device uid');
+{
+  const uid = await request('PATCH', '/device/uid', { token, body: { uid: 'ab12cd' } });
+  check('the uid shown by a reinstalled app is saved (upper case)', uid.json?.uid === 'AB12CD', uid.json);
+  const bad = await request('PATCH', '/device/uid', { token, body: { uid: 'x' } });
+  check('a uid that is not 6 letters or digits is refused (400)', bad.status === 400 && code(bad) === 'devices.invalid_uid', bad.json);
+}
+
+console.log('check playlist');
+{
+  const local = await request('POST', '/site/check-playlist', { body: { server: 'http://127.0.0.1:8080', username: 'u', password: 'p' } });
+  check('a local address is never called (400)', local.status === 400 && code(local) === 'site.playlist_blocked', local.json);
+  const privateLink = await request('POST', '/site/check-playlist', { body: { url: 'http://192.168.1.20/get.php?username=u&password=p' } });
+  check('a private address in a get.php link is refused too', code(privateLink) === 'site.playlist_blocked', privateLink.json);
+  const noLogin = await request('POST', '/site/check-playlist', { body: { url: 'not a link' } });
+  check('something that is not a link is refused (400)', noLogin.status === 400 && code(noLogin) === 'site.playlist_invalid', noLogin.json);
+}
+
+console.log('contact form');
+const contactEmail = 'visitor-' + randomInt(1e6) + '@example.test';
+{
+  const sent = await request('POST', '/site/contact', { body: { name: 'Visitor', email: contactEmail, subject: 'Hello', message: 'My TV does not load.' } });
+  check('a message is saved', sent.status === 201 && sent.json?.id, sent.json);
+  const bad = await request('POST', '/site/contact', { body: { email: 'nope', message: 'x' } });
+  check('an invalid email is refused (400)', bad.status === 400 && code(bad) === 'contact.invalid_input', bad.json);
+  const rootEmail = 'root-' + randomInt(1e6) + '@example.test';
+  await request('POST', '/dev/staff/super-admin', { body: { email: rootEmail, name: 'Root', password: 'root-pass-1' } });
+  const root = (await request('POST', '/admin/login', { body: { email: rootEmail, password: 'root-pass-1' } })).json?.token;
+  const inbox = await request('GET', '/admin/contact-messages', { token: root });
+  check('staff read it on the same brand (contact.view)', inbox.json?.messages?.some((m) => m.email === contactEmail && m.message === 'My TV does not load.'), inbox.json);
+  const otherBrand = await request('GET', '/admin/contact-messages', { brand: 'bob', token: root });
+  check("another brand's inbox does not have it", otherBrand.status === 200 && !otherBrand.json.messages.some((m) => m.email === contactEmail), otherBrand.json);
+}
+
+console.log("the customer account's devices");
+{
+  const email = 'owner-' + randomInt(1e6) + '@example.test';
+  await request('POST', '/customer/sign-up', { body: { email, password: 'owner-pass-1' } });
+  const link = (await request('GET', '/dev/outbox?to=' + encodeURIComponent(email))).json;
+  await request('POST', '/customer/verify-email', { body: { token: link.token } });
+  const customer = (await request('POST', '/customer/login', { body: { email, password: 'owner-pass-1' } })).json?.token;
+  const own = await paidDevice();
+  const linked = await request('POST', '/customer/devices/link', { token: customer, body: { mac: own.mac, deviceKey: own.key } });
+  const deviceId = linked.json?.device?.id;
+  check('the customer links a TV', linked.status === 200 && deviceId, linked.json);
+  const named = await request('PATCH', `/customer/devices/${deviceId}`, { token: customer, body: { name: 'Living room' } });
+  const list = await request('GET', '/customer/devices', { token: customer });
+  check('rename it; the list shows the name', named.json?.name === 'Living room' && list.json?.devices?.[0]?.name === 'Living room', [named.json, list.json]);
+  const uid = await request('POST', `/customer/devices/${deviceId}/uid`, { token: customer, body: { uid: 'ZZ99YY' } });
+  check('set its uid', uid.json?.uid === 'ZZ99YY', uid.json);
+  const recovery = await request('POST', `/customer/devices/${deviceId}/recovery-code`, { token: customer });
+  check('make a recovery code for it', /^[A-Z0-9]{8}$/.test(recovery.json?.code ?? ''), recovery.json);
+  const notMine = await request('POST', `/customer/devices/${tv.mac}/recovery-code`, { token: customer });
+  const otherDevice = await request('PATCH', `/customer/devices/not-a-device`, { token: customer, body: { name: 'X' } });
+  check('a device not on the account is not found (404)', notMine.status === 404 && otherDevice.status === 404, [notMine.json, otherDevice.json]);
+  await request('DELETE', `/customer/devices/${deviceId}`, { token: customer });
+  await request('POST', '/customer/devices/link', { token: customer, body: { mac: own.mac, deviceKey: own.key } });
+  const relinked = await request('GET', '/customer/devices', { token: customer });
+  check('unlinking forgets the name', relinked.json?.devices?.[0]?.name === null, relinked.json);
+}
+
 console.log('logout');
 {
   await request('POST', '/device/logout', { token });

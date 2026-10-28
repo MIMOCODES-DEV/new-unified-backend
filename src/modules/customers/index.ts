@@ -20,5 +20,6 @@ export {
 export {
   LinkAccountDeviceUseCase,
   ListAccountDevicesUseCase,
+  NameAccountDeviceUseCase,
   UnlinkAccountDeviceUseCase,
 } from './application/use-cases/customer-devices.use-cases.js';

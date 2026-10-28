@@ -53,7 +53,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     .nav-phase:not([open]) > summary::after { transform: rotate(-90deg); }
     .phase-num { @apply inline-flex size-5 shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-white shadow-sm; }
     .phase-num.p1 { @apply bg-sky-500; } .phase-num.p2 { @apply bg-teal-500; } .phase-num.p3 { @apply bg-indigo-500; }
-    .phase-num.p4 { @apply bg-amber-500; } .phase-num.p5 { @apply bg-rose-500; }
+    .phase-num.p4 { @apply bg-amber-500; } .phase-num.p5 { @apply bg-rose-500; } .phase-num.p6 { @apply bg-violet-500; }
     .nav-sub:empty { @apply hidden; }
     .nav-label { @apply px-2 pt-2 pb-0.5 text-[10px] font-semibold tracking-wider text-slate-400 uppercase dark:text-slate-500; }
     .nav-ico { @apply inline-flex size-4 items-center justify-center text-[11px] text-indigo-500; }
@@ -183,6 +183,10 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
         <summary><span class="phase-num p5">5</span>Accounts and staff</summary>
         <button class="nav-item" data-view="customer">Customer<span class="code">CUS-1–4</span></button>
         <button class="nav-item" data-view="staff">Staff and roles<span class="code">STF · PRM</span></button>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p6">6</span>Website API</summary>
+        <button class="nav-item" data-view="site">Website (device)<span class="code">SITE</span></button>
       </details>
       </div>
       <div data-mode-nav="scenarios">
@@ -831,6 +835,71 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
           <div class="step-title">Permissions <span class="font-normal normal-case tracking-normal">PRM-1</span></div>
           <p class="hint mb-2">The keys come from the code (<code class="mono">@Staff(key)</code>), synced on every API start. A key no longer in the code is inactive and removed from every role. Labels are editable here and kept by the sync.</p>
           <div id="st-perms" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-site">
+        <div class="step" data-submit="dv-login">
+          <div class="step-title">Device login on the site <span class="font-normal normal-case tracking-normal">MAC + key</span> <span id="dv-session" class="pill">logged out</span></div>
+          <p class="hint mb-2">Uses the MAC at the top and its device key (filled from the Device card). Every try needs a new captcha; 10 tries per 15 minutes per IP and per MAC. A wrong key and an unknown MAC get the same answer.</p>
+          <div class="row">
+            <button class="btn" id="dv-captcha">New captcha</button>
+            <span id="dv-captcha-img" class="inline-block h-12 rounded bg-slate-900 px-1 [&_svg]:h-12 [&_svg]:w-auto"></span>
+            <label class="field max-w-[8rem]">Answer<input id="dv-answer" class="input font-mono" autocomplete="off"></label>
+          </div>
+          <div class="row mt-2">
+            <label class="field max-w-[9rem]">Device key<input id="dv-key" class="input font-mono" placeholder="from the device"></label>
+            <button class="btn btn-primary" id="dv-login">Log in</button>
+            <button class="btn" id="dv-me">Dashboard</button>
+            <button class="btn" id="dv-logout">Log out</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="dv-pl-add">
+          <div class="step-title">Playlists from the site</div>
+          <p class="hint mb-2">A link, or an Xtream login. With a PIN it is saved protected: the list then shows only its name until unlocked with the PIN.</p>
+          <div class="row">
+            <label class="field">Name<input id="dv-pl-name" class="input" value="From the site"></label>
+            <label class="field">Link or Xtream server<input id="dv-pl-url" class="input font-mono" value="http://line.example.com:8080/list.m3u"></label>
+          </div>
+          <div class="row mt-2">
+            <label class="field max-w-[8rem]">Username<input id="dv-pl-user" class="input"></label>
+            <label class="field max-w-[8rem]">Password<input id="dv-pl-pass" class="input"></label>
+            <label class="field max-w-[6rem]">PIN<input id="dv-pl-pin" class="input font-mono" placeholder="none"></label>
+            <button class="btn btn-primary" id="dv-pl-add">Add</button>
+          </div>
+          <div id="dv-playlists" class="mt-3 space-y-2"></div>
+        </div>
+
+        <div class="step" data-submit="dv-uid">
+          <div class="step-title">Device settings from the site</div>
+          <div class="row">
+            <label class="field max-w-[9rem]">New key<input id="dv-newkey" class="input font-mono" placeholder="empty = random"></label>
+            <button class="btn" id="dv-setkey">Set key</button>
+            <label class="field max-w-[7rem]">Parental PIN<input id="dv-ppin" class="input font-mono" placeholder="empty = off"></label>
+            <button class="btn" id="dv-setppin">Set PIN</button>
+          </div>
+          <div class="row mt-2">
+            <label class="field max-w-[9rem]">UID<input id="dv-uid-in" class="input font-mono" placeholder="6 letters or digits"></label>
+            <button class="btn" id="dv-uid">Set UID</button>
+            <button class="btn" id="dv-recovery">Recovery code</button>
+            <label class="field max-w-[12rem]">New TV MAC<input id="dv-newmac" class="input font-mono"></label>
+            <button class="btn" id="dv-switch">Switch MAC</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="dv-status">
+          <div class="step-title">Public tools <span class="font-normal normal-case tracking-normal">no login</span></div>
+          <p class="hint mb-2">Device status needs the captcha above. Check playlist asks the provider about an Xtream account (local and private addresses are refused). The contact form is read by staff with <code class="mono">contact.view</code>.</p>
+          <div class="row">
+            <button class="btn" id="dv-status">Device status (MAC above)</button>
+            <button class="btn" id="dv-check">Check the playlist above</button>
+          </div>
+          <div class="row mt-2">
+            <label class="field">Your email<input id="dv-c-email" class="input" value="visitor@example.test"></label>
+            <label class="field">Message<input id="dv-c-msg" class="input" value="My TV does not load."></label>
+            <button class="btn" id="dv-contact">Send message</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1953,6 +2022,118 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
   sessionPills();
   refreshCustomerDevices();
   refreshStaff();
+
+  // Website (device): a TV logged in on the brand site with its MAC and device key.
+  tokens.device = stored('deviceToken');
+  var siteCaptchaToken = null;
+  function devicePill() {
+    $('dv-session').className = 'pill ' + (tokens.device ? 'ok' : '');
+    $('dv-session').textContent = tokens.device ? 'logged in' : 'logged out';
+  }
+  function setDeviceToken(value) { tokens.device = value; store('deviceToken', value || ''); devicePill(); }
+  function asDevice(method, path, body) {
+    return call(method, path, body, '/device', tokens.device).then(function (r) {
+      if (r.status === 401 && tokens.device) setDeviceToken(null);
+      return r;
+    });
+  }
+  // With "Show captcha answers" on, the dev route makes the same kind of captcha and fills the answer.
+  function siteCaptcha() {
+    if ($('reveal').checked) {
+      return fetch('/dev/devices/captcha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'web', length: 5, revealAnswer: true })
+      }).then(function (r) { return r.json(); }).then(function (c) {
+        siteCaptchaToken = c.token;
+        $('dv-captcha-img').innerHTML = '<img class="h-12" alt="captcha" src="' + esc(c.imageUrl) + '">';
+        $('dv-answer').value = c.answer || '';
+      });
+    }
+    return fetch('/site/captcha').then(function (r) { return r.json(); }).then(function (c) {
+      siteCaptchaToken = c.token;
+      $('dv-captcha-img').innerHTML = c.svg || '';
+      $('dv-answer').value = '';
+    });
+  }
+  function captchaBody() {
+    var body = { token: siteCaptchaToken || '', answer: val('dv-answer') };
+    siteCaptchaToken = null;
+    siteCaptcha();
+    return body;
+  }
+  $('dv-captcha').addEventListener('click', siteCaptcha);
+  $('dv-login').addEventListener('click', function () {
+    if (!mac()) return warn('Pick a MAC at the top first');
+    var key = val('dv-key') || (state.device && state.device.device.deviceKey) || '';
+    call('POST', '/login', { mac: mac(), deviceKey: key, captcha: captchaBody() }, '/device').then(function (r) {
+      if (r.json.token) { setDeviceToken(r.json.token); refreshSitePlaylists(); }
+    });
+  });
+  $('dv-me').addEventListener('click', function () { asDevice('GET', '', undefined).then(refreshSitePlaylists); });
+  $('dv-logout').addEventListener('click', function () {
+    asDevice('POST', '/logout').then(function () { setDeviceToken(null); refreshSitePlaylists(); });
+  });
+  $('dv-pl-add').addEventListener('click', function () {
+    var url = val('dv-pl-url');
+    var source = val('dv-pl-user')
+      ? { kind: 'xtream', server: url, username: val('dv-pl-user'), password: $('dv-pl-pass').value }
+      : { kind: 'link', url: url };
+    asDevice('POST', '/playlists', { name: val('dv-pl-name'), source: source, pin: val('dv-pl-pin') || null }).then(refreshSitePlaylists);
+  });
+  $('dv-setkey').addEventListener('click', function () { asDevice('PATCH', '/key', { key: val('dv-newkey') || null }).then(lookUp); });
+  $('dv-setppin').addEventListener('click', function () { asDevice('PATCH', '/parent-pin', { pin: val('dv-ppin') || null }).then(lookUp); });
+  $('dv-uid').addEventListener('click', function () { asDevice('PATCH', '/uid', { uid: val('dv-uid-in') }).then(lookUp); });
+  $('dv-recovery').addEventListener('click', function () { asDevice('POST', '/recovery-code'); });
+  $('dv-switch').addEventListener('click', function () {
+    asDevice('POST', '/switch-mac', { newMac: val('dv-newmac') }).then(function () { lookUp(); refreshLicense(); });
+  });
+  $('dv-status').addEventListener('click', function () {
+    if (!mac()) return warn('Pick a MAC at the top first');
+    call('POST', '/device-status', { mac: mac(), captcha: captchaBody() }, '/site');
+  });
+  $('dv-check').addEventListener('click', function () {
+    var url = val('dv-pl-url');
+    var body = val('dv-pl-user') ? { server: url, username: val('dv-pl-user'), password: $('dv-pl-pass').value } : { url: url };
+    call('POST', '/check-playlist', body, '/site');
+  });
+  $('dv-contact').addEventListener('click', function () {
+    call('POST', '/contact', { email: val('dv-c-email'), message: val('dv-c-msg') }, '/site');
+  });
+  function refreshSitePlaylists() {
+    var box = $('dv-playlists');
+    if (!tokens.device) { box.innerHTML = '<div class="empty">Log in to see the playlists</div>'; return; }
+    fetch('/device/playlists', { headers: { Authorization: 'Bearer ' + tokens.device } }).then(function (r) { return r.json(); }).then(function (json) {
+      if (!json.playlists) { box.innerHTML = '<div class="empty">' + esc(json.error ? json.error.code : 'not loaded') + '</div>'; return; }
+      if (!json.playlists.length) { box.innerHTML = '<div class="empty">No playlists</div>'; return; }
+      box.innerHTML = '';
+      json.playlists.forEach(function (p) {
+        var row = document.createElement('div');
+        row.className = 'flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800';
+        row.innerHTML = '<span class="font-semibold">' + esc(p.name) + '</span><span class="pill">' + esc(p.type) + '</span>' +
+          (p.protected ? '<span class="pill warn">protected</span>' : '') +
+          '<span class="mono min-w-0 flex-1 truncate">' + esc(p.hidden ? '' : (p.url || (p.stalker && p.stalker.portalUrl) || '')) + '</span>';
+        if (p.hidden) {
+          var unlock = document.createElement('button'); unlock.className = 'btn btn-sm'; unlock.textContent = 'Unlock with PIN';
+          unlock.addEventListener('click', function () { asDevice('POST', '/playlists/' + p.id + '/unlock', { pin: val('dv-pl-pin') }); });
+          row.appendChild(unlock);
+        }
+        var del = document.createElement('button'); del.className = 'btn btn-sm'; del.textContent = 'Delete';
+        del.addEventListener('click', function () {
+          var pin = p.protected ? val('dv-pl-pin') : '';
+          fetch('/device/playlists/' + p.id, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + tokens.device, 'Content-Type': 'application/json' },
+            body: JSON.stringify(pin ? { pin: pin } : {})
+          }).then(function (r) { return r.json().then(function (j) { log('DELETE', '/device/playlists/' + p.id, pin ? { pin: pin } : {}, r.status, j); }); }).then(refreshSitePlaylists);
+        });
+        row.appendChild(del);
+        box.appendChild(row);
+      });
+    });
+  }
+  devicePill();
+  refreshSitePlaylists();
   lookUp();
   refreshPlaylists();
   refreshLicense();

@@ -4,6 +4,7 @@ import {
   AnswerWebCaptchaUseCase,
   ChangeDeviceKeyUseCase,
   FindDeviceByIdUseCase,
+  SetDeviceUidUseCase,
   SetParentPinUseCase,
   VerifyDeviceKeyUseCase,
 } from '../../../modules/devices/index.js';
@@ -50,6 +51,7 @@ const STATUSES = {
   'devices.not_found': NOT_FOUND,
   'devices.invalid_device_key': BAD_REQUEST,
   'devices.invalid_parent_pin': BAD_REQUEST,
+  'devices.invalid_uid': BAD_REQUEST,
   'playlists.not_found': NOT_FOUND,
   'playlists.invalid_playlist': BAD_REQUEST,
   'playlists.invalid_pin': BAD_REQUEST,
@@ -78,6 +80,7 @@ export class DeviceSessionController {
     private readonly findDevice: FindDeviceByIdUseCase,
     private readonly changeKey: ChangeDeviceKeyUseCase,
     private readonly setParentPin: SetParentPinUseCase,
+    private readonly setUid: SetDeviceUidUseCase,
     private readonly license: DeviceLicenseUseCase,
     private readonly switchMac: SwitchMacUseCase,
     private readonly recoveryCode: CreateRecoveryCodeUseCase,
@@ -170,6 +173,15 @@ export class DeviceSessionController {
     const input = parse(z.object({ pin: z.string().max(16).nullable() }), body);
     const deviceId = this.auth.device().deviceId;
     return unwrap(await this.setParentPin.execute({ deviceId, pin: input.pin }), STATUSES);
+  }
+
+  /** The uid the reinstalled app now shows, so its next login skips the uid captcha. */
+  @DeviceSession()
+  @Patch('uid')
+  async deviceUid(@Body() body: unknown) {
+    const { uid } = parse(z.object({ uid: z.string().max(32) }), body);
+    const deviceId = this.auth.device().deviceId;
+    return unwrap(await this.setUid.execute({ deviceId, uid }), STATUSES);
   }
 
   /** Moves a lifetime license to a new TV (DEV-7). The new TV must have opened the app once. */

@@ -13,7 +13,8 @@ import {
   InvalidCustomerInputError,
   InvalidLinkError,
 } from '../../domain/customer.errors.js';
-import { CustomerLinks } from '../customer-links.js';
+import { randomBytes } from 'node:crypto';
+import { CustomerLinks, SET_PASSWORD_LIFETIME_MS } from '../customer-links.js';
 import { CustomerMailer, CustomerSessions } from '../ports/customer-outside.js';
 import { CustomerRepository } from '../ports/customer.repository.js';
 
@@ -22,7 +23,11 @@ const PASSWORD_RULE = 'A password must be 8 to 128 characters';
 /** Empty or blank = no name. */
 const optionalName = (value: string | null | undefined) => value?.trim() || null;
 
-/** CUS-1: a new account in the current brand, not verified until the emailed link is opened. */
+/**
+ * CUS-1: a new account in the current brand, not verified until the emailed link is opened.
+ * Without a password (the cr site's sign-up form) the email is a link to choose one instead; the
+ * account cannot log in until then, and choosing it also verifies the email.
+ */
 @Injectable()
 export class SignUpCustomerUseCase {
   constructor(
@@ -35,34 +40,44 @@ export class SignUpCustomerUseCase {
 
   async execute(input: {
     email: string;
-    password: string;
+    password?: string | null;
     firstName?: string | null;
     lastName?: string | null;
   }): Promise<Result<Customer, InvalidCustomerInputError | CustomerEmailTakenError>> {
     const email = EmailAddress.parse(input.email);
     if (!email.ok) return err(new InvalidCustomerInputError('Invalid email address'));
-    if (!isAcceptablePassword(input.password)) {
+    const password = input.password ?? null;
+    if (password !== null && !isAcceptablePassword(password)) {
       return err(new InvalidCustomerInputError(PASSWORD_RULE));
     }
     const now = this.clock.now();
     const customer: Customer = {
       id: randomUUID(),
       email: email.value.value,
-      passwordHash: await this.hasher.hash(input.password),
+      // No password yet: a random one nobody knows, replaced through the set-password link.
+      passwordHash: await this.hasher.hash(password ?? randomBytes(32).toString('base64url')),
       firstName: optionalName(input.firstName),
       lastName: optionalName(input.lastName),
       emailVerifiedAt: null,
       legacy: null,
+      deviceNames: [],
       createdAt: now,
       updatedAt: now,
     };
     if ((await this.customers.insert(customer)) === 'email_taken') {
       return err(new CustomerEmailTakenError('An account with this email already exists'));
     }
-    await this.mailer.sendEmailVerification(
-      customer.email,
-      await this.links.issue(customer, 'verifyEmail'),
-    );
+    if (password === null) {
+      await this.mailer.sendSetPassword(
+        customer.email,
+        await this.links.issue(customer, 'resetPassword', SET_PASSWORD_LIFETIME_MS),
+      );
+    } else {
+      await this.mailer.sendEmailVerification(
+        customer.email,
+        await this.links.issue(customer, 'verifyEmail'),
+      );
+    }
     return ok(customer);
   }
 }

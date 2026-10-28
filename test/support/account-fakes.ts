@@ -45,6 +45,7 @@ export function customer(overrides: Partial<Customer> = {}): Customer {
     lastName: null,
     emailVerifiedAt: at,
     legacy: null,
+    deviceNames: [],
     createdAt: at,
     updatedAt: at,
     ...overrides,
@@ -155,7 +156,7 @@ export class InMemoryCustomerTokenRepository implements CustomerTokenRepository 
 
 /** Keeps what would have been emailed. */
 export class RecordingMailer implements CustomerMailer {
-  readonly sent: { kind: 'verify' | 'reset'; to: string; token: string }[] = [];
+  readonly sent: { kind: 'verify' | 'reset' | 'set'; to: string; token: string }[] = [];
 
   sendEmailVerification(to: string, token: string): Promise<void> {
     this.sent.push({ kind: 'verify', to, token });
@@ -167,7 +168,12 @@ export class RecordingMailer implements CustomerMailer {
     return Promise.resolve();
   }
 
-  last(kind: 'verify' | 'reset') {
+  sendSetPassword(to: string, token: string): Promise<void> {
+    this.sent.push({ kind: 'set', to, token });
+    return Promise.resolve();
+  }
+
+  last(kind: 'verify' | 'reset' | 'set') {
     return this.sent.filter((m) => m.kind === kind).at(-1);
   }
 }

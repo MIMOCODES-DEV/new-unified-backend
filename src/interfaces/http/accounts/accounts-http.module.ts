@@ -7,7 +7,9 @@ import {
 import { StaffModule, SyncPermissionsUseCase } from '../../../modules/staff/index.js';
 import { AuthContext } from '../../../shared/auth/auth-context.js';
 import { StaffAccess } from '../../../shared/auth/staff-access.js';
+import { ContactModule } from '../../../modules/contact/index.js';
 import { AdminAuthController } from './admin-auth.controller.js';
+import { AdminContactController } from './admin-contact.controller.js';
 import { AdminDevicesController } from './admin-devices.controller.js';
 import { AdminStaffController } from './admin-staff.controller.js';
 import { CustomerController } from './customer.controller.js';
@@ -19,6 +21,7 @@ export const ADMIN_CONTROLLERS = [
   AdminAuthController,
   AdminStaffController,
   AdminDevicesController,
+  AdminContactController,
 ];
 
 /** PRM-1: on every API start, the keys in the code become the permissions. */
@@ -41,7 +44,13 @@ class SyncPermissionsOnStartup implements OnApplicationBootstrap {
 
 /** Customer accounts (brand sites) and the staff side of the admin panel (Phase 5). */
 @Module({
-  imports: [StaffModule, CustomersWithDevices, DevicesWithBrandConfig, LicensingWithDevices],
+  imports: [
+    StaffModule,
+    CustomersWithDevices,
+    DevicesWithBrandConfig,
+    LicensingWithDevices,
+    ContactModule,
+  ],
   controllers: [CustomerController, ...ADMIN_CONTROLLERS],
   providers: [
     AuthContext,

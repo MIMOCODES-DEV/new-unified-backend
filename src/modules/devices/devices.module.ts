@@ -51,9 +51,11 @@ import {
 } from './application/use-cases/customer-devices.use-cases.js';
 
 import { AnswerWebCaptchaUseCase } from './application/use-cases/answer-web-captcha.use-case.js';
+import { SetDeviceUidUseCase } from './application/use-cases/set-device-uid.use-case.js';
 
 const useCases = [
   AnswerWebCaptchaUseCase,
+  SetDeviceUidUseCase,
   LinkDeviceToCustomerUseCase,
   UnlinkDeviceFromCustomerUseCase,
   ListCustomerDevicesUseCase,

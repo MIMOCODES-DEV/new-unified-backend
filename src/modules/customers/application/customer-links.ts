@@ -10,6 +10,9 @@ const LIFETIME_MS: Record<CustomerTokenKind, number> = {
   resetPassword: 60 * 60 * 1000,
 };
 
+/** A set-password link sent on sign-up: a day, like a verification link. */
+export const SET_PASSWORD_LIFETIME_MS = 24 * 60 * 60 * 1000;
+
 const hash = (token: string) => createHash('sha256').update(token).digest('hex');
 
 /** One-time email links (CUS-1, CUS-2): the token goes in the email, only its hash is stored. */
@@ -21,7 +24,11 @@ export class CustomerLinks {
   ) {}
 
   /** A new link for this customer; their older open links of the same kind stop working. */
-  async issue(customer: Customer, kind: CustomerTokenKind): Promise<string> {
+  async issue(
+    customer: Customer,
+    kind: CustomerTokenKind,
+    lifetimeMs = LIFETIME_MS[kind],
+  ): Promise<string> {
     const token = randomBytes(32).toString('base64url');
     const now = this.clock.now();
     await this.tokens.deleteFor(customer.id, kind);
@@ -30,7 +37,7 @@ export class CustomerLinks {
       customerId: customer.id,
       kind,
       email: customer.email,
-      expiresAt: new Date(now.getTime() + LIFETIME_MS[kind]),
+      expiresAt: new Date(now.getTime() + lifetimeMs),
       createdAt: now,
     });
     return token;

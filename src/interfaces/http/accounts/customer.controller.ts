@@ -7,6 +7,7 @@ import {
   GetCustomerUseCase,
   LinkAccountDeviceUseCase,
   ListAccountDevicesUseCase,
+  NameAccountDeviceUseCase,
   RequestPasswordResetUseCase,
   ResendVerificationUseCase,
   ResetPasswordUseCase,
@@ -15,6 +16,8 @@ import {
   UpdateCustomerProfileUseCase,
   VerifyCustomerEmailUseCase,
 } from '../../../modules/customers/index.js';
+import { SetDeviceUidUseCase } from '../../../modules/devices/index.js';
+import { CreateRecoveryCodeUseCase } from '../../../modules/licensing/index.js';
 import { Customer, Public } from '../../../shared/auth/access.decorators.js';
 import { AuthContext } from '../../../shared/auth/auth-context.js';
 import { SessionStore } from '../../../shared/auth/session-store.js';
@@ -23,6 +26,7 @@ import { TenantContext } from '../../../shared/tenancy/tenant-context.js';
 import {
   BAD_REQUEST,
   CONFLICT,
+  fail,
   FORBIDDEN,
   limit,
   NOT_FOUND,
@@ -31,6 +35,8 @@ import {
   unwrap,
 } from './http-results.js';
 
+/** A TV opened from the account: as long as a device login on the site. */
+const DEVICE_SESSION_MS = 24 * 60 * 60 * 1000;
 /** How long a customer stays logged in on the brand site. */
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const MINUTES = 60 * 1000;
@@ -49,6 +55,9 @@ const STATUSES = {
   'customers.not_found': NOT_FOUND,
   'customers.device_key_mismatch': NOT_FOUND,
   'customers.device_not_found': NOT_FOUND,
+  'devices.invalid_uid': BAD_REQUEST,
+  'devices.not_found': NOT_FOUND,
+  'licensing.device_not_found': NOT_FOUND,
   'customers.device_linked_elsewhere': CONFLICT,
 };
 
@@ -65,11 +74,13 @@ const customerView = (c: CustomerAccount) => ({
   createdAt: c.createdAt,
 });
 
-const deviceView = (d: CustomerDevice) => ({
+const deviceView = (d: CustomerDevice & { name?: string | null }) => ({
   id: d.id,
+  name: d.name ?? null,
   macAddress: d.macAddress,
   platform: d.platform,
   lastSeenAt: d.lastSeenAt,
+  license: d.license,
 });
 
 /** The brand site's customer API (CUS-1 to CUS-4). The brand comes from the host. */
@@ -87,6 +98,9 @@ export class CustomerController {
     private readonly linkDevice: LinkAccountDeviceUseCase,
     private readonly unlinkDevice: UnlinkAccountDeviceUseCase,
     private readonly listDevices: ListAccountDevicesUseCase,
+    private readonly nameDevice: NameAccountDeviceUseCase,
+    private readonly setUid: SetDeviceUidUseCase,
+    private readonly recoveryCode: CreateRecoveryCodeUseCase,
     private readonly sessions: SessionStore,
     private readonly limiter: RedisRateLimiter,
     private readonly auth: AuthContext,
@@ -97,12 +111,20 @@ export class CustomerController {
     return `customers:${kind}:${this.tenant.current.id}:${value.toLowerCase()}`;
   }
 
-  /** CUS-1: a verification link is emailed; the account cannot log in until it is opened. */
+  /**
+   * CUS-1: a verification link is emailed; the account cannot log in until it is opened. Without a
+   * password, the email is a link to choose one (it verifies the email too).
+   */
   @Public()
   @Post('sign-up')
   async signUp(@Body() body: unknown, @Ip() ip: string) {
     const input = parse(
-      z.object({ email: z.string().max(300), password, firstName: name, lastName: name }),
+      z.object({
+        email: z.string().max(300),
+        password: password.nullable().optional(),
+        firstName: name,
+        lastName: name,
+      }),
       body,
     );
     await limit(this.limiter, SIGN_UP_LIMIT, this.key('sign-up-ip', ip));
@@ -236,5 +258,58 @@ export class CustomerController {
   async unlink(@Param('id') deviceId: string) {
     const { customerId } = this.auth.customer();
     return unwrap(await this.unlinkDevice.execute({ customerId, deviceId }), STATUSES);
+  }
+
+  /** A name for a linked TV ("Living room"); empty or null removes it. */
+  @Customer()
+  @Patch('devices/:id')
+  async renameDevice(@Param('id') deviceId: string, @Body() body: unknown) {
+    const { name } = parse(z.object({ name: z.string().max(200).nullable() }), body);
+    const { customerId } = this.auth.customer();
+    return unwrap(await this.nameDevice.execute({ customerId, deviceId, name }), STATUSES);
+  }
+
+  /** The uid the reinstalled app now shows, so its next login skips the uid captcha. */
+  @Customer()
+  @Post('devices/:id/uid')
+  @HttpCode(200)
+  async deviceUid(@Param('id') deviceId: string, @Body() body: unknown) {
+    const { uid } = parse(z.object({ uid: z.string().max(32) }), body);
+    await this.ownDevice(deviceId);
+    return unwrap(await this.setUid.execute({ deviceId, uid }), STATUSES);
+  }
+
+  /** A code typed on a new TV to move this paid device there (REC-1); 30 minutes. */
+  @Customer()
+  @Post('devices/:id/recovery-code')
+  @HttpCode(200)
+  async deviceRecoveryCode(@Param('id') deviceId: string) {
+    await this.ownDevice(deviceId);
+    return unwrap(await this.recoveryCode.execute({ deviceId }), STATUSES);
+  }
+
+  /**
+   * Opens one of the account's TVs on the site: a device session for it, so the site manages its
+   * playlists, key and PIN with the `/device` routes (the old "select device").
+   */
+  @Customer()
+  @Post('devices/:id/session')
+  @HttpCode(200)
+  async deviceSession(@Param('id') deviceId: string) {
+    await this.ownDevice(deviceId);
+    const token = await this.sessions.create(
+      { kind: 'device', id: deviceId, tenantId: this.tenant.current.id },
+      DEVICE_SESSION_MS,
+    );
+    return { token };
+  }
+
+  /** Another customer's device, or none, answers as not found. */
+  private async ownDevice(deviceId: string): Promise<void> {
+    const { customerId } = this.auth.customer();
+    const devices = await this.listDevices.execute(customerId);
+    if (!devices.some((d) => d.id === deviceId)) {
+      throw fail(NOT_FOUND, 'customers.device_not_found', 'No such device on this account');
+    }
   }
 }

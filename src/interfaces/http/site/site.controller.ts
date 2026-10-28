@@ -1,10 +1,11 @@
-import { Body, Controller, Get, HttpCode, Ip, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Ip, Post } from '@nestjs/common';
 import { z } from 'zod';
 import {
   AnswerWebCaptchaUseCase,
   FindDeviceUseCase,
   IssueCaptchaUseCase,
 } from '../../../modules/devices/index.js';
+import { SubmitContactMessageUseCase } from '../../../modules/contact/index.js';
 import { DeviceLicenseUseCase } from '../../../modules/licensing/index.js';
 import {
   AddPlaylistByMacUseCase,
@@ -26,10 +27,22 @@ import {
 } from '../accounts/http-results.js';
 import { captchaAnswer, playlistSource } from './site-schemas.js';
 import { licenseView, playlistView } from './site-views.js';
+import { XtreamAccountCheck } from './xtream-account-check.js';
 
 /** The site's pictures: 5 characters, easy to read on a phone. */
 const CAPTCHA_LENGTH = 5;
 const CAPTCHA_LIMIT = { limit: 60, windowMs: 10 * 60 * 1000 };
+/** Contact messages per IP: enough for a person, little for a spammer. */
+const CONTACT_LIMIT = { limit: 5, windowMs: 60 * 60 * 1000 };
+/** Playlist checks per IP: each one makes the server call a provider. */
+const CHECK_LIMIT = { limit: 20, windowMs: 10 * 60 * 1000 };
+
+const CHECK_REFUSALS = {
+  invalid: [BAD_REQUEST, 'An Xtream server with username and password is needed'],
+  blocked: [BAD_REQUEST, 'This address cannot be checked'],
+  unreachable: [502, 'The provider did not answer'],
+  refused: [422, 'The provider did not accept this account'],
+} as const;
 
 const STATUSES = {
   'devices.invalid_captcha': BAD_REQUEST,
@@ -40,7 +53,24 @@ const STATUSES = {
   'playlists.exists': CONFLICT,
   'playlists.name_taken': CONFLICT,
   'playlists.too_many_requests': 429,
+  'contact.invalid_input': BAD_REQUEST,
 };
+
+/** An Xtream login carried in a get.php link (`?username=...&password=...`); null if not a link. */
+function loginFromLink(
+  value: string,
+): { server: string; username: string; password: string } | null {
+  try {
+    const link = new URL(value.trim());
+    return {
+      server: `${link.origin}${link.pathname}`,
+      username: link.searchParams.get('username') ?? '',
+      password: link.searchParams.get('password') ?? '',
+    };
+  } catch {
+    return null;
+  }
+}
 
 /** A MAC as typed in a form; a bad one is a 400 with the same body as other bad requests. */
 function macOf(value: string): MacAddress {
@@ -60,6 +90,8 @@ export class SiteController {
     private readonly listPlaylists: ListPlaylistsUseCase,
     private readonly addByMac: AddPlaylistByMacUseCase,
     private readonly deleteByMac: DeletePlaylistsByMacUseCase,
+    private readonly submitContact: SubmitContactMessageUseCase,
+    private readonly xtream: XtreamAccountCheck,
     private readonly limiter: RedisRateLimiter,
     private readonly tenant: TenantContext,
   ) {}
@@ -132,5 +164,60 @@ export class SiteController {
   async deleteAll(@Body() body: unknown, @Ip() ip: string) {
     const { mac } = parse(z.object({ mac: z.string().max(64) }), body);
     return unwrap(await this.deleteByMac.execute({ mac: macOf(mac), ip }), STATUSES);
+  }
+
+  /** The contact form: kept in the brand's database for staff (GET /admin/contact-messages). */
+  @Public()
+  @Post('contact')
+  async contact(
+    @Body() body: unknown,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent?: string,
+  ) {
+    const input = parse(
+      z.object({
+        name: z.string().max(500).nullable().optional(),
+        email: z.string().max(300),
+        subject: z.string().max(1000).nullable().optional(),
+        message: z.string().max(20000),
+      }),
+      body,
+    );
+    await limit(this.limiter, CONTACT_LIMIT, `site:contact:${this.tenant.current.id}:${ip}`);
+    return unwrap(
+      await this.submitContact.execute({ ...input, ip, userAgent: userAgent ?? null }),
+      STATUSES,
+    );
+  }
+
+  /**
+   * Asks the provider about an Xtream account: status, expiry, connections. Sent as server,
+   * username and password, or as a get.php link carrying them.
+   */
+  @Public()
+  @Post('check-playlist')
+  @HttpCode(200)
+  async checkPlaylist(@Body() body: unknown, @Ip() ip: string) {
+    const input = parse(
+      z.union([
+        z.object({
+          server: z.string().max(2048),
+          username: z.string().max(200),
+          password: z.string().max(200),
+        }),
+        z.object({ url: z.string().max(2048) }),
+      ]),
+      body,
+    );
+    await limit(this.limiter, CHECK_LIMIT, `site:check-playlist:${this.tenant.current.id}:${ip}`);
+    const login = 'url' in input ? loginFromLink(input.url) : input;
+    const result = login
+      ? await this.xtream.check(login)
+      : ({ ok: false, reason: 'invalid' } as const);
+    if (!result.ok) {
+      const [status, message] = CHECK_REFUSALS[result.reason];
+      throw fail(status, `site.playlist_${result.reason}`, message);
+    }
+    return { account: result.account };
   }
 }

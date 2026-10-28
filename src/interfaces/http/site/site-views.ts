@@ -57,8 +57,11 @@ export function deviceView(found: {
     platform: string;
     deviceKey: string;
     parentPin: string | null;
+    uid: string | null;
     lastSeenAt: Date;
     createdAt: Date;
+    recovery?: { code: string | null; expiresAt: Date | null; enabled: boolean } | null;
+    switch?: { from: string; at: Date; count: number } | null;
   };
 }) {
   const d = found.device;
@@ -69,7 +72,13 @@ export function deviceView(found: {
     deviceKey: d.deviceKey,
     parentalControl: d.parentPin !== null,
     parentPin: d.parentPin,
+    uid: d.uid,
     paid: found.paid,
+    // The owner's own recovery code (paid devices), and the last MAC switch.
+    recovery: d.recovery
+      ? { code: d.recovery.code, expiresAt: d.recovery.expiresAt, enabled: d.recovery.enabled }
+      : null,
+    lastSwitch: d.switch ? { from: d.switch.from, at: d.switch.at, count: d.switch.count } : null,
     lastSeenAt: d.lastSeenAt,
     createdAt: d.createdAt,
   };

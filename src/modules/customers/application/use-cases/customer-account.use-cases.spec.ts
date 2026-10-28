@@ -96,6 +96,25 @@ describe('CUS-1 sign-up and email verification', () => {
   });
 });
 
+describe('CUS-1 sign-up without a password (the cr site)', () => {
+  it('emails a set-password link; the account logs in only after choosing one, verified', async () => {
+    const t = setup();
+    const signed = await t.signUp.execute({ email: 'new@example.com', firstName: 'Nia' });
+    expect(signed.ok && signed.value.emailVerifiedAt).toBeNull();
+    expect(t.mailer.last('verify')).toBeUndefined();
+    const link = t.mailer.last('set')!;
+    expect(link.to).toBe('new@example.com');
+    expect(codeOf(await t.login.execute({ email: 'new@example.com', password: '' }))).toBe(
+      'customers.invalid_credentials',
+    );
+    expect(codeOf(await t.reset.execute({ token: link.token, password: 'chosen-pass' }))).toBe(
+      'ok',
+    );
+    const login = await t.login.execute({ email: 'new@example.com', password: 'chosen-pass' });
+    expect(login.ok && login.value.emailVerifiedAt).toBeInstanceOf(Date);
+  });
+});
+
 describe('CUS-2 login and password reset', () => {
   it('a wrong password and an unknown email give the same answer', async () => {
     const t = setup();
