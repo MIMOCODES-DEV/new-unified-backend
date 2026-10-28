@@ -9,13 +9,59 @@
  */
 export const PLAYGROUND_HTML = String.raw`<!doctype html>
 <html lang="en">
+<script>try { if (localStorage.getItem('playground.theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {}</script>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Device Playground</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11"></script>
 <style type="text/tailwindcss">
+  @custom-variant dark (&:where(.dark, .dark *));
   @layer components {
+    .mode-tabs { @apply flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800; }
+    .mode-tab { @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white; }
+    .mode-tab[aria-current="true"] { @apply bg-white text-indigo-700 shadow-sm dark:bg-slate-950 dark:text-indigo-300; }
+    .mode-count { @apply rounded-full bg-black/5 px-1.5 text-[11px] font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-400; }
+    .nav-title { @apply px-2 pb-2 text-sm font-semibold text-slate-900 dark:text-white; }
+    .schema-box { @apply rounded-lg border border-slate-300 bg-white px-2.5 py-1 font-mono text-xs font-semibold text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100; }
+    .schema-arrow { @apply text-xs text-slate-500 dark:text-slate-400; }
+    .schema-card { @apply overflow-hidden rounded-xl border-2 border-teal-400/70 bg-white shadow-sm dark:border-teal-500/60 dark:bg-slate-900; }
+    .schema-card.central { @apply border-sky-400/70 dark:border-sky-500/60; }
+    .schema-head { @apply flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800; }
+    .schema-where { @apply rounded-full border border-teal-500 px-2.5 py-0.5 text-xs font-semibold text-teal-700 dark:text-teal-300; }
+    .schema-where.central { @apply border-sky-500 text-sky-700 dark:text-sky-300; }
+    .schema-table { @apply w-full border-collapse text-sm; }
+    .schema-table th { @apply border-b border-slate-200 bg-slate-50 px-4 py-2 text-left text-[11px] font-semibold tracking-wider whitespace-nowrap text-slate-500 uppercase dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400; }
+    .schema-table td { @apply border-b border-slate-100 px-4 py-2 align-top dark:border-slate-800; }
+    .schema-table tr:last-child td { @apply border-b-0; }
+    .schema-table tbody tr:hover td { @apply bg-slate-50/70 dark:bg-slate-800/40; }
+    .f-name { @apply font-mono font-bold whitespace-nowrap text-slate-900 dark:text-slate-100; }
+    .f-opt { @apply ml-1 rounded bg-slate-100 px-1 font-sans text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400; }
+    .f-type { @apply font-mono text-xs whitespace-nowrap; }
+    .f-rule { @apply min-w-[14rem] text-slate-700 dark:text-slate-300; }
+    .f-example { @apply max-w-[16rem] truncate font-mono text-xs text-indigo-700 dark:text-indigo-300; }
+    .f-from { @apply min-w-[10rem] font-mono text-xs text-orange-600 dark:text-orange-400; }
+    .t-string { @apply text-emerald-600 dark:text-emerald-400; } .t-date { @apply text-violet-600 dark:text-violet-400; }
+    .t-number { @apply text-blue-600 dark:text-blue-400; } .t-boolean { @apply text-pink-600 dark:text-pink-400; }
+    .t-object { @apply text-amber-600 dark:text-amber-400; } .t-array { @apply text-cyan-600 dark:text-cyan-400; }
+    .t-null { @apply text-slate-400 dark:text-slate-500; }
+    .schema-foot { @apply flex flex-wrap items-center gap-1.5 border-t border-slate-200 bg-slate-50/60 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/30; }
+    .nav-phase { @apply mb-1 rounded-xl; }
+    .nav-phase > summary { @apply flex cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase select-none hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100; }
+    .nav-phase > summary::-webkit-details-marker { display: none; }
+    .nav-phase > summary::after { content: '▾'; @apply ml-auto text-slate-400 transition; }
+    .nav-phase:not([open]) > summary::after { transform: rotate(-90deg); }
+    .phase-num { @apply inline-flex size-5 shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-white shadow-sm; }
+    .phase-num.p1 { @apply bg-sky-500; } .phase-num.p2 { @apply bg-teal-500; } .phase-num.p3 { @apply bg-indigo-500; }
+    .phase-num.p4 { @apply bg-amber-500; } .phase-num.p5 { @apply bg-rose-500; }
+    .nav-sub:empty { @apply hidden; }
+    .nav-label { @apply px-2 pt-2 pb-0.5 text-[10px] font-semibold tracking-wider text-slate-400 uppercase dark:text-slate-500; }
+    .nav-ico { @apply inline-flex size-4 items-center justify-center text-[11px] text-indigo-500; }
+    .phase-card { @apply relative flex flex-col gap-2 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900; }
+    .phase-card .bar { @apply absolute inset-x-0 top-0 h-1; }
+    .stat { @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900; }
+    .stat-num { @apply text-3xl font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white; }
+    .stat-label { @apply text-xs font-medium text-slate-500 dark:text-slate-400; }
     .btn { @apply inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-[.98] disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700; }
     .btn-primary { @apply border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-500 dark:border-indigo-500 dark:bg-indigo-500 dark:text-white dark:hover:bg-indigo-400; }
     .btn-danger { @apply border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-400 dark:hover:bg-rose-950; }
@@ -88,25 +134,24 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
 <body class="min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
 <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
   <div class="mx-auto flex max-w-[1680px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
-    <button class="mr-auto flex items-center gap-3 text-left" data-view="home">
+    <button class="flex items-center gap-3 text-left" data-view="home">
       <span class="flex size-9 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold text-white shadow-sm">DP</span>
       <span>
         <span class="block text-base font-semibold leading-tight">Device Playground</span>
         <span class="hint flex items-center gap-1.5"><span id="api-dot" class="nav-dot"></span><span id="api-status">checking the API…</span></span>
       </span>
     </button>
-    <div class="flex flex-wrap items-end gap-2" data-submit="refresh">
-      <label class="field min-w-[13rem]">Device MAC
-        <input id="mac" class="input font-mono" placeholder="aa:bb:cc:dd:ee:ff" autocomplete="off" spellcheck="false">
-      </label>
-      <button class="btn" id="randomMac" title="A new random MAC">Random</button>
-      <button class="btn" id="fallbackMac" title="52:54:00:12:34:57, a shared placeholder MAC: treated as no MAC">Placeholder</button>
-      <button class="btn" id="refresh">Look up</button>
-      <span id="device-chip" class="pill mb-1.5">no device</span>
-    </div>
-    <div class="flex items-end gap-3">
-      <label class="check mb-1.5" title="The dev routes send the captcha answer back, so you can log in without reading it"><input type="checkbox" id="reveal"> Show captcha answers</label>
+    <nav class="mode-tabs mr-auto" aria-label="Sections">
+      <button class="mode-tab" data-mode="overview">Overview</button>
+      <button class="mode-tab" data-mode="tools">Tools</button>
+      <button class="mode-tab" data-mode="scenarios">Scenarios <span class="mode-count" id="mode-count-scenarios"></span></button>
+      <button class="mode-tab" data-mode="tests">Test cases <span class="mode-count" id="mode-count-tests"></span></button>
+      <button class="mode-tab" data-mode="database">Database</button>
+      <button class="mode-tab" data-mode="schema">Schema</button>
+    </nav>
+    <div class="flex items-end gap-2">
       <label class="field min-w-[8rem]">Brand<select id="brand" class="input" aria-label="Brand"></select></label>
+      <button class="btn mb-0.5" id="theme" title="Light or dark" aria-label="Light or dark">◐</button>
     </div>
   </div>
 </header>
@@ -114,21 +159,89 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
 <div class="mx-auto flex max-w-[1680px] gap-5 px-4 py-5 sm:px-6">
   <aside class="sticky top-20 hidden max-h-[calc(100vh-6rem)] w-60 shrink-0 self-start overflow-y-auto pr-1 lg:block" aria-label="Sections">
     <nav>
-      <button class="nav-item" data-view="home"><span class="nav-dot ok"></span>Overview</button>
-      <div class="nav-group">Try it</div>
-      <button class="nav-item" data-view="register">Old app<span class="code">DEV-1/2/3/6</span></button>
-      <button class="nav-item" data-view="v4">V4 login<span class="code">DEV-4</span></button>
-      <button class="nav-item" data-view="tv">Old TV code<span class="code">DEV-4</span></button>
-      <button class="nav-item" data-view="owner">Key and PIN<span class="code">DEV-5</span></button>
-      <button class="nav-item" data-view="playlists">Playlists<span class="code">PL-1–8</span></button>
-      <button class="nav-item" data-view="license">License, switch, recovery<span class="code">LIC · REC</span></button>
-      <button class="nav-item" data-view="moves">Provider moves<span class="code">DOM</span></button>
-      <div class="nav-group">Database</div>
-      <button class="nav-item" data-view="db">What is stored<span class="code">MongoDB</span></button>
-      <div class="nav-group">Scenarios</div>
-      <div id="nav-scenarios"></div>
-      <div class="nav-group">Test cases</div>
-      <div id="nav-tests"></div>
+      <div data-mode-nav="tools">
+        <div class="nav-title">Tools</div>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p1">1</span>Foundation</summary>
+        <button class="nav-item" data-view="brand">Brand and routing<span class="code">F-4 · F-5</span></button>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p3">3</span>Core features</summary>
+        <button class="nav-item" data-view="register">Old app<span class="code">DEV-1/2/3/6</span></button>
+        <button class="nav-item" data-view="v4">V4 login<span class="code">DEV-4</span></button>
+        <button class="nav-item" data-view="tv">Old TV code<span class="code">DEV-4</span></button>
+        <button class="nav-item" data-view="owner">Key and PIN<span class="code">DEV-5</span></button>
+        <button class="nav-item" data-view="playlists">Playlists<span class="code">PL-1–8</span></button>
+        <button class="nav-item" data-view="license">License<span class="code">LIC-1–3</span></button>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p4">4</span>Moves and cleanup</summary>
+        <button class="nav-item" data-view="license" data-scroll="sec-switch">Switch, recovery, cleanup<span class="code">DEV-7 · REC</span></button>
+        <button class="nav-item" data-view="moves">Provider moves<span class="code">DOM</span></button>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p5">5</span>Accounts and staff</summary>
+        <button class="nav-item" data-view="customer">Customer<span class="code">CUS-1–4</span></button>
+        <button class="nav-item" data-view="staff">Staff and roles<span class="code">STF · PRM</span></button>
+      </details>
+      </div>
+      <div data-mode-nav="scenarios">
+        <div class="nav-title">Scenarios</div>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p1">1</span>Foundation</summary>
+        <div data-phase-scenarios="1"></div>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p2">2</span>Database</summary>
+        <div data-phase-scenarios="2"></div>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p3">3</span>Core features</summary>
+        <div data-phase-scenarios="3"></div>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p4">4</span>Moves and cleanup</summary>
+        <div data-phase-scenarios="4"></div>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p5">5</span>Accounts and staff</summary>
+        <div data-phase-scenarios="5"></div>
+      </details>
+      </div>
+      <div data-mode-nav="tests">
+        <div class="nav-title">Test cases</div>
+        <button class="nav-item" data-view="tests"><span class="nav-ico">✓</span>All test cases<span class="code" id="nav-tests-count"></span></button>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p1">1</span>Foundation</summary>
+        <div data-phase-tests="1"></div>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p2">2</span>Database</summary>
+        <div data-phase-tests="2"></div>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p3">3</span>Core features</summary>
+        <div data-phase-tests="3"></div>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p4">4</span>Moves and cleanup</summary>
+        <div data-phase-tests="4"></div>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p5">5</span>Accounts and staff</summary>
+        <div data-phase-tests="5"></div>
+      </details>
+      </div>
+      <div data-mode-nav="database">
+        <div class="nav-title">Database</div>
+        <button class="nav-item" data-view="db">What is stored<span class="code">rows</span></button>
+        <button class="nav-item" data-view="schema">Schema<span class="code">fields</span></button>
+      </div>
+      <div data-mode-nav="schema">
+        <div class="nav-title">Schema</div>
+        <button class="nav-item" data-view="schema" data-scroll="schema-map">How they connect</button>
+        <div id="schema-nav"></div>
+      </div>
     </nav>
   </aside>
 
@@ -140,30 +253,100 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     <div class="card-body">
 
       <div class="tab" id="tab-home">
-        <div class="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 p-6 text-white shadow-sm">
-          <p class="text-xs font-semibold tracking-wider text-indigo-100 uppercase">Phases 1 to 4 · device core</p>
-          <h2 class="mt-1 text-2xl font-semibold tracking-tight">Try every rule on a real database</h2>
-          <p class="mt-2 max-w-2xl text-sm text-indigo-100">Brands from the host, devices and trials, V4 login, playlists, licenses, MAC switch, recovery, provider moves and cleanup, through the dev-only routes. This page is 404 in production.</p>
-          <div class="mt-4 flex flex-wrap gap-2 text-xs"><span class="rounded-full bg-white/15 px-2.5 py-1">brand <b id="home-brand">…</b></span><span class="rounded-full bg-white/15 px-2.5 py-1"><b id="home-scenarios">…</b> scenarios</span><span class="rounded-full bg-white/15 px-2.5 py-1"><b id="home-checks">…</b> test cases</span></div>
+        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 p-6 text-white shadow-lg sm:p-8">
+          <div class="absolute -top-16 -right-16 size-64 rounded-full bg-white/10 blur-2xl"></div>
+          <p class="text-xs font-semibold tracking-wider text-indigo-100 uppercase">New unified backend · Phases 1 to 5</p>
+          <h2 class="mt-2 text-3xl font-semibold tracking-tight">One backend for every brand, tried live</h2>
+          <p class="mt-3 max-w-2xl text-sm leading-relaxed text-indigo-50">Brands from the host, the device core collections, devices, playlists and licenses, the TV app routes, MAC switch, recovery, provider moves, customers and staff: every rule on the real database, through dev-only routes. This page answers 404 in production.</p>
+          <div class="mt-5 flex flex-wrap gap-2">
+            <button class="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow hover:bg-indigo-50" id="home-run-all">Run all test cases</button>
+            <button class="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/30 hover:bg-white/25" data-view="scenario:F1">Start the demo: scenario F1</button>
+          </div>
+          <div class="mt-5 flex flex-wrap gap-2 text-xs"><span class="rounded-full bg-white/15 px-2.5 py-1">brand <b id="home-brand">…</b></span><span class="rounded-full bg-white/15 px-2.5 py-1" id="home-origin"></span></div>
         </div>
-        <div class="grid gap-3 sm:grid-cols-3">
-          <button class="home-card" data-view="register"><span class="pill w-fit">Try it</span><span class="font-semibold">Tools</span><span class="hint">Register a TV, log in as a V4 app, add playlists, activate, switch MAC, recover, approve a provider move.</span></button>
-          <button class="home-card" data-view="scenario:D1"><span class="pill ok w-fit">Scenarios</span><span class="font-semibold">Guided stories</span><span class="hint">E2E-D1 to X1 step by step: what each step does, what should happen, and what came back.</span></button>
-          <button class="home-card" data-view="tests"><span class="pill run w-fit">Test cases</span><span class="font-semibold">Run the e2e checks</span><span class="hint">The same checks as pnpm e2e:*, from the browser, with a pass or fail line for each.</span></button>
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div class="stat"><div class="stat-num" id="home-checks">…</div><div class="stat-label">test cases, in <span id="home-suites">…</span> suites</div></div>
+          <div class="stat"><div class="stat-num" id="home-scenarios">…</div><div class="stat-label">guided scenarios</div></div>
+          <div class="stat"><div class="stat-num">5</div><div class="stat-label">phases built, each on its own branch</div></div>
+          <div class="stat"><div class="stat-num" id="home-last">–</div><div class="stat-label" id="home-last-label">last run: not yet</div></div>
         </div>
-        <div class="step">
-          <div class="step-title">Before you start</div>
-          <ol class="space-y-2 text-sm">
+        <div>
+          <h3 class="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">What each phase adds</h3>
+          <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <button class="phase-card" data-view="brand"><span class="bar bg-sky-500"></span><span class="flex items-center gap-2"><span class="phase-num p1">1</span><span class="font-semibold">Foundation</span></span><span class="hint">Brands from the host, a database per brand, settings, secrets, request ids.</span><span class="mt-auto text-xs font-medium text-slate-500" data-phase-count="1"></span></button>
+            <button class="phase-card" data-view="db"><span class="bar bg-teal-500"></span><span class="flex items-center gap-2"><span class="phase-num p2">2</span><span class="font-semibold">Database</span></span><span class="hint">Six device core collections, the Redis lock, one MAC one device.</span><span class="mt-auto text-xs font-medium text-slate-500" data-phase-count="2"></span></button>
+            <button class="phase-card" data-view="register"><span class="bar bg-indigo-500"></span><span class="flex items-center gap-2"><span class="phase-num p3">3</span><span class="font-semibold">Core features</span></span><span class="hint">Devices, playlists, licenses and the routes the TV apps call.</span><span class="mt-auto text-xs font-medium text-slate-500" data-phase-count="3"></span></button>
+            <button class="phase-card" data-view="license" data-scroll="sec-switch"><span class="bar bg-amber-500"></span><span class="flex items-center gap-2"><span class="phase-num p4">4</span><span class="font-semibold">Moves and cleanup</span></span><span class="hint">MAC switch, recovery on a new TV, provider moves, cleanup.</span><span class="mt-auto text-xs font-medium text-slate-500" data-phase-count="4"></span></button>
+            <button class="phase-card" data-view="customer"><span class="bar bg-rose-500"></span><span class="flex items-center gap-2"><span class="phase-num p5">5</span><span class="font-semibold">Accounts and staff</span></span><span class="hint">Customers per brand, one staff login, roles, permissions, 2FA.</span><span class="mt-auto text-xs font-medium text-slate-500" data-phase-count="5"></span></button>
+          </div>
+        </div>
+        <details class="step">
+          <summary class="step-title cursor-pointer list-none">How to run it yourself ▾</summary>
+          <ol class="mt-2 space-y-2 text-sm">
             <li class="flex flex-wrap items-center gap-2"><span class="pill">1</span> MongoDB and Redis <code class="kbd">docker compose up -d</code></li>
             <li class="flex flex-wrap items-center gap-2"><span class="pill">2</span> Brands and example devices <code class="kbd">npm run seed</code></li>
             <li class="flex flex-wrap items-center gap-2"><span class="pill">3</span> The API <code class="kbd">pnpm dev:api</code></li>
             <li class="flex flex-wrap items-center gap-2"><span class="pill">4</span> Open <code class="kbd">http://ibo.localhost:3000/dev/playground</code></li>
           </ol>
-          <p class="hint mt-3">Scenarios and test cases write new devices into the <b>ibo</b> brand (and <b>bob</b> to prove isolation). The device tests also read the example devices, so run the seed once; it resets them.</p>
+          <p class="hint mt-3">Scenarios and test cases write new rows into the <b>ibo</b> brand (and <b>bob</b> to prove isolation). The device tests also read the seed’s example devices.</p>
+        </details>
+      </div>
+
+      <div class="tab" id="tab-brand">
+        <div class="view-head"><div><h2 class="view-title">Brand and routing</h2><p class="hint mt-1 max-w-2xl">Every request is served for the brand of its host, and reads only that brand’s database. Settings live on the brand, secrets are encrypted per brand, config has defaults.</p></div><span class="pill">F-4 · F-5 · F-8</span></div>
+        <div class="step" data-submit="b-resolve">
+          <div class="step-title">Which brand is a host?</div>
+          <div class="row">
+            <label class="field">Host<input id="b-host" class="input font-mono" value="bob.localhost" spellcheck="false"></label>
+            <button class="btn btn-primary" id="b-resolve">Resolve</button>
+            <button class="btn" id="b-unknown">Try an unknown host</button>
+          </div>
+          <div class="mt-3" id="b-result"></div>
         </div>
+        <div class="grid gap-3 md:grid-cols-2">
+          <div class="step"><div class="step-title">This brand <span class="pill mono normal-case tracking-normal" id="b-slug">…</span></div><div id="b-brand"></div></div>
+          <div class="step"><div class="step-title">Health <span class="font-normal normal-case tracking-normal">no brand needed</span></div><div id="b-health"></div></div>
+        </div>
+        <div class="step"><div class="step-title">Brand config, with its defaults</div><pre class="detail max-h-80" id="b-config"></pre></div>
       </div>
 
       <div class="tab" id="tab-scenario"><div id="scenario-view"></div></div>
+
+      <div class="tab" id="tab-schema">
+        <div class="view-head">
+          <div>
+            <h2 class="view-title">Database schema</h2>
+            <p class="hint mt-1 max-w-2xl">Read live from MongoDB: every collection the migrations created, its fields with their types (from the collection’s validator), and its indexes. One central database for all brands, and one database per brand.</p>
+          </div>
+          <button class="btn" id="schema-refresh">Refresh</button>
+        </div>
+        <div class="step" id="schema-map">
+          <div class="step-title">How the collections connect</div>
+          <div class="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div class="rounded-xl border border-teal-200 bg-teal-50/50 p-4 dark:border-teal-900 dark:bg-teal-950/20">
+              <div class="mb-3 text-xs font-semibold tracking-wider text-teal-700 uppercase dark:text-teal-300">Each brand’s database</div>
+              <div class="flex flex-wrap items-center gap-2 text-sm">
+                <span class="schema-box">trialDevices</span><span class="schema-arrow">pays, same id →</span><span class="schema-box">devices</span><span class="schema-arrow">currentLicenseId →</span><span class="schema-box">licenses</span>
+              </div>
+              <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <span class="schema-box">playlists</span><span class="schema-arrow">deviceId → either device</span>
+                <span class="schema-box">captchas</span><span class="schema-arrow">by MAC</span>
+              </div>
+              <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <span class="schema-box">customers</span><span class="schema-arrow">← devices.customerId</span><span class="schema-box">customerTokens</span><span class="schema-arrow">one-time links</span><span class="schema-box">tenantConfig</span>
+              </div>
+            </div>
+            <div class="rounded-xl border border-sky-200 bg-sky-50/50 p-4 dark:border-sky-900 dark:bg-sky-950/20">
+              <div class="mb-3 text-xs font-semibold tracking-wider text-sky-700 uppercase dark:text-sky-300">Central database</div>
+              <div class="flex flex-wrap items-center gap-2 text-sm"><span class="schema-box">tenants</span><span class="schema-arrow">→</span><span class="schema-box">tenantSecrets</span></div>
+              <div class="mt-3 flex flex-wrap items-center gap-2 text-sm"><span class="schema-box">staffUsers</span><span class="schema-arrow">roleId →</span><span class="schema-box">roles</span><span class="schema-arrow">→</span><span class="schema-box">permissions</span></div>
+              <div class="mt-3 flex flex-wrap items-center gap-2 text-sm"><span class="schema-box">domainMigrations</span><span class="schema-arrow">provider moves</span></div>
+            </div>
+          </div>
+          <p class="hint mt-3">A MAC is in trialDevices or devices, never both. Paying moves the row with the same id, so playlists keep pointing at it. Licenses are one row per license, kept as history.</p>
+        </div>
+        <div id="schema-list" class="space-y-6"></div>
+      </div>
 
       <div class="tab" id="tab-db">
         <div class="view-head">
@@ -189,7 +372,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
         <div class="view-head">
           <div>
             <h2 class="view-title">Test cases</h2>
-            <p class="hint mt-1 max-w-2xl">The checks of <code class="mono">pnpm e2e:devices</code>, <code class="mono">e2e:playlists</code>, <code class="mono">e2e:licenses</code>, <code class="mono">e2e:v4</code> and <code class="mono">e2e:moves</code>, run from this page against the running API. Click a suite to run only that one.</p>
+            <p class="hint mt-1 max-w-2xl">One suite per area, Phase 1 to Phase 5: brands and requests, the device core collections, and the checks of every <code class="mono">pnpm e2e:*</code> script, run from this page against the running API on the real database. Click a suite to run only that one.</p>
           </div>
           <div class="row">
             <label class="check"><input type="checkbox" id="tests-failed"> Failed only</label>
@@ -323,7 +506,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
           <p class="hint mt-2">The same source id twice activates once. Use New for a second payment.</p>
         </div>
 
-        <div class="step" data-submit="s-switch">
+        <div class="step" data-submit="s-switch" id="sec-switch">
           <div class="step-title">MAC switch <span class="font-normal normal-case tracking-normal">DEV-7</span></div>
           <ol class="hint mb-3 list-decimal space-y-0.5 pl-4">
             <li>The device above must be paid, with a running lifetime license (or yearly with <b>Allow yearly</b>), not from a multi-device order.</li>
@@ -502,10 +685,172 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
           <div id="m-list" class="mt-3"></div>
         </div>
       </div>
+
+      <div class="tab" id="tab-customer">
+        <div class="step" data-submit="cu-signup">
+          <div class="step-title">Sign up and verify <span class="font-normal normal-case tracking-normal">CUS-1</span></div>
+          <p class="hint mb-2">An account in this brand only: the same email on another brand is a separate account. With no SMTP set up, the email goes to the dev outbox; "Open the emailed link" uses it.</p>
+          <div class="row">
+            <label class="field">Email<input id="cu-email" class="input" autocomplete="off" spellcheck="false"></label>
+            <label class="field">Password<input id="cu-password" class="input" value="customer-pass"></label>
+            <label class="field">First name<input id="cu-first" class="input" value="Ana"></label>
+          </div>
+          <div class="row mt-2">
+            <button class="btn" id="cu-random" title="A new random email">New email</button>
+            <button class="btn btn-primary" id="cu-signup">Sign up</button>
+            <button class="btn" id="cu-verify">Open the emailed link</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="cu-login">
+          <div class="step-title">Log in <span class="font-normal normal-case tracking-normal">CUS-2</span> <span id="cu-session" class="pill">logged out</span></div>
+          <p class="hint mb-2">Uses the email and password above. A wrong password and an unknown email get the same answer; no login before the email is verified. 10 tries per 15 minutes per IP and per email.</p>
+          <div class="row">
+            <button class="btn btn-primary" id="cu-login">Log in</button>
+            <button class="btn" id="cu-me">Me</button>
+            <button class="btn" id="cu-logout">Log out</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="cu-reset-confirm">
+          <div class="step-title">Password reset <span class="font-normal normal-case tracking-normal">CUS-2</span></div>
+          <p class="hint mb-2">The same answer whether the email has an account or not. The link works once for 1 hour, also verifies the email, and logs out every session.</p>
+          <div class="row">
+            <button class="btn" id="cu-reset">Email a reset link</button>
+            <label class="field">New password<input id="cu-newpass" class="input" value="customer-pass-2"></label>
+            <button class="btn btn-primary" id="cu-reset-confirm">Use the emailed link</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="cu-update">
+          <div class="step-title">Profile <span class="font-normal normal-case tracking-normal">CUS-4</span></div>
+          <p class="hint mb-2">Leave a field empty to keep it. A new email is not verified until its own link is opened; a new email or password needs the current password; a new password logs out every session.</p>
+          <div class="row">
+            <label class="field">First name<input id="cu-p-first" class="input"></label>
+            <label class="field">New email<input id="cu-p-email" class="input" spellcheck="false"></label>
+          </div>
+          <div class="row mt-2">
+            <label class="field">New password<input id="cu-p-pass" class="input"></label>
+            <label class="field">Current password<input id="cu-p-current" class="input"></label>
+            <button class="btn btn-primary" id="cu-update">Save</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="cu-link">
+          <div class="step-title">TVs on the account <span class="font-normal normal-case tracking-normal">CUS-3</span></div>
+          <p class="hint mb-2">Links the MAC at the top with its device key (filled in from the Device card). Paid devices only; a TV belongs to one account; 10 tries an hour per account and per IP.</p>
+          <div class="row">
+            <label class="field max-w-[9rem]">Device key<input id="cu-key" class="input font-mono" placeholder="from the device"></label>
+            <button class="btn btn-primary" id="cu-link">Link the MAC above</button>
+            <button class="btn" id="cu-devices-refresh">Refresh</button>
+          </div>
+          <div id="cu-devices" class="mt-3 space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-staff">
+        <div class="step" data-submit="st-root">
+          <div class="step-title">First super admin <span class="font-normal normal-case tracking-normal">dev only</span></div>
+          <p class="hint mb-2">Role super_admin on every brand. In production this is <code class="mono">pnpm cli staff:create</code>.</p>
+          <div class="row">
+            <label class="field">Email<input id="st-root-email" class="input" spellcheck="false"></label>
+            <label class="field">Password<input id="st-root-pass" class="input" value="root-pass-1"></label>
+            <button class="btn btn-primary" id="st-root">Create super admin</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="st-login">
+          <div class="step-title">Log in <span class="font-normal normal-case tracking-normal">STF-1</span> <span id="st-session" class="pill">logged out</span></div>
+          <p class="hint mb-2">One account for every brand. With two-factor login on, the password gives a 5-minute challenge, finished with the app's code.</p>
+          <div class="row">
+            <label class="field">Email<input id="st-email" class="input" spellcheck="false"></label>
+            <label class="field">Password<input id="st-pass" class="input"></label>
+            <button class="btn btn-primary" id="st-login">Log in</button>
+          </div>
+          <div class="row mt-2" id="st-2fa-row" hidden data-submit="st-2fa-send">
+            <label class="field max-w-[9rem]">Code<input id="st-2fa-code" class="input font-mono" autocomplete="off"></label>
+            <button class="btn btn-primary" id="st-2fa-send">Send code</button>
+          </div>
+          <div class="row mt-2">
+            <button class="btn" id="st-me">Me</button>
+            <button class="btn" id="st-logout">Log out</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="st-2fa-on">
+          <div class="step-title">Two-factor login</div>
+          <p class="hint mb-2">Set up gives a secret for an authenticator app (or the otpauth link as a QR code). It is required at login only once turned on with a first code. Turning it off needs a code and logs out the other sessions.</p>
+          <div class="row">
+            <button class="btn" id="st-2fa-setup">Set up</button>
+            <label class="field max-w-[9rem]">Code<input id="st-2fa-own" class="input font-mono" autocomplete="off"></label>
+            <button class="btn btn-primary" id="st-2fa-on">Turn on</button>
+            <button class="btn" id="st-2fa-off">Turn off</button>
+          </div>
+          <div id="st-2fa-secret" class="mt-2"></div>
+        </div>
+
+        <div class="step" data-submit="st-activate">
+          <div class="step-title">This brand's devices <span class="font-normal normal-case tracking-normal">STF-3</span></div>
+          <p class="hint mb-2">Acts on the MAC at the top, on the brand at the top right. Switch brand to see a member outside their brands refused (403 brand_not_allowed); a role without the key gets 403 missing_permission.</p>
+          <div class="row">
+            <button class="btn" id="st-view">View (devices.view)</button>
+            <label class="field max-w-[9rem]">Type<select id="st-type" class="input"><option>yearly</option><option>lifetime</option></select></label>
+            <button class="btn btn-primary" id="st-activate">Activate (devices.activate)</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="st-create">
+          <div class="step-title">Staff <span class="font-normal normal-case tracking-normal">STF-2 · staff.manage</span></div>
+          <p class="hint mb-2">Disabling, a new password or a 2FA reset logs the member out on every server at once. Nobody disables themselves or changes their own role.</p>
+          <div class="row">
+            <label class="field">Email<input id="st-n-email" class="input" spellcheck="false"></label>
+            <label class="field">Name<input id="st-n-name" class="input" value="Sam"></label>
+            <label class="field">Password<input id="st-n-pass" class="input" value="staff-pass-1"></label>
+          </div>
+          <div class="row mt-2">
+            <label class="field">Role<select id="st-n-role" class="input"></select></label>
+            <label class="field">Brands<input id="st-n-brands" class="input" placeholder="ibo,bob or *"></label>
+            <button class="btn btn-primary" id="st-create">Add</button>
+            <button class="btn" id="st-refresh">Refresh</button>
+          </div>
+          <div id="st-list" class="mt-3 space-y-2"></div>
+        </div>
+
+        <div class="step" data-submit="st-role-create">
+          <div class="step-title">Roles <span class="font-normal normal-case tracking-normal">PRM-2 · roles.manage</span></div>
+          <p class="hint mb-2">A role lists active keys only. super_admin is fixed and passes everything; a role still given to someone cannot be deleted. A key taken off a role is refused on the next request.</p>
+          <div class="row">
+            <label class="field">New role name<input id="st-role-name" class="input"></label>
+            <button class="btn btn-primary" id="st-role-create">Create with the ticked keys</button>
+          </div>
+          <div id="st-role-keys" class="row mt-2"></div>
+          <div id="st-roles" class="mt-3 space-y-2"></div>
+        </div>
+
+        <div class="step">
+          <div class="step-title">Permissions <span class="font-normal normal-case tracking-normal">PRM-1</span></div>
+          <p class="hint mb-2">The keys come from the code (<code class="mono">@Staff(key)</code>), synced on every API start. A key no longer in the code is inactive and removed from every role. Labels are editable here and kept by the sync.</p>
+          <div id="st-perms" class="space-y-2"></div>
+        </div>
+      </div>
     </div>
   </section>
 
   <section class="min-w-0 space-y-5" id="inspector">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Device under test</h2><span id="device-chip" class="pill">no device</span></div>
+      <div class="card-body space-y-3" data-submit="refresh">
+        <label class="field">MAC address
+          <input id="mac" class="input font-mono" placeholder="aa:bb:cc:dd:ee:ff" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="row">
+          <button class="btn" id="randomMac" title="A new random MAC">Random</button>
+          <button class="btn" id="fallbackMac" title="52:54:00:12:34:57, a shared placeholder MAC: treated as no MAC">Placeholder</button>
+          <button class="btn btn-primary" id="refresh">Look up</button>
+          <label class="check ml-auto" title="The dev routes send the captcha answer back, so you can log in without reading it"><input type="checkbox" id="reveal"> Show captcha answers</label>
+        </div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-head"><h2 class="card-title">Device</h2><span id="device-collection" class="hint"></span></div>
       <div class="card-body" id="device"></div>
@@ -617,10 +962,24 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
 
   // Views: "register", "scenario:D1", "tests", "tests:devices"… remembered between visits. Overview
   // and test cases take the whole width; tools and scenarios show the device panel beside them.
-  var WIDE = { home: true, tests: true };
+  var WIDE = { home: true, tests: true, brand: true, schema: true };
+  // The six tabs in the header; each view belongs to one, and the sidebar shows that tab's list.
+  var MODE_OF = { home: 'overview', scenario: 'scenarios', tests: 'tests', db: 'database', schema: 'schema' };
+  var MODE_START = { overview: 'home', tools: 'register', scenarios: 'scenario:F1', tests: 'tests', database: 'db', schema: 'schema' };
+  var lastInMode = {};
+  function modeOf(name) { return MODE_OF[name] || 'tools'; }
+  document.querySelectorAll('[data-mode]').forEach(function (b) {
+    b.addEventListener('click', function () { openView(lastInMode[b.dataset.mode] || MODE_START[b.dataset.mode]); });
+  });
   function openView(view) {
     var name = view.split(':')[0], arg = view.split(':')[1];
     if (!$('tab-' + name)) { view = 'home'; name = 'home'; arg = undefined; }
+    var mode = modeOf(name);
+    lastInMode[mode] = view;
+    document.querySelectorAll('[data-mode]').forEach(function (b) { b.setAttribute('aria-current', b.dataset.mode === mode ? 'true' : 'false'); });
+    document.querySelectorAll('[data-mode-nav]').forEach(function (n) { n.hidden = n.dataset.modeNav !== mode; });
+    document.querySelector('aside').classList.toggle('lg:block', mode !== 'overview');
+    if (name === 'schema') refreshSchema();
     document.querySelectorAll('.nav-item[data-view]').forEach(function (b) { b.setAttribute('aria-current', b.dataset.view === view ? 'true' : 'false'); });
     document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.id === 'tab-' + name); });
     $('layout').classList.toggle('wide', !!WIDE[name]);
@@ -628,6 +987,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     if (name === 'scenario' && window.PG) window.PG.showScenario(arg);
     if (name === 'tests' && window.PG) window.PG.showTests(arg);
     if (name === 'db') refreshDb();
+    if (name === 'brand') refreshBrand();
     if (store.view !== view) window.scrollTo({ top: 0 });
     store.view = view;
     store('view', view);
@@ -635,8 +995,47 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
   function openTab(name) { openView(name); }
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-view]');
-    if (b && !b.matches('option')) openView(b.dataset.view);
+    if (!b || b.matches('option')) return;
+    openView(b.dataset.view);
+    if (b.dataset.scroll && $(b.dataset.scroll)) setTimeout(function () { $(b.dataset.scroll).scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30);
   });
+
+  // Light or dark, remembered; light by default (projectors).
+  $('theme').addEventListener('click', function () {
+    var dark = document.documentElement.classList.toggle('dark');
+    store('theme', dark ? 'dark' : 'light');
+  });
+  $('home-origin').textContent = location.host;
+  $('home-run-all').addEventListener('click', function () { openView('tests'); if (window.PG) window.PG.runTests(); });
+
+  // Phase 1: the brand of this host, any host's brand, health
+  function refreshBrand() {
+    fetch('/dev/brand').then(function (r) { return r.json(); }).then(function (b) {
+      $('b-slug').textContent = b.slug;
+      $('b-brand').innerHTML = '<div class="kv">' +
+        '<div>Name</div><div>' + esc(b.name) + ' <span class="pill ' + (b.status === 'active' ? 'ok' : 'bad') + '">' + esc(b.status) + '</span></div>' +
+        '<div>Database</div><div><code>' + esc(b.dbName) + '</code></div>' +
+        '<div>Hosts</div><div class="flex flex-wrap gap-1">' + b.hosts.map(function (h) { return '<span class="pill mono">' + esc(h) + '</span>'; }).join('') + '</div>' +
+        '<div>Playlist profile</div><div><code>' + esc(b.settings.playlistProfile) + '</code></div>' +
+        '<div>Secrets</div><div>' + (b.secrets.length ? b.secrets.map(function (n) { return '<span class="pill mono">' + esc(n) + '</span>'; }).join(' ') + '<div class="hint">names only; values never leave the server</div>' : '<span class="hint">none</span>') + '</div>' +
+        '</div>';
+      $('b-config').textContent = JSON.stringify(b.config, null, 2);
+    }, function () { unreachable('b-brand'); });
+    Promise.all([fetch('/health').then(function (r) { return r.json(); }), fetch('/ready').then(function (r) { return r.json(); })]).then(function (x) {
+      var c = x[1].checks || {};
+      $('b-health').innerHTML = '<div class="kv"><div>/health</div><div><span class="pill ' + (x[0].status === 'ok' ? 'ok' : 'bad') + '">' + esc(x[0].status) + '</span></div>' +
+        Object.keys(c).map(function (k) { return '<div>' + esc(k) + '</div><div><span class="pill ' + (c[k] === 'up' ? 'ok' : 'bad') + '">' + esc(c[k]) + '</span></div>'; }).join('') + '</div>';
+    }, function () { unreachable('b-health'); });
+  }
+  function resolveHost(host) {
+    fetch('/dev/brands/resolve?host=' + encodeURIComponent(host)).then(function (r) { return r.json(); }).then(function (x) {
+      $('b-result').innerHTML = x.found
+        ? '<div class="rounded-lg bg-emerald-50 p-3 text-sm dark:bg-emerald-950/40"><span class="pill ok">200</span> <code class="mono">' + esc(x.host) + '</code> is served as <b>' + esc(x.name) + '</b> (<code>' + esc(x.slug) + '</code>)</div>'
+        : '<div class="rounded-lg bg-rose-50 p-3 text-sm dark:bg-rose-950/40"><span class="pill bad">' + x.status + '</span> <code class="mono">' + esc(x.host) + '</code>: ' + esc(x.message) + ' <code class="mono">' + esc(x.code) + '</code></div>';
+    });
+  }
+  $('b-resolve').addEventListener('click', function () { resolveHost($('b-host').value.trim()); });
+  $('b-unknown').addEventListener('click', function () { $('b-host').value = 'not-a-brand.example.com'; resolveHost($('b-host').value); });
   $('view-select').addEventListener('change', function () { openView($('view-select').value); });
   function fillViewSelect() {
     $('view-select').innerHTML = Array.prototype.map.call(document.querySelectorAll('aside .nav-item[data-view]'), function (b) {
@@ -659,12 +1058,13 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
   });
 
   // Requests
-  function call(method, path, body, base) {
+  function call(method, path, body, base, token) {
     base = base || '/dev/devices';
     var button = pressed; pressed = null;
     busy(button, true);
     var opts = { method: method, headers: {} };
     if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    if (token) opts.headers.Authorization = 'Bearer ' + token;
     return fetch(base + path, opts).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (json) {
         log(method, base + path, body, res.status, json);
@@ -1207,6 +1607,90 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     refreshStored();
   }
   $('db-refresh').addEventListener('click', refreshDb);
+
+  // Schema: what each collection is for, and which phase made it.
+  var COLLECTIONS = {
+    tenants: [1, 'brands: slug, exact hosts, status, settings, which database'],
+    tenantSecrets: [1, 'brand secrets, envelope-encrypted; values never leave the server'],
+    trialDevices: [2, 'devices that never paid, trial running or ended'],
+    devices: [2, 'paid at least once; never deleted'],
+    licenses: [2, 'one row per license, kept as history'],
+    playlists: [2, 'every kind in one collection, by deviceId'],
+    captchas: [2, 'V4 sign-up and uid recovery; solved ones are kept'],
+    domainMigrations: [2, 'provider host moves, learned from devices, approved by staff'],
+    customers: [5, 'customer accounts; email unique within the brand'],
+    customerTokens: [5, 'one-time email links (verify, reset), stored as hashes'],
+    staffUsers: [5, 'one staff account per person for every brand'],
+    roles: [5, 'named sets of permission keys; super_admin is fixed'],
+    permissions: [5, 'the keys the code checks, synced on startup'],
+    tenantConfig: [1, 'one document per brand: trial days, currency, contact, app, payments'],
+    _migrations: [1, 'the migrations applied to this database']
+  };
+  var PHASE_NAME = ['', 'Foundation', 'Database', 'Core features', 'Moves and cleanup', 'Accounts and staff'];
+  // "string or null" → String | null, coloured by kind, like the schema docs.
+  var TYPE_NAME = { string: 'String', date: 'Date', int: 'Number', long: 'Number', double: 'Number', number: 'Number', decimal: 'Number',
+    bool: 'Boolean', boolean: 'Boolean', object: 'Object', array: 'Array', objectId: 'ObjectId', enum: 'Enum', any: 'Any' };
+  function typeHtml(type) {
+    return type.split(' or ').map(function (t) {
+      if (t === 'null') return '<span class="t-null">null</span>';
+      var name = TYPE_NAME[t] || t;
+      return '<span class="t-' + name.toLowerCase() + '">' + esc(name) + '</span>';
+    }).join(' <span class="t-null">|</span> ');
+  }
+  function schemaCard(c, where, central) {
+    var info = COLLECTIONS[c.name];
+    var doc = (window.PG_SCHEMA_DOCS || {})[c.name] || { about: '', fields: {} };
+    var about = doc.about || (info ? info[1] : 'Left over in this local database from an older branch; no migration of the current code creates it.');
+    var head = '<div class="schema-head"><div class="min-w-0">' +
+      '<div class="flex flex-wrap items-center gap-2">' + (info ? '<span class="phase-num p' + info[0] + '" title="Phase ' + info[0] + ' · ' + PHASE_NAME[info[0]] + '">' + info[0] + '</span>' : '<span class="pill warn">not in the current design</span>') +
+      '<h3 class="font-mono text-base font-bold">' + esc(c.name) + '</h3></div>' +
+      '<p class="mt-1 text-sm text-slate-600 dark:text-slate-300">' + esc(about) + '</p></div>' +
+      '<div class="flex shrink-0 items-center gap-2"><span class="schema-where ' + (central ? 'central' : '') + '">' + (central ? 'Central' : 'Per brand') + '</span>' +
+      '<span class="font-mono text-xs text-slate-500">' + c.fields.length + ' fields · ' + c.rows + ' rows</span></div></div>';
+    var rows = c.fields.map(function (fd) {
+      var d = doc.fields[fd.name] || {};
+      var rule = d.rule || '';
+      if (fd.values && !rule) rule = 'one of: ' + fd.values.filter(function (v) { return v !== null; }).join(', ');
+      if (fd.keys && !d.rule) rule = '{ ' + fd.keys.join(', ') + ' }';
+      return '<tr><td class="f-name">' + esc(fd.name) + (fd.required ? '' : ' <span class="f-opt">optional</span>') + '</td>' +
+        '<td class="f-type">' + typeHtml(fd.type) + '</td>' +
+        '<td class="f-rule">' + (rule ? esc(rule) : '<span class="text-slate-400">—</span>') + '</td>' +
+        '<td class="f-example" title="' + esc(fd.example === undefined ? '' : fd.example) + '">' + esc(fd.example === undefined ? '—' : fd.example) + '</td>' +
+        '<td class="f-from">' + (d.from ? esc(d.from) : '<span class="text-slate-400">—</span>') + '</td></tr>';
+    }).join('');
+    var table = c.fields.length
+      ? '<div class="overflow-x-auto"><table class="schema-table"><thead><tr><th>Field</th><th>Type</th><th>Rule</th><th>Example value</th><th>Comes from (old field)</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+      : '<p class="empty m-4">no rows yet</p>';
+    var indexes = c.indexes.filter(function (ix) { return ix.name !== '_id_'; }).map(function (ix) {
+      return '<span class="pill ' + (ix.unique ? 'ok' : '') + '" title="' + esc(JSON.stringify(ix.keys)) + '"><span class="mono">' + esc(ix.name) + '</span>' +
+        (ix.unique ? ' · unique' : '') + (ix.partial ? ' · partial' : '') + (ix.ttlSeconds !== undefined ? ' · TTL' : '') + '</span>';
+    }).join(' ');
+    return '<div class="schema-card ' + (central ? 'central' : '') + '" id="schema-' + esc(c.name) + '">' + head + table +
+      '<div class="schema-foot"><span class="mr-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Indexes</span>' + (indexes || '<span class="hint">only _id</span>') +
+      (c.source === 'sample' ? '<span class="hint ml-auto">types read from a stored row: this collection has no validator</span>' : '') + '</div></div>';
+  }
+  function refreshSchema() {
+    fetch('/dev/db/schema').then(function (r) { return r.json(); }).then(function (s) {
+      var order = Object.keys(COLLECTIONS);
+      var sort = function (list) { return list.slice().sort(function (a, b) {
+        var x = order.indexOf(a.name), y = order.indexOf(b.name);
+        return (x < 0 ? 99 : x) - (y < 0 ? 99 : y);
+      }); };
+      var brand = sort(s.brand.collections), central = sort(s.central.collections);
+      var section = function (title, list, where) {
+        return '<section><h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">' + esc(title) +
+          ' <span class="pill mono">' + esc(where) + '</span><span class="hint">' + list.length + ' collections</span></h3><div class="space-y-3">' +
+          list.map(function (c) { return schemaCard(c, where, where === s.central.database); }).join('') + '</div></section>';
+      };
+      $('schema-list').innerHTML = section('Each brand’s database', brand, s.brand.database) + section('Central database', central, s.central.database);
+      $('schema-nav').innerHTML = '<div class="nav-label">Each brand</div>' + brand.map(function (c) {
+        return '<button class="nav-item" data-view="schema" data-scroll="schema-' + esc(c.name) + '"><span class="mono truncate text-xs">' + esc(c.name) + '</span><span class="code">' + c.fields.length + '</span></button>';
+      }).join('') + '<div class="nav-label">Central</div>' + central.map(function (c) {
+        return '<button class="nav-item" data-view="schema" data-scroll="schema-' + esc(c.name) + '"><span class="mono truncate text-xs">' + esc(c.name) + '</span><span class="code">' + c.fields.length + '</span></button>';
+      }).join('');
+    }, function () { unreachable('schema-list'); });
+  }
+  $('schema-refresh').addEventListener('click', refreshSchema);
   window.addEventListener('pg:request', function () {
     if ($('tab-db').classList.contains('active') && $('db-auto').checked) refreshDb();
   });
@@ -1235,6 +1719,240 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
   // Without the runner (an older API), the tools still work.
   window.addEventListener('load', function () { if (!window.PG) window.PGUI.mounted(); });
 
+
+  // Accounts: customers (this brand) and staff (every brand). Sessions are bearer tokens kept here.
+  var tokens = { customer: stored('customerToken'), staff: stored('staffToken') };
+  function setToken(kind, value) {
+    tokens[kind] = value;
+    store(kind + 'Token', value || '');
+    sessionPills();
+  }
+  function sessionPills() {
+    $('cu-session').className = 'pill ' + (tokens.customer ? 'ok' : '');
+    $('cu-session').textContent = tokens.customer ? 'logged in' : 'logged out';
+    $('st-session').className = 'pill ' + (tokens.staff ? 'ok' : '');
+    $('st-session').textContent = tokens.staff ? 'logged in' : 'logged out';
+  }
+  function as(kind, method, base, path, body) {
+    return call(method, path, body, base, tokens[kind]).then(function (r) {
+      // An ended session: forget it, so the pill says so.
+      if (r.status === 401 && tokens[kind]) setToken(kind, null);
+      return r;
+    });
+  }
+  function randomEmail(who) { return who + '-' + Math.random().toString(36).slice(2, 7) + '@example.test'; }
+  function val(id) { return $(id).value.trim(); }
+  function outboxToken(email) {
+    return fetch('/dev/outbox?to=' + encodeURIComponent(email)).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) { if (!m) warn('No email for ' + email + ' in the dev outbox'); return m && m.token; });
+  }
+
+  // Customer
+  if (!$('cu-email').value) $('cu-email').value = stored('customerEmail') || randomEmail('ana');
+  $('cu-email').addEventListener('change', function () { store('customerEmail', val('cu-email')); });
+  $('cu-random').addEventListener('click', function () { $('cu-email').value = randomEmail('ana'); store('customerEmail', val('cu-email')); });
+  $('cu-signup').addEventListener('click', function () {
+    store('customerEmail', val('cu-email'));
+    call('POST', '/sign-up', { email: val('cu-email'), password: $('cu-password').value, firstName: val('cu-first') || null }, '/customer');
+  });
+  $('cu-verify').addEventListener('click', function () {
+    outboxToken(val('cu-email')).then(function (token) { if (token) call('POST', '/verify-email', { token: token }, '/customer'); });
+  });
+  $('cu-login').addEventListener('click', function () {
+    call('POST', '/login', { email: val('cu-email'), password: $('cu-password').value }, '/customer').then(function (r) {
+      if (r.json.token) { setToken('customer', r.json.token); refreshCustomerDevices(); }
+    });
+  });
+  $('cu-me').addEventListener('click', function () { as('customer', 'GET', '/customer', '/me'); });
+  $('cu-logout').addEventListener('click', function () {
+    as('customer', 'POST', '/customer', '/logout').then(function () { setToken('customer', null); refreshCustomerDevices(); });
+  });
+  $('cu-reset').addEventListener('click', function () { call('POST', '/password-reset', { email: val('cu-email') }, '/customer'); });
+  $('cu-reset-confirm').addEventListener('click', function () {
+    outboxToken(val('cu-email')).then(function (token) {
+      if (!token) return;
+      call('POST', '/password-reset/confirm', { token: token, password: $('cu-newpass').value }, '/customer').then(function (r) {
+        if (r.status === 200) { $('cu-password').value = $('cu-newpass').value; setToken('customer', null); }
+      });
+    });
+  });
+  $('cu-update').addEventListener('click', function () {
+    var body = {};
+    if (val('cu-p-first')) body.firstName = val('cu-p-first');
+    if (val('cu-p-email')) body.email = val('cu-p-email');
+    if ($('cu-p-pass').value) body.newPassword = $('cu-p-pass').value;
+    if ($('cu-p-current').value) body.currentPassword = $('cu-p-current').value;
+    as('customer', 'PATCH', '/customer', '/me', body).then(function (r) {
+      if (r.status !== 200) return;
+      if (body.email) { $('cu-email').value = body.email; store('customerEmail', body.email); }
+      if (body.newPassword) { $('cu-password').value = body.newPassword; setToken('customer', null); }
+    });
+  });
+  $('cu-link').addEventListener('click', function () {
+    if (!mac()) return warn('Pick a MAC at the top first');
+    var key = val('cu-key') || (state.device && state.device.device.deviceKey) || '';
+    as('customer', 'POST', '/customer', '/devices/link', { mac: mac(), deviceKey: key }).then(refreshCustomerDevices);
+  });
+  $('cu-devices-refresh').addEventListener('click', refreshCustomerDevices);
+  function refreshCustomerDevices() {
+    var box = $('cu-devices');
+    if (!tokens.customer) { box.innerHTML = '<div class="empty">Log in to see the TVs on the account</div>'; return; }
+    fetch('/customer/devices', { headers: { Authorization: 'Bearer ' + tokens.customer } }).then(function (r) { return r.json(); }).then(function (json) {
+      if (!json.devices) { box.innerHTML = '<div class="empty">' + esc(json.error ? json.error.code : 'not loaded') + '</div>'; return; }
+      if (!json.devices.length) { box.innerHTML = '<div class="empty">No TVs on this account</div>'; return; }
+      box.innerHTML = '';
+      json.devices.forEach(function (d) {
+        var row = document.createElement('div');
+        row.className = 'flex items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800';
+        row.innerHTML = '<span class="mono flex-1">' + esc(d.macAddress) + '</span><span class="pill">' + esc(d.platform) + '</span>';
+        var b = document.createElement('button'); b.className = 'btn btn-sm'; b.textContent = 'Remove';
+        b.addEventListener('click', function () { as('customer', 'DELETE', '/customer', '/devices/' + d.id).then(refreshCustomerDevices); });
+        row.appendChild(b); box.appendChild(row);
+      });
+    });
+  }
+
+  // Staff
+  if (!$('st-root-email').value) $('st-root-email').value = stored('rootEmail') || randomEmail('root');
+  if (!$('st-email').value) $('st-email').value = stored('staffEmail') || $('st-root-email').value;
+  if (!$('st-pass').value) $('st-pass').value = stored('staffPass') || $('st-root-pass').value;
+  if (!$('st-n-email').value) $('st-n-email').value = randomEmail('sam');
+  if (!$('st-n-brands').value) $('st-n-brands').value = (stored('brand') || location.hostname.split('.')[0]);
+  var challenge = null;
+  $('st-root').addEventListener('click', function () {
+    store('rootEmail', val('st-root-email'));
+    call('POST', '/super-admin', { email: val('st-root-email'), name: 'Root', password: $('st-root-pass').value }, '/dev/staff').then(function (r) {
+      if (r.status < 300) { $('st-email').value = val('st-root-email'); $('st-pass').value = $('st-root-pass').value; }
+    });
+  });
+  $('st-login').addEventListener('click', function () {
+    store('staffEmail', val('st-email')); store('staffPass', $('st-pass').value);
+    call('POST', '/login', { email: val('st-email'), password: $('st-pass').value }, '/admin').then(function (r) {
+      if (r.json.twoFactorRequired) { challenge = r.json.challenge; $('st-2fa-row').hidden = false; $('st-2fa-code').focus(); return; }
+      if (r.json.token) { setToken('staff', r.json.token); refreshStaff(); }
+    });
+  });
+  $('st-2fa-send').addEventListener('click', function () {
+    call('POST', '/login/two-factor', { challenge: challenge || '', code: val('st-2fa-code') }, '/admin').then(function (r) {
+      if (r.json.token) { setToken('staff', r.json.token); $('st-2fa-row').hidden = true; $('st-2fa-code').value = ''; refreshStaff(); }
+    });
+  });
+  $('st-me').addEventListener('click', function () { as('staff', 'GET', '/admin', '/me'); });
+  $('st-logout').addEventListener('click', function () { as('staff', 'POST', '/admin', '/logout').then(function () { setToken('staff', null); }); });
+  $('st-2fa-setup').addEventListener('click', function () {
+    as('staff', 'POST', '/admin', '/me/two-factor/setup').then(function (r) {
+      if (!r.json.secret) return;
+      $('st-2fa-secret').innerHTML = '<div class="kv"><div>Secret</div><div><code>' + esc(r.json.secret) + '</code>' + copyable(r.json.secret) +
+        '</div><div>App link</div><div><code>' + esc(r.json.uri) + '</code>' + copyable(r.json.uri) + '</div></div>';
+    });
+  });
+  $('st-2fa-on').addEventListener('click', function () { as('staff', 'POST', '/admin', '/me/two-factor/enable', { code: val('st-2fa-own') }); });
+  $('st-2fa-off').addEventListener('click', function () { as('staff', 'POST', '/admin', '/me/two-factor/disable', { code: val('st-2fa-own') }); });
+  $('st-view').addEventListener('click', function () {
+    if (!mac()) return warn('Pick a MAC at the top first');
+    as('staff', 'GET', '/admin/devices', '/' + encodeURIComponent(mac()));
+  });
+  $('st-activate').addEventListener('click', function () {
+    if (!mac()) return warn('Pick a MAC at the top first');
+    as('staff', 'POST', '/admin/devices', '/' + encodeURIComponent(mac()) + '/activate', { type: $('st-type').value })
+      .then(function () { lookUp(); refreshLicense(); });
+  });
+  $('st-create').addEventListener('click', function () {
+    var brands = val('st-n-brands').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    as('staff', 'POST', '/admin', '/staff', { email: val('st-n-email'), name: val('st-n-name'), password: $('st-n-pass').value, roleId: $('st-n-role').value, tenantAccess: brands })
+      .then(function (r) { if (r.status < 300) { $('st-email').value = val('st-n-email'); $('st-pass').value = $('st-n-pass').value; $('st-n-email').value = randomEmail('sam'); refreshStaff(); } });
+  });
+  $('st-refresh').addEventListener('click', refreshStaff);
+  $('st-role-create').addEventListener('click', function () {
+    as('staff', 'POST', '/admin', '/roles', { name: val('st-role-name'), permissions: ticked($('st-role-keys')) }).then(refreshStaff);
+  });
+  function ticked(box) { return Array.prototype.map.call(box.querySelectorAll('input:checked'), function (i) { return i.value; }); }
+  function keyBoxes(keys, chosen) {
+    return keys.map(function (k) {
+      return '<label class="check"><input type="checkbox" value="' + esc(k) + '"' + (chosen.indexOf(k) >= 0 ? ' checked' : '') + '> <span class="mono">' + esc(k) + '</span></label>';
+    }).join('');
+  }
+  function getJson(path) {
+    return fetch(path, { headers: { Authorization: 'Bearer ' + (tokens.staff || '') } }).then(function (r) { return r.json(); });
+  }
+  function refreshStaff() {
+    if (!tokens.staff) {
+      ['st-list', 'st-roles', 'st-perms'].forEach(function (id) { $(id).innerHTML = '<div class="empty">Log in as staff to see this</div>'; });
+      return;
+    }
+    Promise.all([getJson('/admin/staff'), getJson('/admin/roles'), getJson('/admin/permissions')]).then(function (all) {
+      renderStaff(all[0], all[1]); renderRoles(all[1], all[2]); renderPermissions(all[2]);
+    });
+  }
+  function refused(box, json) { box.innerHTML = '<div class="empty">' + esc(json.error ? json.error.code : 'not loaded') + '</div>'; }
+  function renderStaff(json, roles) {
+    var box = $('st-list');
+    if (roles.roles) {
+      var current = $('st-n-role').value;
+      $('st-n-role').innerHTML = roles.roles.map(function (r) { return '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>'; }).join('');
+      $('st-n-role').value = current || 'billing';
+    }
+    if (!json.staff) return refused(box, json);
+    box.innerHTML = '';
+    json.staff.forEach(function (s) {
+      var row = document.createElement('div');
+      row.className = 'flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800';
+      row.innerHTML = '<span class="mono min-w-0 flex-1 truncate">' + esc(s.email) + '</span><span class="pill">' + esc(s.roleId) + '</span>' +
+        '<span class="pill">' + esc(s.tenantAccess.join(', ') || 'no brands') + '</span>' +
+        '<span class="pill ' + (s.status === 'active' ? 'ok' : 'bad') + '">' + esc(s.status) + '</span>' + (s.twoFactorEnabled ? '<span class="pill ok">2FA</span>' : '');
+      var toggle = document.createElement('button'); toggle.className = 'btn btn-sm';
+      toggle.textContent = s.status === 'active' ? 'Disable' : 'Enable';
+      toggle.addEventListener('click', function () {
+        as('staff', 'PATCH', '/admin', '/staff/' + s.id, { status: s.status === 'active' ? 'disabled' : 'active' }).then(refreshStaff);
+      });
+      row.appendChild(toggle);
+      if (s.twoFactorEnabled) {
+        var reset = document.createElement('button'); reset.className = 'btn btn-sm'; reset.textContent = 'Reset 2FA';
+        reset.addEventListener('click', function () { as('staff', 'PATCH', '/admin', '/staff/' + s.id, { resetTwoFactor: true }).then(refreshStaff); });
+        row.appendChild(reset);
+      }
+      box.appendChild(row);
+    });
+  }
+  function renderRoles(json, perms) {
+    var box = $('st-roles');
+    var active = (perms.permissions || []).filter(function (p) { return p.active; }).map(function (p) { return p.key; });
+    $('st-role-keys').innerHTML = keyBoxes(active, []);
+    if (!json.roles) return refused(box, json);
+    box.innerHTML = '';
+    json.roles.forEach(function (r) {
+      var row = document.createElement('div');
+      row.className = 'rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800';
+      row.innerHTML = '<div class="flex items-center gap-2"><span class="flex-1 font-semibold">' + esc(r.name) + '</span>' +
+        (r.system ? '<span class="pill ok">system: every key</span>' : '') + '</div>';
+      if (!r.system) {
+        var keys = document.createElement('div'); keys.className = 'row mt-2'; keys.innerHTML = keyBoxes(active, r.permissions);
+        var save = document.createElement('button'); save.className = 'btn btn-sm'; save.textContent = 'Save keys';
+        save.addEventListener('click', function () { as('staff', 'PATCH', '/admin', '/roles/' + r.id, { permissions: ticked(keys) }).then(refreshStaff); });
+        var del = document.createElement('button'); del.className = 'btn btn-sm'; del.textContent = 'Delete';
+        del.addEventListener('click', function () { as('staff', 'DELETE', '/admin', '/roles/' + r.id).then(refreshStaff); });
+        keys.appendChild(save); keys.appendChild(del); row.appendChild(keys);
+      }
+      box.appendChild(row);
+    });
+  }
+  function renderPermissions(json) {
+    var box = $('st-perms');
+    if (!json.permissions) return refused(box, json);
+    box.innerHTML = '';
+    json.permissions.forEach(function (p) {
+      var row = document.createElement('div');
+      row.className = 'row rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800';
+      row.innerHTML = '<span class="mono min-w-[9rem]">' + esc(p.key) + '</span><span class="pill ' + (p.active ? 'ok' : 'bad') + '">' + (p.active ? 'active' : 'inactive') + '</span>';
+      var label = document.createElement('input'); label.className = 'input max-w-[14rem]'; label.value = p.label.en;
+      var save = document.createElement('button'); save.className = 'btn btn-sm'; save.textContent = 'Save label';
+      save.addEventListener('click', function () { as('staff', 'PATCH', '/admin', '/permissions/' + encodeURIComponent(p.key), { label: { en: label.value, ar: p.label.ar } }); });
+      row.appendChild(label); row.appendChild(save); box.appendChild(row);
+    });
+  }
+  sessionPills();
+  refreshCustomerDevices();
+  refreshStaff();
   lookUp();
   refreshPlaylists();
   refreshLicense();
@@ -1243,6 +1961,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
 <script src="/dev/playground/runner.js"></script>
 <script src="/dev/playground/tests.js"></script>
 <script src="/dev/playground/scenarios.js"></script>
+<script src="/dev/playground/schema-docs.js"></script>
 </body>
 </html>
 `;

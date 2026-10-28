@@ -13,9 +13,50 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   var activate = function (s, m, body, brand) {
     return s.req('POST', L(m) + '/activate', Object.assign({ type: 'yearly', source: 'code', sourceId: 'code-' + PG.word() }, body || {}), { brand: brand });
   };
+  var call = function (s, method, path, o) { o = o || {}; return s.req(method, path, o.body, { brand: o.brand, token: o.token }); };
+  /** A super admin and its session, for the staff scenarios. */
+  var superAdmin = async function (s) {
+    await s.req('POST', '/dev/rate-limits/reset');
+    var email = 'root-' + PG.word() + '@playground.test', password = 'root-pass-' + PG.word();
+    await call(s, 'POST', '/dev/staff/super-admin', { body: { email: email, name: 'Playground Root', password: password } });
+    var login = await call(s, 'POST', '/admin/login', { body: { email: email, password: password } });
+    return login.json;
+  };
 
   PG.scenario({
-    id: 'D1', nav: 'A new TV registers', title: 'A new MAC registers and gets a trial', tasks: ['DEV-1'],
+    id: 'F1', phase: 1, nav: 'Brand from the host', title: 'Each request is served for the brand of its host', tasks: ['F-4', 'F-5'],
+    story: 'One backend serves every brand. The host of a request decides the brand, and the brand decides the database; a host nobody configured is refused.',
+    steps: [
+      { title: 'A request on ibo.localhost', does: 'GET /tenant on the ibo host.', expect: 'served as IBO Player, from the ibo database.',
+        run: async function (s) {
+          var r = await s.req('GET', '/tenant');
+          var b = await s.req('GET', '/dev/brand');
+          s.expect('served as ibo', r.json && r.json.slug === 'ibo', r.json);
+          s.expect('reads the ibo database', b.json && b.json.dbName === 'ibo', b.json && b.json.dbName);
+        } },
+      { title: 'The same request on bob.localhost', does: 'GET /tenant on the bob host.', expect: 'served as BOB Player, from another database.',
+        run: async function (s) {
+          var r = await s.req('GET', '/tenant', undefined, { brand: 'bob' });
+          var b = await s.req('GET', '/dev/brand', undefined, { brand: 'bob' });
+          s.expect('served as bob', r.json && r.json.slug === 'bob', r.json);
+          s.expect('its own database', b.json && b.json.dbName && b.json.dbName !== 'ibo', b.json && b.json.dbName);
+        } },
+      { title: 'A host nobody configured', does: 'Ask which brand unknown.example.com is.', expect: 'none: a request there gets 421 tenants.unknown_host.',
+        run: async function (s) {
+          var r = await s.req('GET', '/dev/brands/resolve?host=unknown.example.com');
+          s.expect('refused with 421', r.json && r.json.found === false && r.json.status === 421 && r.json.code === 'tenants.unknown_host', r.json);
+        } },
+      { title: 'Load balancers', does: 'GET /health and /ready.', expect: 'ok without a brand check; MongoDB, Redis and the brand databases up.',
+        run: async function (s) {
+          var h = await s.req('GET', '/health'), r = await s.req('GET', '/ready');
+          s.expect('/health ok', h.json && h.json.status === 'ok', h.json);
+          s.expect('/ready: everything up', r.json && r.json.checks && r.json.checks.mongo === 'up' && r.json.checks.redis === 'up', r.json);
+        } }
+    ]
+  });
+
+  PG.scenario({
+    id: 'D1', phase: 3, nav: 'A new TV registers', title: 'A new MAC registers and gets a trial', tasks: ['DEV-1'],
     story: 'A TV opens the app for the first time. The backend makes a trial device for its MAC; the next start finds the same device, and another brand never sees it.',
     steps: [
       { title: 'The app starts on a new TV', does: 'POST /dev/devices/register with a random MAC, platform samsung.', expect: 'a new trial device, ending at the end of the UTC day 7 days out, PIN 0000, a 6-digit key.',
@@ -46,7 +87,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'D2', nav: 'Ten sign-ups at once', title: 'The same MAC registers 10 times at once', tasks: ['UNQ', 'LOCK'],
+    id: 'D2', phase: 2, nav: 'Ten sign-ups at once', title: 'The same MAC registers 10 times at once', tasks: ['UNQ', 'LOCK'],
     story: 'A TV retries its first call many times, from many servers at once. The Redis lock on the MAC makes sure only one device is created.',
     steps: [
       { title: 'Ten registrations in parallel', does: 'Ten POST /register calls for one new MAC, sent together.', expect: 'exactly one says created; all ten answer with the same device id.',
@@ -70,7 +111,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'D3', nav: 'Placeholder MAC, two TVs', title: 'A fallback MAC registers from two TVs', tasks: ['DEV-2'],
+    id: 'D3', phase: 3, nav: 'Placeholder MAC, two TVs', title: 'A fallback MAC registers from two TVs', tasks: ['DEV-2'],
     story: 'Some TVs report a shared placeholder MAC (52:54:00:12:34:57). Each app instead sends its own app device id, and each gets its own device with a made-up MAC.',
     steps: [
       { title: 'A TV sends only the placeholder MAC', does: 'POST /register with 52:54:00:12:34:57 and no app device id.', expect: 'refused: devices.device_id_missing.',
@@ -99,7 +140,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'D4', nav: 'V4 app, solved captcha', title: 'A V4 device sends the same solved code again', tasks: ['DEV-4'],
+    id: 'D4', phase: 3, nav: 'V4 app, solved captcha', title: 'A V4 device sends the same solved code again', tasks: ['DEV-4'],
     story: 'A V4 app must solve a captcha once. CRPlayer-type apps send the same solved code on every start; it must keep working, and a different uid must ask for the recovery captcha.',
     steps: [
       { title: 'A new MAC logs in without a captcha', does: 'POST /v4/login with uid QW12ER.', expect: 'devices.captcha_required.',
@@ -131,7 +172,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'L1', nav: 'Activate from a code', title: 'Activate a device from a code', tasks: ['LIC-1', 'LIC-2'],
+    id: 'L1', phase: 3, nav: 'Activate from a code', title: 'Activate a device from a code', tasks: ['LIC-1', 'LIC-2'],
     story: 'A customer buys a yearly code and enters it. The trial device moves to devices with the same id, and the year starts where the trial ends.',
     steps: [
       { title: 'A TV is on its trial', does: 'Register a new MAC and read its license state.', expect: 'state trial, active, ending at the trial end.',
@@ -161,7 +202,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'L2', nav: 'Same code twice', title: 'The same source activates once', tasks: ['LIC-2'],
+    id: 'L2', phase: 3, nav: 'Same code twice', title: 'The same source activates once', tasks: ['LIC-2'],
     story: 'A payment webhook or a code arrives twice. The second time must not add another year.',
     steps: [
       { title: 'Activate with a source id', does: 'Register, then activate with sourceId X.', expect: 'a new license.',
@@ -183,7 +224,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'L3', nav: 'Stack a year', title: 'Stack a year, then go lifetime', tasks: ['LIC-1'],
+    id: 'L3', phase: 3, nav: 'Stack a year', title: 'Stack a year, then go lifetime', tasks: ['LIC-1'],
     story: 'A yearly customer renews early; the new year adds onto the current end. Upgrading to lifetime removes the end date.',
     steps: [
       { title: 'First year', does: 'Register and activate yearly.', expect: 'an end date a year out.',
@@ -211,7 +252,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'L4', nav: 'Revoke, pay again', title: 'Revoke a license, then pay again', tasks: ['LIC-3'],
+    id: 'L4', phase: 3, nav: 'Revoke, pay again', title: 'Revoke a license, then pay again', tasks: ['LIC-3'],
     story: 'Staff revoke a license (fraud, refund). The row stays as history and the device stays paid but cannot play; paying again starts a new year today.',
     steps: [
       { title: 'A paid device', does: 'Register and activate yearly.', expect: 'state yearly, active.',
@@ -243,7 +284,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'P1', nav: 'Playlists add and sync', title: 'Playlists: add, edit, delete and sync', tasks: ['PL-1', 'PL-2'],
+    id: 'P1', phase: 3, nav: 'Playlists add and sync', title: 'Playlists: add, edit, delete and sync', tasks: ['PL-1', 'PL-2'],
     story: 'A device adds an Xtream link (parsed once into server, user, password), renames and deletes playlists, then the app syncs its whole list.',
     steps: [
       { title: 'Add an Xtream link and an M3U', does: 'Two adds on a new trial device.', expect: 'Xtream parsed into server, username, password; the counter says 2.',
@@ -277,7 +318,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'P2', nav: 'Playlist PIN', title: 'A PIN protects a playlist on the website', tasks: ['PL-3'],
+    id: 'P2', phase: 3, nav: 'Playlist PIN', title: 'A PIN protects a playlist on the website', tasks: ['PL-3'],
     story: 'A parent protects the kids playlist with a PIN. The dashboard hides it until the PIN is given; the TV app still plays it.',
     steps: [
       { title: 'Add it protected from the website', does: 'Add with PIN 1234, via website.', expect: 'protected; the PIN is stored encrypted, never as 1234.',
@@ -312,7 +353,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'P3', nav: 'Reply profiles', title: 'What the app gets: profiles, demo and backups', tasks: ['PL-4', 'PL-5'],
+    id: 'P3', phase: 3, nav: 'Reply profiles', title: 'What the app gets: profiles, demo and backups', tasks: ['PL-4', 'PL-5'],
     story: 'The brand decides how Xtream goes out (ibo: server + login). A device with no playlist gets the demo; backup hosts become backup links.',
     steps: [
       { title: 'A device with no playlist', does: 'GET /reply for a new device.', expect: 'hasOwnPlaylist false; only the demo (or nothing).',
@@ -341,7 +382,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'S1', nav: 'MAC switch', title: 'A paid device switches MAC', tasks: ['DEV-7'],
+    id: 'S1', phase: 4, nav: 'MAC switch', title: 'A paid device switches MAC', tasks: ['DEV-7'],
     story: 'A customer replaces their TV. The lifetime license moves to the new MAC with its id and playlists; the new TV’s trial is absorbed and the old MAC keeps an ended trial.',
     steps: [
       { title: 'The old TV, paid, with a playlist', does: 'Register, activate lifetime, add “News”.', expect: 'a paid lifetime device.',
@@ -384,7 +425,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'R1', nav: 'Recovery on a new TV', title: 'A recovery code moves a paid device to a new TV', tasks: ['REC-1', 'REC-2', 'REC-3'],
+    id: 'R1', phase: 4, nav: 'Recovery on a new TV', title: 'A recovery code moves a paid device to a new TV', tasks: ['REC-1', 'REC-2', 'REC-3'],
     story: 'The old TV is broken. The owner makes a recovery code on the website and types it on the new TV: the device moves with its id, license and playlists; nothing is left behind.',
     steps: [
       { title: 'A paid device with its playlist', does: 'Register, activate lifetime, add “Mine”.', expect: 'paid.',
@@ -430,7 +471,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'M1', nav: 'Provider moves host', title: 'Three paid devices report a provider move; staff approve', tasks: ['DOM-1', 'DOM-2'],
+    id: 'M1', phase: 4, nav: 'Provider moves host', title: 'Three paid devices report a provider move; staff approve', tasks: ['DOM-1', 'DOM-2'],
     story: 'An IPTV provider moves to a new host. Paid customers fix their own links; after 3 different IPs staff see the move, and once approved every device gets the new host.',
     steps: [
       { title: 'A watcher still on the old host', does: 'A paid device with the old link.', expect: 'its reply uses the old host.',
@@ -477,7 +518,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'C1', nav: 'Cleanup dry run', title: 'Cleanup of old trial devices: dry run', tasks: ['LIC-4'],
+    id: 'C1', phase: 4, nav: 'Cleanup dry run', title: 'Cleanup of old trial devices: dry run', tasks: ['LIC-4'],
     story: 'Trial devices whose trial ended, with no playlist and not seen for 180 days, can be removed. Here only the report: the real run is the CLI with --apply.',
     steps: [
       { title: 'Run the report', does: 'GET /dev/licenses/cleanup?days=180.', expect: 'dryRun true, nothing deleted.',
@@ -495,7 +536,7 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
   });
 
   PG.scenario({
-    id: 'X1', nav: 'Whole flow, two brands', title: 'The whole device flow on brand A, then brand B', tasks: ['CORE'],
+    id: 'X1', phase: 4, nav: 'Whole flow, two brands', title: 'The whole device flow on brand A, then brand B', tasks: ['CORE'],
     story: 'The merge-point test: register, add a playlist, activate, switch MAC and recover, first on ibo, then on bob, and neither brand sees the other’s devices.',
     steps: [0, 1].map(function (i) {
       var brand = i === 0 ? 'ibo' : 'bob';
@@ -525,6 +566,104 @@ export const PLAYGROUND_SCENARIOS_JS = String.raw`(function () {
           s.show(c, brand);
         } };
     })
+  });
+
+  PG.scenario({
+    id: 'A1', phase: 5, nav: 'Customer on two brands', title: 'A customer signs up, verifies and logs in; the same email on another brand', tasks: ['CUS-1', 'CUS-2'],
+    story: 'A customer creates an account on the IBO site. The email must be verified before the first login. The same email on BOB is a separate account with its own password.',
+    steps: [
+      { title: 'Sign up on ibo', does: 'POST /customer/sign-up with a new email.', expect: 'an account that is not verified yet; no login before the email is checked.',
+        run: async function (s) {
+          await s.req('POST', '/dev/rate-limits/reset');
+          s.vars.email = 'ana-' + PG.word() + '@playground.test';
+          var up = await call(s, 'POST', '/customer/sign-up', { body: { email: s.vars.email, password: 'ana-pass-1', firstName: 'Ana' } });
+          s.expect('created, not verified', up.status === 201 && up.json.customer.emailVerified === false, up.json);
+          var early = await call(s, 'POST', '/customer/login', { body: { email: s.vars.email, password: 'ana-pass-1' } });
+          s.expect('no login yet', code(early) === 'customers.email_not_verified', early.json);
+        } },
+      { title: 'Open the emailed link', does: 'Take the link from the dev outbox and verify; then log in.', expect: 'verified once; login gives a session.',
+        run: async function (s) {
+          var token = await PG.outbox(s.vars.email, 'ibo');
+          var v = await call(s, 'POST', '/customer/verify-email', { body: { token: token } });
+          s.expect('verified', v.status === 200 && v.json.customer.emailVerified, v.json);
+          var login = await call(s, 'POST', '/customer/login', { body: { email: s.vars.email, password: 'ana-pass-1' } });
+          s.vars.token = login.json && login.json.token;
+          s.expect('logged in', login.status === 200 && !!s.vars.token, login.json);
+        } },
+      { title: 'The same email on bob', does: 'Sign up on bob with the same email and another password.', expect: 'a separate account; the ibo password and session do not work on bob.',
+        run: async function (s) {
+          var up = await call(s, 'POST', '/customer/sign-up', { brand: 'bob', body: { email: s.vars.email, password: 'other-pass-2' } });
+          s.expect('a new account on bob', up.status === 201, up.json);
+          var withIbo = await call(s, 'POST', '/customer/login', { brand: 'bob', body: { email: s.vars.email, password: 'ana-pass-1' } });
+          s.expect('the ibo password does not open it', code(withIbo) === 'customers.invalid_credentials', withIbo.json);
+          var cross = await call(s, 'GET', '/customer/me', { brand: 'bob', token: s.vars.token });
+          s.expect('the ibo session is refused on bob', cross.status === 401, cross.json);
+        } }
+    ]
+  });
+
+  PG.scenario({
+    id: 'A3', phase: 5, nav: 'Staff limited to a brand', title: 'A staff member limited to ibo activates on ibo, not on bob', tasks: ['STF-3', 'PRM-2'],
+    story: 'One staff login works for every brand, but each person only acts on the brands in their tenantAccess, and only with the permissions in their role.',
+    steps: [
+      { title: 'The super admin makes a role and a member', does: 'A role with devices.view and devices.activate; Sam, limited to ibo.', expect: 'both created; Sam logs in.',
+        run: async function (s) {
+          var root = await superAdmin(s);
+          s.vars.root = root.token;
+          var role = await call(s, 'POST', '/admin/roles', { token: s.vars.root, body: { name: 'Sellers ' + PG.word(), permissions: ['devices.view', 'devices.activate'] } });
+          s.expect('role created', role.status === 201, role.json);
+          s.vars.sam = 'sam-' + PG.word() + '@playground.test';
+          var made = await call(s, 'POST', '/admin/staff', { token: s.vars.root, body: { email: s.vars.sam, name: 'Sam', password: 'sam-pass-1', roleId: role.json.role.id, tenantAccess: ['ibo'] } });
+          s.expect('Sam added for ibo', made.status === 201, made.json);
+          s.vars.samId = made.json.staff.id;
+          s.vars.samToken = (await call(s, 'POST', '/admin/login', { body: { email: s.vars.sam, password: 'sam-pass-1' } })).json.token;
+          s.expect('Sam logs in', !!s.vars.samToken);
+        } },
+      { title: 'Sam activates a TV on ibo', does: 'POST /admin/devices/:mac/activate on the ibo host.', expect: 'allowed, recorded with Sam’s id.',
+        run: async function (s) {
+          var tv = await PG.paidWithKey('ibo');
+          var r = await call(s, 'POST', '/admin/devices/' + tv.mac + '/activate', { token: s.vars.samToken, body: { type: 'yearly' } });
+          s.expect('activated by Sam', r.status === 200 && r.json.license.activatedBy.actorId === s.vars.samId, r.json);
+          s.show(tv.mac);
+        } },
+      { title: 'Sam tries the same on bob', does: 'The same request on the bob host.', expect: '403 staff.brand_not_allowed, even with the permission.',
+        run: async function (s) {
+          var tv = await PG.paidWithKey('bob');
+          var r = await call(s, 'POST', '/admin/devices/' + tv.mac + '/activate', { brand: 'bob', token: s.vars.samToken, body: { type: 'yearly' } });
+          s.expect('refused on bob', r.status === 403 && code(r) === 'staff.brand_not_allowed', r.json);
+          var m = await call(s, 'GET', '/admin/staff', { token: s.vars.samToken });
+          s.expect('and staff management: missing permission', m.status === 403 && code(m) === 'staff.missing_permission', m.json);
+        } }
+    ]
+  });
+
+  PG.scenario({
+    id: 'A5', phase: 5, nav: 'Disable a staff member', title: 'Disabling a staff member ends their session at once', tasks: ['STF-2'],
+    story: 'When someone leaves, the super admin disables them. Their open session stops working on the next request, on every server, because sessions live in Redis.',
+    steps: [
+      { title: 'A member is logged in', does: 'The super admin adds Lea; Lea logs in.', expect: 'Lea’s session works.',
+        run: async function (s) {
+          var root = await superAdmin(s);
+          s.vars.root = root.token;
+          var roles = await call(s, 'GET', '/admin/roles', { token: s.vars.root });
+          var support = roles.json.roles.filter(function (x) { return !x.system; })[0];
+          s.vars.lea = 'lea-' + PG.word() + '@playground.test';
+          var made = await call(s, 'POST', '/admin/staff', { token: s.vars.root, body: { email: s.vars.lea, name: 'Lea', password: 'lea-pass-1', roleId: support.id, tenantAccess: ['*'] } });
+          s.vars.leaId = made.json.staff.id;
+          s.vars.leaToken = (await call(s, 'POST', '/admin/login', { body: { email: s.vars.lea, password: 'lea-pass-1' } })).json.token;
+          var me = await call(s, 'GET', '/admin/me', { token: s.vars.leaToken });
+          s.expect('Lea is logged in', me.status === 200, me.json);
+        } },
+      { title: 'The super admin disables Lea', does: 'PATCH /admin/staff/:id { status: disabled }.', expect: 'Lea’s next request is refused, and so is a new login.',
+        run: async function (s) {
+          var d = await call(s, 'PATCH', '/admin/staff/' + s.vars.leaId, { token: s.vars.root, body: { status: 'disabled' } });
+          s.expect('disabled', d.status === 200, d.json);
+          var me = await call(s, 'GET', '/admin/me', { token: s.vars.leaToken });
+          s.expect('the open session is refused', me.status === 401, me.json);
+          var again = await call(s, 'POST', '/admin/login', { body: { email: s.vars.lea, password: 'lea-pass-1' } });
+          s.expect('a new login too', code(again) === 'staff.disabled', again.json);
+        } }
+    ]
   });
 })();
 `;

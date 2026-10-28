@@ -1,7 +1,9 @@
 /**
- * The playground's test cases (`/dev/playground/tests.js`): the same checks as the
- * `pnpm e2e:devices|playlists|licenses|v4|moves` scripts in tools/dev, run from the browser against
- * the `ibo` brand (and `bob` for isolation). Keep the two in step when a rule changes.
+ * The playground's test cases (`/dev/playground/tests.js`), one suite per phase area: brands and
+ * requests (Phase 1), the device core collections (Phase 2), and the same checks as the
+ * `pnpm e2e:devices|playlists|licenses|v4|moves|accounts` scripts in tools/dev, run from the browser
+ * against the `ibo` brand (and `bob` for isolation). Keep them in step when a rule changes. V4 leaves
+ * out the two checks that need a stand-in StarArcs server.
  * Plain browser JavaScript inside a string: no backticks or template placeholders.
  */
 export const PLAYGROUND_TESTS_JS = String.raw`(function () {
@@ -9,7 +11,70 @@ export const PLAYGROUND_TESTS_JS = String.raw`(function () {
   var ibo = function (m, p, b) { return req(m, '/dev/devices' + p, b); };
 
   PG.suite({
-    id: 'devices', title: 'Devices', script: 'e2e:devices', expected: 46, tasks: ['DEV-1', 'DEV-2', 'DEV-3', 'DEV-4', 'DEV-5', 'DEV-6'],
+    id: 'foundation', title: 'Brands and requests', script: 'Phase 1', expected: 10, tasks: ['F-4', 'F-5', 'F-8', 'F-11'], phase: 1,
+    about: 'Each request is served for the brand of its host, from that brand’s own database; health, readiness and the request id.',
+    run: async function (t) {
+      t.group('health and readiness');
+      var health = await req('GET', '/health');
+      t.check('/health answers ok', health.status === 200 && health.json.status === 'ok', health.json);
+      var resolveNone = await req('GET', '/dev/brands/resolve?host=no-brand.localhost');
+      var healthAny = await fetch(PG.origin('bob') + '/health');
+      t.check('/health needs no brand, for load balancers', healthAny.status === 200 && resolveNone.json.found === false, resolveNone.json);
+      var ready = await req('GET', '/ready');
+      t.check('/ready reports MongoDB, Redis and the brand databases up', ready.status === 200 && ready.json.checks.mongo === 'up' &&
+        ready.json.checks.redis === 'up' && ready.json.checks.tenantDbs === 'up', ready.json);
+
+      t.group('brand from the host');
+      var onIbo = await req('GET', '/tenant');
+      var onBob = await req('GET', '/tenant', undefined, { brand: 'bob' });
+      t.check('ibo.localhost is served as ibo', onIbo.json && onIbo.json.slug === 'ibo', onIbo.json);
+      t.check('bob.localhost is served as bob', onBob.json && onBob.json.slug === 'bob', onBob.json);
+      var unknown = await req('GET', '/dev/brands/resolve?host=unknown-' + PG.word() + '.example.com');
+      t.check('an unknown host is refused with 421 tenants.unknown_host', unknown.json.found === false && unknown.json.status === 421 &&
+        unknown.json.code === 'tenants.unknown_host', unknown.json);
+
+      t.group('a database per brand, settings and secrets');
+      var iboBrand = await req('GET', '/dev/brand');
+      var bobBrand = await req('GET', '/dev/brand', undefined, { brand: 'bob' });
+      t.check('each brand has its own database', iboBrand.json.dbName && bobBrand.json.dbName && iboBrand.json.dbName !== bobBrand.json.dbName, [iboBrand.json.dbName, bobBrand.json.dbName]);
+      t.check('brand config comes with its defaults (trial days)', iboBrand.json.config && iboBrand.json.config.trial && iboBrand.json.config.trial.days > 0, iboBrand.json.config);
+      t.check('secrets are listed by name only, never their values', Array.isArray(iboBrand.json.secrets) &&
+        iboBrand.json.secrets.every(function (s) { return typeof s === 'string'; }), iboBrand.json.secrets);
+
+      t.group('request id');
+      var sent = 'pg-' + PG.word();
+      var echoed = await fetch('/health', { headers: { 'x-request-id': sent } });
+      t.check('every reply carries the request id, the caller’s one when it sends one', echoed.headers.get('x-request-id') === sent, echoed.headers.get('x-request-id'));
+    }
+  });
+
+  PG.suite({
+    id: 'database', title: 'Device core collections', script: 'Phase 2', expected: 6, tasks: ['SCH-1', 'SCH-2', 'UNQ', 'LOCK'], phase: 2,
+    about: 'The five brand collections and the central one exist with example rows; one MAC is one device, even under a race.',
+    run: async function (t) {
+      var summary = (await req('GET', '/dev/db/summary')).json;
+      var names = summary.collections.map(function (c) { return c.name; });
+      t.check('the brand database has trialDevices, devices, licenses, playlists and captchas',
+        ['trialDevices', 'devices', 'licenses', 'playlists', 'captchas'].every(function (n) { return names.indexOf(n) >= 0; }), names);
+      t.check('the central database has domainMigrations', summary.central.collections[0].name === 'domainMigrations', summary.central);
+      var rows = {};
+      summary.collections.forEach(function (c) { rows[c.name] = c.examples; });
+      t.check('the seed added example rows (npm run seed)', rows.trialDevices > 0 && rows.devices > 0 && rows.licenses > 0 && rows.playlists > 0, rows);
+      var m = mac('a9');
+      var all = await Promise.all([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(function () { return ibo('POST', '/register', { mac: m, platform: 'samsung' }); }));
+      var created = all.filter(function (r) { return r.json && r.json.created === true; }).length;
+      t.check('ten sign-ups of one MAC at once make one device', created === 1, all.map(function (r) { return r.json && r.json.created; }));
+      var before = (await ibo('GET', '/' + m)).json.device.id;
+      await req('POST', '/dev/licenses/' + m + '/activate', { type: 'yearly', source: 'admin', sourceId: 'pg-' + PG.word() });
+      var stored = (await req('GET', '/dev/db/mac/' + m)).json;
+      t.check('paying moves it from trialDevices to devices with the same id', stored.trialDevices.length === 0 && stored.devices.length === 1 &&
+        stored.devices[0]._id === before, stored);
+      t.check('its license is a row of its own, kept as history', stored.licenses.length === 1 && stored.licenses[0].deviceId === before, stored.licenses);
+    }
+  });
+
+  PG.suite({
+    id: 'devices', title: 'Devices', script: 'e2e:devices', expected: 46, tasks: ['DEV-1', 'DEV-2', 'DEV-3', 'DEV-4', 'DEV-5', 'DEV-6'], phase: 3,
     about: 'Register, trial end, fallback MACs, platform rule, V4 lock, captchas, uid recovery, TV codes, key and parental PIN.',
     run: async function (t) {
       t.group('1. Core identity');
@@ -161,7 +226,7 @@ export const PLAYGROUND_TESTS_JS = String.raw`(function () {
   });
 
   PG.suite({
-    id: 'playlists', title: 'Playlists', script: 'e2e:playlists', expected: 24, tasks: ['PL-1', 'PL-2', 'PL-3', 'PL-4', 'PL-5', 'PL-6', 'PL-7', 'PL-8'],
+    id: 'playlists', title: 'Playlists', script: 'e2e:playlists', expected: 24, tasks: ['PL-1', 'PL-2', 'PL-3', 'PL-4', 'PL-5', 'PL-6', 'PL-7', 'PL-8'],  phase: 3,
     about: 'Xtream parsing, each kind, duplicates, counters, PIN, reply profiles, demo, backups, sync, add and delete by MAC, status sync, host move.',
     run: async function (t) {
       var HOST = 'line-' + PG.word() + '.example.com';
@@ -271,7 +336,7 @@ export const PLAYGROUND_TESTS_JS = String.raw`(function () {
   });
 
   PG.suite({
-    id: 'licenses', title: 'Licenses', script: 'e2e:licenses', expected: 19, tasks: ['LIC-1', 'LIC-2', 'LIC-3'],
+    id: 'licenses', title: 'Licenses', script: 'e2e:licenses', expected: 19, tasks: ['LIC-1', 'LIC-2', 'LIC-3'], phase: 3,
     about: 'Trial state, a year keeps the trial days, stacking, lifetime, same source once, parallel activations, every source, revoke, pay again, history.',
     run: async function (t) {
       var L = function (m) { return '/dev/licenses/' + m; };
@@ -338,8 +403,8 @@ export const PLAYGROUND_TESTS_JS = String.raw`(function () {
   });
 
   PG.suite({
-    id: 'v4', title: 'V4 app routes', script: 'e2e:v4', expected: 21, tasks: ['DEV-4', 'V4 routes'],
-    about: 'The /api/lg/v4 routes in the apps’ own envelope: captcha, login, token, device_info, forged token, payment, playlist shape, uid captcha, app types.',
+    id: 'v4', title: 'TV app routes (V4)', script: 'e2e:v4', expected: 47, tasks: ['DEV-4', 'V4 routes'], phase: 3,
+    about: 'The routes the TV apps call, in their own envelope: captcha, login, device_info, playlists from the TV, changeParentPin, device/add.',
     run: async function (t) {
       var m = mac('ad');
       var app = function (extra) { return Object.assign({ mac_address: m, app_type: 'lg', u_id: 'QW12ER', version: '4.1.0' }, extra || {}); };
@@ -406,11 +471,82 @@ export const PLAYGROUND_TESTS_JS = String.raw`(function () {
       var mixedType = await req('POST', '/api/lg/v4/recaptcha', { mac_address: m, app_type: 'samsung' });
       t.check('an unknown app type in the path is 404', unknownType.status === 404, unknownType);
       t.check('an app_type that differs from the path is refused', mixedType.json && mixedType.json.message === 'Invalid app_type', mixedType.json);
+
+      t.group('manage playlists from the TV');
+      var me = app({ u_id: 'NEW999' });
+      var manage = function (path, payload, headers) { return enc('manage/' + path, Object.assign({}, me, payload), headers === undefined ? auth : headers); };
+      var added = await manage('add_playlist', { playListName: 'Movies', playListURL: 'http://movies.example.com/list.m3u', playlist_type: 'general', is_protected: 0 });
+      t.check('add_playlist adds it; plain JSON with the saved playlist and its _id', added.status === 200 && added.body && added.body.status === 'success' &&
+        added.body.msg === 'Playlist added successfully' && added.body.playlist && added.body.playlist._id && added.body.playlist.playlist_name === 'Movies' &&
+        added.body.playlist.url === 'http://movies.example.com/list.m3u', added.body);
+      var pid = added.body.playlist._id;
+      var listed = (await enc('device_info', me, auth)).body.urls;
+      t.check('device_info lists it with the same id', listed.some(function (u) { return u.id === pid && u.playlist_name === 'Movies'; }), listed);
+      var xcAdd = await manage('add_playlist', { playListName: 'Line', playListURL: 'http://line2.example.com:8080', username: 'u2', password: 'p2', playlist_type: 'xc', is_protected: 1, pin: '1234' });
+      t.check('an Xtream server with username and password is saved protected', xcAdd.body && xcAdd.body.status === 'success' &&
+        xcAdd.body.playlist.username === 'u2' && xcAdd.body.playlist.is_protected === 1 && !('pin' in xcAdd.body.playlist), xcAdd.body);
+      var xcId = xcAdd.body.playlist._id;
+      var noPin = await manage('add_playlist', { playListName: 'P', playListURL: 'http://p.example.com/a.m3u', playlist_type: 'general', is_protected: 1 });
+      t.check('a protected playlist without a PIN is refused', noPin.body && noPin.body.msg === 'Sorry, pin is required for protected playlist', noPin.body);
+      var noLogin = await manage('add_playlist', { playListName: 'X', playListURL: 'http://x.example.com', playlist_type: 'xc' });
+      t.check('Xtream without username and password is refused', noLogin.body && noLogin.body.msg === 'Sorry, username and password are required for this playlist type', noLogin.body);
+      var badType = await manage('add_playlist', { playListName: 'Y', playListURL: 'http://y.example.com/a.m3u', playlist_type: 'm3u' });
+      t.check('an unknown playlist_type is refused', badType.body && badType.body.msg === 'Sorry, Playlist type is not valid', badType.body);
+      var portal = await manage('add_playlist', { playListName: '', portal_name: 'Portal', portal_address: 'http://portal.example.com/c/', stalker_mac_address: '00:1a:79:00:00:01', playlist_type: 'stalker' });
+      t.check('a Stalker portal is added, named after the portal', portal.body && portal.body.status === 'success' && portal.body.playlist.playlist_name === 'Portal', portal.body);
+      var renamed = await manage('update_playlist', { playlistId: pid, playListName: 'Movies HD', playListURL: 'http://movies.example.com/hd.m3u', playlist_type: 'general', is_protected: 0 });
+      t.check('update_playlist changes name and link', renamed.body && renamed.body.status === 'success' && renamed.body.msg === 'Playlist Updated successfully' &&
+        renamed.body.playlist.playlist_name === 'Movies HD' && renamed.body.playlist.url === 'http://movies.example.com/hd.m3u', renamed.body);
+      var keepPin = await manage('update_playlist', { playlistId: xcId, playListName: 'Line 2', playListURL: 'http://line2.example.com:8080', username: 'u2', password: 'p2', playlist_type: 'xc', is_protected: 1 });
+      t.check('an update without the PIN keeps the playlist protected', keepPin.body && keepPin.body.status === 'success' && keepPin.body.playlist.is_protected === 1, keepPin.body);
+      var viaAdd = await manage('add_playlist', { playlistId: pid, playListName: 'Movies 4K', playListURL: 'http://movies.example.com/hd.m3u', playlist_type: 'general', is_protected: 0 });
+      t.check('add_playlist with a playlistId updates, like the old route', viaAdd.body && viaAdd.body.playlist && viaAdd.body.playlist.playlist_name === 'Movies 4K' && viaAdd.body.playlist._id === pid, viaAdd.body);
+      var otherMacAddr = mac('ad');
+      var s1 = (await req('POST', '/dev/devices/captcha', { mac: otherMacAddr, platform: 'lg', revealAnswer: true })).json;
+      var otherLogin = await enc('device_login', Object.assign(app({ mac_address: otherMacAddr, u_id: 'ZX98CV' }), { recaptcha_code: s1.answer, recaptcha_token: s1.token }));
+      var otherAuth = { Authorization: 'Bearer ' + otherLogin.body.token };
+      var other = { mac_address: otherMacAddr, app_type: 'lg' };
+      var stolen = await enc('manage/update_playlist', Object.assign({}, other, { playlistId: pid, playListName: 'Mine', playListURL: 'http://z.example.com/a.m3u', playlist_type: 'general' }), otherAuth);
+      t.check('another device cannot update it', stolen.body && stolen.body.result === 'Sorry, we could not find playlist', stolen.body);
+      var stolenDelete = await enc('manage/delete_playlist', Object.assign({}, other, { playlistId: pid }), otherAuth);
+      t.check('another device cannot delete it', stolenDelete.body && stolenDelete.body.result === 'Sorry, we could not find playlist', stolenDelete.body);
+      var wrongMac = await manage('add_playlist', { mac_address: otherMacAddr, playListName: 'Q', playListURL: 'http://q.example.com/a.m3u', playlist_type: 'general' });
+      t.check('a token for another MAC is refused (403, encrypted)', wrongMac.status === 403 && wrongMac.body && wrongMac.body.message === 'Token does not match request mac_address', wrongMac);
+      var otherRoute = await req('POST', '/api/samsung/v4/manage/add_playlist', { data: PG.encryptRequest(Object.assign({}, me, { app_type: 'samsung', playListName: 'S', playListURL: 'http://s.example.com/a.m3u', playlist_type: 'general' })) }, { headers: auth });
+      t.check('an lg token on the samsung route is refused (403)', otherRoute.status === 403, otherRoute);
+      var noAuth = await manage('delete_playlist', { playlistId: pid }, {});
+      t.check('no token: 401', noAuth.status === 401 && noAuth.body && noAuth.body.message === 'Device login token is required', noAuth);
+      var noId = await manage('delete_playlist', {});
+      t.check('delete without playlistId is refused', noId.body && noId.body.msg === 'Sorry, Request Security Issue', noId.body);
+      var deleted = await manage('delete_playlist', { playlistId: pid });
+      t.check('delete_playlist deletes it', deleted.body && deleted.body.status === 'success' && deleted.body.message === 'Playlist deleted successfully', deleted.body);
+      var afterDelete = (await enc('device_info', me, auth)).body.urls;
+      t.check('and device_info no longer lists it', !afterDelete.some(function (u) { return u.id === pid; }), afterDelete);
+      var twice = await manage('delete_playlist', { playlistId: pid });
+      t.check('deleting it again: not found', twice.body && twice.body.result === 'Sorry, we could not find playlist', twice.body);
+
+      t.group('changeParentPin (old envelope, form or JSON)');
+      var dec = function (r) { try { return PG.decryptResponse(r.json); } catch (e) { return {}; } };
+      var setPin = await req('POST', '/api/changeParentPin', undefined, { form: { data: PG.encryptRequest({ mac_address: m, pin_code: '4321' }) } });
+      t.check('a form request sets the PIN (encrypted reply)', setPin.status === 200 && dec(setPin).msg === 'Pin code updated successfully', setPin.json);
+      t.check('device_info sends the new PIN', (await enc('device_info', me, auth)).body.parent_pin === '4321', null);
+      var offPin = await req('POST', '/api/changeParentPin', { data: PG.encryptRequest({ mac_address: m, pin_code: '' }) });
+      t.check('a JSON request with "" turns parental control off', dec(offPin).status === 'success' && (await enc('device_info', me, auth)).body.parent_pin === 'off', offPin.json);
+      var badPin = await req('POST', '/api/changeParentPin', { data: PG.encryptRequest({ mac_address: m, pin_code: '12' }) });
+      t.check('a PIN that is not 4 digits is refused', dec(badPin).msg === 'Sorry, request is not correct', badPin.json);
+      var unknownPin = await req('POST', '/api/changeParentPin', { data: PG.encryptRequest({ mac_address: 'ad:00:00:00:00:02', pin_code: '1111' }) });
+      t.check('an unknown MAC: device does not exist', dec(unknownPin).msg === 'Sorry, device does not exist', unknownPin.json);
+      var garbled = await req('POST', '/api/changeParentPin', { data: '%%%' });
+      t.check('an unreadable body gets the plain error', garbled.json && garbled.json.msg === 'Sorry, request is not correct', garbled.json);
+
+      t.group('device/add (StarArcs guest login)');
+      var stararcs = await enc('device/add', me, auth);
+      t.check('without StarArcs set up here: an encrypted answer, not a crash', stararcs.status === 200 && stararcs.body && !!stararcs.body.status, stararcs.body);
     }
   });
 
   PG.suite({
-    id: 'moves', title: 'Moves and cleanup', script: 'e2e:moves', expected: 32, tasks: ['DEV-7', 'REC-1', 'REC-2', 'REC-3', 'DOM-1', 'DOM-2', 'LIC-4'],
+    id: 'moves', title: 'Moves and cleanup', script: 'e2e:moves', expected: 32, tasks: ['DEV-7', 'REC-1', 'REC-2', 'REC-3', 'DOM-1', 'DOM-2', 'LIC-4'], phase: 4,
     about: 'MAC switch, recovery code and recovery on a new TV, provider host moves with staff approval, the cleanup dry run.',
     run: async function (t) {
       var L = function (m) { return '/dev/licenses/' + m; };
@@ -518,6 +654,172 @@ export const PLAYGROUND_TESTS_JS = String.raw`(function () {
       var report = await req('GET', '/dev/licenses/cleanup?days=180');
       t.check('the dry run reports and deletes nothing', ok(report) && report.json.dryRun === true && report.json.deleted === 0, report.json);
       t.check('a rule that is not whole days is refused', (await req('GET', '/dev/licenses/cleanup?days=0')).status === 400);
+    }
+  });
+
+  PG.suite({
+    id: 'accounts', title: 'Customers and staff', script: 'e2e:accounts', expected: 52, tasks: ['CUS-1', 'CUS-2', 'CUS-3', 'CUS-4', 'STF-1', 'STF-2', 'STF-3', 'PRM-1', 'PRM-2'], phase: 5,
+    about: 'Sign-up, email check, login and reset per brand; linking a TV; staff roles limited to a brand; permissions; two-factor login; disabling staff.',
+    run: async function (t) {
+      var r = function (method, path, o) { o = o || {}; return req(method, path, o.body, { brand: o.brand, token: o.token }); };
+      var w = PG.word;
+      // Login and sign-up tries are rate limited per IP; start each run with clean counters.
+      await req('POST', '/dev/rate-limits/reset');
+
+      t.group('setup: a super admin');
+      var adminEmail = 'root-' + w() + '@e2e.test', adminPassword = 'root-pass-' + w();
+      var made = await r('POST', '/dev/staff/super-admin', { body: { email: adminEmail, name: 'Playground Root', password: adminPassword } });
+      t.check('the dev route makes a super admin (the CLI does it in production)', ok(made) && made.json.staff.roleId === 'super_admin', made.json);
+      var rootLogin = await r('POST', '/admin/login', { body: { email: adminEmail.toUpperCase(), password: adminPassword } });
+      var root = rootLogin.json && rootLogin.json.token;
+      t.check('the super admin logs in (email in any case)', rootLogin.status === 200 && !!root, rootLogin.json);
+
+      t.group('E2E-A1 sign up, verify, log in; the same email on another brand');
+      var ana = 'ana-' + w() + '@e2e.test', anaIbo;
+      var signUp = await r('POST', '/customer/sign-up', { body: { email: ana, password: 'ana-pass-1', firstName: 'Ana' } });
+      t.check('sign-up on ibo makes an unverified account', signUp.status === 201 && signUp.json.customer.emailVerified === false, signUp.json);
+      var early = await r('POST', '/customer/login', { body: { email: ana, password: 'ana-pass-1' } });
+      t.check('no login before the email is verified', code(early) === 'customers.email_not_verified', early.json);
+      var link = await PG.outbox(ana, 'ibo');
+      var verified = await r('POST', '/customer/verify-email', { body: { token: link } });
+      t.check('the emailed link verifies the email', verified.status === 200 && verified.json.customer.emailVerified, verified.json);
+      var reused = await r('POST', '/customer/verify-email', { body: { token: link } });
+      t.check('the link works once', code(reused) === 'customers.invalid_link', reused.json);
+      var login = await r('POST', '/customer/login', { body: { email: ana, password: 'ana-pass-1' } });
+      anaIbo = login.json && login.json.token;
+      t.check('login on ibo', login.status === 200 && !!anaIbo, login.json);
+      var wrong = await r('POST', '/customer/login', { body: { email: ana, password: 'wrong-pass' } });
+      var unknown = await r('POST', '/customer/login', { body: { email: 'nobody-' + ana, password: 'ana-pass-1' } });
+      t.check('a wrong password and an unknown email give the same answer', wrong.status === 401 && JSON.stringify(wrong.json) === JSON.stringify(unknown.json), [wrong.json, unknown.json]);
+      var onBob = await r('POST', '/customer/sign-up', { brand: 'bob', body: { email: ana, password: 'other-pass-2' } });
+      t.check('the same email signs up on bob: a separate account', onBob.status === 201 && onBob.json.customer.id !== verified.json.customer.id, onBob.json);
+      var bobLogin = await r('POST', '/customer/login', { brand: 'bob', body: { email: ana, password: 'ana-pass-1' } });
+      t.check('ibo’s password does not open the bob account', code(bobLogin) === 'customers.invalid_credentials', bobLogin.json);
+      var crossBrand = await r('GET', '/customer/me', { brand: 'bob', token: anaIbo });
+      t.check('an ibo session is refused on bob’s host', crossBrand.status === 401, crossBrand.json);
+      var meIbo = await r('GET', '/customer/me', { token: anaIbo });
+      t.check('the ibo session works on ibo', meIbo.status === 200 && meIbo.json.customer.email === ana, meIbo.json);
+      var again = await r('POST', '/customer/sign-up', { body: { email: ana.toUpperCase(), password: 'ana-pass-1' } });
+      t.check('the email is unique within a brand, whatever the case', again.status === 409, again.json);
+
+      t.group('E2E-A2 link a TV with MAC + device key');
+      var tv = await PG.paidWithKey('ibo');
+      var wrongKey = await r('POST', '/customer/devices/link', { token: anaIbo, body: { mac: tv.mac, deviceKey: tv.key === '000000' ? '111111' : '000000' } });
+      t.check('a wrong device key is refused', code(wrongKey) === 'customers.device_key_mismatch', wrongKey.json);
+      var linked = await r('POST', '/customer/devices/link', { token: anaIbo, body: { mac: tv.mac.toUpperCase(), deviceKey: tv.key } });
+      t.check('the TV is linked', linked.status === 200 && linked.json.device.macAddress === tv.mac, linked.json);
+      var list = await r('GET', '/customer/devices', { token: anaIbo });
+      t.check('the TV is listed', list.json && list.json.devices && list.json.devices.some(function (d) { return d.macAddress === tv.mac; }), list.json);
+      var ben = 'ben-' + w() + '@e2e.test';
+      await r('POST', '/customer/sign-up', { body: { email: ben, password: 'ben-pass-1' } });
+      await r('POST', '/customer/verify-email', { body: { token: await PG.outbox(ben, 'ibo') } });
+      var benToken = (await r('POST', '/customer/login', { body: { email: ben, password: 'ben-pass-1' } })).json.token;
+      var stolen = await r('POST', '/customer/devices/link', { token: benToken, body: { mac: tv.mac, deviceKey: tv.key } });
+      t.check('another customer cannot link it', code(stolen) === 'customers.device_linked_elsewhere', stolen.json);
+      var bobTv = await PG.paidWithKey('bob');
+      var crossLink = await r('POST', '/customer/devices/link', { token: anaIbo, body: { mac: bobTv.mac, deviceKey: bobTv.key } });
+      t.check('bob’s device is not found from ibo', code(crossLink) === 'customers.device_key_mismatch', crossLink.json);
+      var trialMac = mac('ae');
+      var trialReg = await req('POST', '/dev/devices/register', { mac: trialMac, platform: 'lg' });
+      var trialLink = await r('POST', '/customer/devices/link', { token: anaIbo, body: { mac: trialMac, deviceKey: trialReg.json.found.device.deviceKey } });
+      t.check('a trial device cannot be linked', code(trialLink) === 'customers.device_not_paid', trialLink.json);
+      var deviceId = linked.json.device.id;
+      var benUnlink = await r('DELETE', '/customer/devices/' + deviceId, { token: benToken });
+      t.check('only its customer can unlink it', benUnlink.status === 404, benUnlink.json);
+      var unlink = await r('DELETE', '/customer/devices/' + deviceId, { token: anaIbo });
+      var afterUnlink = await r('GET', '/customer/devices', { token: anaIbo });
+      t.check('unlink removes it from the account', unlink.status === 200 && !afterUnlink.json.devices.some(function (d) { return d.id === deviceId; }), [unlink.json, afterUnlink.json]);
+
+      t.group('CUS-2, CUS-4 password reset, profile, logout');
+      await r('POST', '/customer/password-reset', { body: { email: ana } });
+      var unknownReset = await r('POST', '/customer/password-reset', { body: { email: 'nobody@e2e.test' } });
+      t.check('a reset for an unknown email gets the same answer', unknownReset.status === 202 && unknownReset.json.sent, unknownReset.json);
+      var reset = await r('POST', '/customer/password-reset/confirm', { body: { token: await PG.outbox(ana, 'ibo'), password: 'ana-pass-2' } });
+      t.check('the reset link sets a new password', reset.status === 200, reset.json);
+      var oldSession = await r('GET', '/customer/me', { token: anaIbo });
+      t.check('a reset logs out the old sessions', oldSession.status === 401, oldSession.json);
+      anaIbo = (await r('POST', '/customer/login', { body: { email: ana, password: 'ana-pass-2' } })).json.token;
+      var newEmail = 'new-' + ana;
+      var changed = await r('PATCH', '/customer/me', { token: anaIbo, body: { email: newEmail, currentPassword: 'ana-pass-2' } });
+      t.check('a new email clears the verification', changed.status === 200 && changed.json.customer.emailVerified === false, changed.json);
+      await r('POST', '/customer/verify-email', { body: { token: await PG.outbox(newEmail, 'ibo') } });
+      var meAgain = await r('GET', '/customer/me', { token: anaIbo });
+      t.check('until its link is opened', meAgain.json && meAgain.json.customer && meAgain.json.customer.emailVerified === true && meAgain.json.customer.email === newEmail, meAgain.json);
+      await r('POST', '/customer/logout', { token: anaIbo });
+      var afterLogout = await r('GET', '/customer/me', { token: anaIbo });
+      t.check('logout ends the session', afterLogout.status === 401, afterLogout.json);
+
+      t.group('E2E-A3 staff limited to ibo activates on ibo, not on bob');
+      var sam = 'sam-' + w() + '@e2e.test';
+      var role = await r('POST', '/admin/roles', { token: root, body: { name: 'Playground sellers ' + w(), permissions: ['devices.view', 'devices.activate'] } });
+      var roleId = role.json && role.json.role && role.json.role.id;
+      t.check('the super admin makes a role from active keys', role.status === 201 && !!roleId, role.json);
+      var badRole = await r('POST', '/admin/roles', { token: root, body: { name: 'Bad ' + w(), permissions: ['made.up'] } });
+      t.check('a role with an unknown key is refused', code(badRole) === 'staff.unknown_permission', badRole.json);
+      var createdStaff = await r('POST', '/admin/staff', { token: root, body: { email: sam, name: 'Sam', password: 'sam-pass-1', roleId: roleId, tenantAccess: ['ibo'] } });
+      var samId = createdStaff.json && createdStaff.json.staff && createdStaff.json.staff.id;
+      t.check('the super admin adds a staff member for ibo', createdStaff.status === 201 && !!samId && !('passwordHash' in createdStaff.json.staff), createdStaff.json);
+      var samToken = (await r('POST', '/admin/login', { body: { email: sam, password: 'sam-pass-1' } })).json.token;
+      var iboTv = await PG.paidWithKey('ibo'), bobTv2 = await PG.paidWithKey('bob');
+      var view = await r('GET', '/admin/devices/' + iboTv.mac, { token: samToken });
+      t.check('views a device on ibo', view.status === 200 && view.json.paid, view.json);
+      var actIbo = await r('POST', '/admin/devices/' + iboTv.mac + '/activate', { token: samToken, body: { type: 'yearly' } });
+      t.check('activates on ibo', actIbo.status === 200 && actIbo.json.license && actIbo.json.license.activatedBy && actIbo.json.license.activatedBy.actorId === samId, actIbo.json);
+      var actBob = await r('POST', '/admin/devices/' + bobTv2.mac + '/activate', { brand: 'bob', token: samToken, body: { type: 'yearly' } });
+      t.check('refused on bob: brand not allowed (403)', actBob.status === 403 && code(actBob) === 'staff.brand_not_allowed', actBob.json);
+      var manageStaff = await r('GET', '/admin/staff', { token: samToken });
+      t.check('refused staff management: missing permission (403)', manageStaff.status === 403 && code(manageStaff) === 'staff.missing_permission', manageStaff.json);
+      var rootOnBob = await r('GET', '/admin/devices/' + bobTv2.mac, { brand: 'bob', token: root });
+      t.check('super_admin may act on every brand', rootOnBob.status === 200, rootOnBob.json);
+      var noSession = await r('GET', '/admin/devices/' + iboTv.mac);
+      t.check('no session: 401', noSession.status === 401, noSession.json);
+
+      t.group('E2E-A4 a permission removed from a role');
+      var tv4 = await PG.paidWithKey('ibo');
+      var editRole = await r('PATCH', '/admin/roles/' + roleId, { token: root, body: { permissions: ['devices.view'] } });
+      t.check('the super admin removes devices.activate from the role', editRole.status === 200 && editRole.json.role.permissions.join() === 'devices.view', editRole.json);
+      var refused = await r('POST', '/admin/devices/' + tv4.mac + '/activate', { token: samToken, body: { type: 'yearly' } });
+      t.check('the next request with it is refused', refused.status === 403 && code(refused) === 'staff.missing_permission', refused.json);
+      var stillViews = await r('GET', '/admin/devices/' + tv4.mac, { token: samToken });
+      t.check('the kept permission still works', stillViews.status === 200, stillViews.json);
+      var sysEdit = await r('PATCH', '/admin/roles/super_admin', { token: root, body: { name: 'Root' } });
+      var sysDelete = await r('DELETE', '/admin/roles/super_admin', { token: root });
+      t.check('super_admin cannot be edited or deleted', code(sysEdit) === 'staff.system_role' && code(sysDelete) === 'staff.system_role', [sysEdit.json, sysDelete.json]);
+      var perms = await r('GET', '/admin/permissions', { token: root });
+      t.check('permissions come from the code', ['devices.view', 'devices.activate', 'staff.manage', 'roles.manage'].every(function (k) {
+        return perms.json && perms.json.permissions && perms.json.permissions.some(function (p) { return p.key === k && p.active; });
+      }), perms.json);
+
+      t.group('two-factor login');
+      var setUp = await r('POST', '/admin/me/two-factor/setup', { token: samToken });
+      t.check('setup gives a secret for the app', setUp.status === 200 && /^[A-Z2-7]{32}$/.test(setUp.json.secret), setUp.json);
+      var enable = await r('POST', '/admin/me/two-factor/enable', { token: samToken, body: { code: await PG.totp(setUp.json.secret) } });
+      t.check('a first code turns it on', enable.status === 200 && enable.json.enabled, enable.json);
+      var step1 = await r('POST', '/admin/login', { body: { email: sam, password: 'sam-pass-1' } });
+      t.check('the password alone gives a challenge, not a session', step1.json && step1.json.twoFactorRequired && !step1.json.token, step1.json);
+      var challengeAsSession = await r('GET', '/admin/me', { token: step1.json.challenge });
+      t.check('the challenge is not a session', challengeAsSession.status === 401, challengeAsSession.json);
+      var current = await PG.totp(setUp.json.secret);
+      var badCode = await r('POST', '/admin/login/two-factor', { body: { challenge: step1.json.challenge, code: current === '000000' ? '111111' : '000000' } });
+      t.check('a wrong code is refused', code(badCode) === 'staff.invalid_two_factor_code', badCode.json);
+      var step2 = await r('POST', '/admin/login/two-factor', { body: { challenge: step1.json.challenge, code: await PG.totp(setUp.json.secret) } });
+      t.check('the right code finishes the login', step2.status === 200 && !!step2.json.token, step2.json);
+      var me2 = await r('GET', '/admin/me', { token: step2.json.token });
+      t.check('/admin/me shows 2FA on and the role', me2.json && me2.json.staff && me2.json.staff.twoFactorEnabled && me2.json.role && me2.json.role.id === roleId, me2.json);
+      samToken = step2.json.token;
+
+      t.group('E2E-A5 disable a staff member while logged in');
+      var beforeDisable = await r('GET', '/admin/me', { token: samToken });
+      var self = await r('PATCH', '/admin/staff/' + rootLogin.json.staff.id, { token: root, body: { status: 'disabled' } });
+      t.check('nobody disables themselves', code(self) === 'staff.cannot_change_self', self.json);
+      var disabled = await r('PATCH', '/admin/staff/' + samId, { token: root, body: { status: 'disabled' } });
+      var afterDisable = await r('GET', '/admin/me', { token: samToken });
+      t.check('the next request is refused', beforeDisable.status === 200 && disabled.status === 200 && afterDisable.status === 401, [beforeDisable.status, disabled.json, afterDisable.json]);
+      var relogin = await r('POST', '/admin/login', { body: { email: sam, password: 'sam-pass-1' } });
+      t.check('and a new login too', code(relogin) === 'staff.disabled', relogin.json);
+      await r('POST', '/admin/logout', { token: root });
+      var rootAfter = await r('GET', '/admin/me', { token: root });
+      t.check('logout ends the staff session', rootAfter.status === 401, rootAfter.json);
     }
   });
 })();

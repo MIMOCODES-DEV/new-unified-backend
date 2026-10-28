@@ -20,7 +20,9 @@ export const PLAYGROUND_RUNNER_JS = String.raw`(function () {
     var brand = opts.brand || 'ibo';
     var headers = Object.assign({}, opts.headers || {});
     var init = { method: method, headers: headers };
-    if (body !== undefined) { headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
+    if (opts.form) { headers['Content-Type'] = 'application/x-www-form-urlencoded'; init.body = new URLSearchParams(opts.form).toString(); }
+    else if (body !== undefined) { headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
+    if (opts.token) headers.Authorization = 'Bearer ' + opts.token;
     var res = await fetch(PG.origin(brand) + path, init);
     var text = await res.text();
     var json = null;
@@ -41,6 +43,33 @@ export const PLAYGROUND_RUNNER_JS = String.raw`(function () {
     return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999)).toISOString();
   };
   PG.sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+
+  /** The 6-digit code an authenticator app shows for a base32 secret now (RFC 6238, SHA-1, 30 s). */
+  PG.totp = async function (secret, at) {
+    var alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', bits = '';
+    for (var i = 0; i < secret.length; i++) bits += ('00000' + alphabet.indexOf(secret[i]).toString(2)).slice(-5);
+    var key = new Uint8Array(Math.floor(bits.length / 8));
+    for (var k = 0; k < key.length; k++) key[k] = parseInt(bits.substr(k * 8, 8), 2);
+    var counter = new DataView(new ArrayBuffer(8));
+    counter.setUint32(4, Math.floor((at || Date.now()) / 30000));
+    var cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+    var h = new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, counter.buffer));
+    var o = h[h.length - 1] & 15;
+    var n = ((h[o] & 127) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3];
+    return ('000000' + (n % 1000000)).slice(-6);
+  };
+  /** A paid device on a brand, with its device key. */
+  PG.paidWithKey = async function (brand) {
+    var mac = PG.mac('ae');
+    var reg = await PG.req('POST', '/dev/devices/register', { mac: mac, platform: 'lg' }, { brand: brand });
+    await PG.req('POST', '/dev/licenses/' + mac + '/activate', { type: 'yearly', source: 'admin', actorId: 'playground', sourceId: 'pg-' + PG.word() }, { brand: brand });
+    return { mac: mac, key: reg.json.found.device.deviceKey };
+  };
+  /** The token of the latest email the brand would have sent to this address (dev outbox). */
+  PG.outbox = async function (to, brand) {
+    var r = await PG.req('GET', '/dev/outbox?to=' + encodeURIComponent(to), undefined, { brand: brand });
+    return r.json && r.json.token;
+  };
 
   // The V4 apps' envelope: a random key inside the base64, its place and length in front (requests)
   // or at the end (replies).
@@ -237,6 +266,11 @@ export const PLAYGROUND_RUNNER_JS = String.raw`(function () {
     renderTests();
     $('tests-db').innerHTML = diffPills(PG.diff(before, await PG.snapshot(before && before.now))).replace('Database:', 'This run changed the database:');
     var t = totals();
+    if ($('home-last')) {
+      $('home-last').textContent = t.pass + '/' + (t.pass + t.fail);
+      $('home-last').className = 'stat-num ' + (t.fail ? 'text-rose-600' : 'text-emerald-600');
+      $('home-last-label').textContent = 'passed in the last run · ' + new Date().toLocaleTimeString();
+    }
     if (window.PGUI) window.PGUI.toast(t.fail ? 'bad' : 'ok', t.fail ? t.fail + ' check(s) failed' : 'All checks passed', t.pass + ' passed, ' + t.fail + ' failed');
   };
 
@@ -353,21 +387,34 @@ export const PLAYGROUND_RUNNER_JS = String.raw`(function () {
 
   // Mounting ------------------------------------------------------------------------------------
   PG.mount = function () {
-    var nav = $('nav-scenarios');
-    if (nav) {
-      nav.innerHTML = PG.scenarios.map(function (s) {
-        return '<button class="nav-item" data-view="scenario:' + s.id + '"><span class="nav-dot"></span><span class="mono w-9 shrink-0 text-[11px] text-slate-400">' + esc(s.id) + '</span><span class="truncate">' + esc(s.nav) + '</span></button>';
-      }).join('');
-    }
-    var navT = $('nav-tests');
-    if (navT) {
-      navT.innerHTML = '<button class="nav-item" data-view="tests"><span class="nav-dot"></span><span class="truncate">All test cases</span><span class="ml-auto text-[11px] text-slate-400" id="nav-tests-count"></span></button>' +
-        PG.suites.map(function (s) { return '<button class="nav-item" data-view="tests:' + s.id + '"><span class="nav-dot"></span><span class="truncate">' + esc(s.title) + '</span><span class="ml-auto text-[11px] text-slate-400">' + s.expected + '</span></button>'; }).join('');
-    }
+    // Each phase's section of the menu lists its own scenarios and test suites.
+    document.querySelectorAll('[data-phase-scenarios]').forEach(function (box) {
+      var p = +box.dataset.phaseScenarios;
+      var list = PG.scenarios.filter(function (s) { return (s.phase || 3) === p; });
+      box.innerHTML = list.length ? list.map(function (s) {
+        return '<button class="nav-item" data-view="scenario:' + s.id + '"><span class="nav-dot"></span><span class="mono w-7 shrink-0 text-[11px] text-slate-400">' + esc(s.id) + '</span><span class="truncate">' + esc(s.nav) + '</span></button>';
+      }).join('') : '';
+    });
+    document.querySelectorAll('[data-phase-tests]').forEach(function (box) {
+      var p = +box.dataset.phaseTests;
+      var list = PG.suites.filter(function (s) { return (s.phase || 3) === p; });
+      box.innerHTML = list.length ? list.map(function (s) {
+        return '<button class="nav-item" data-view="tests:' + s.id + '"><span class="nav-dot"></span><span class="truncate">' + esc(s.title) + '</span><span class="code">' + s.expected + '</span></button>';
+      }).join('') : '';
+    });
+    document.querySelectorAll('[data-phase-count]').forEach(function (el) {
+      var p = +el.dataset.phaseCount;
+      var sc = PG.scenarios.filter(function (s) { return (s.phase || 3) === p; }).length;
+      var tc = PG.suites.filter(function (s) { return (s.phase || 3) === p; }).reduce(function (n, s) { return n + s.expected; }, 0);
+      el.textContent = sc + ' scenario' + (sc === 1 ? '' : 's') + ' · ' + tc + ' test cases';
+    });
     var count = PG.suites.reduce(function (n, s) { return n + s.expected; }, 0);
     if ($('nav-tests-count')) $('nav-tests-count').textContent = count;
     if ($('home-checks')) $('home-checks').textContent = count;
+    if ($('home-suites')) $('home-suites').textContent = PG.suites.length;
     if ($('home-scenarios')) $('home-scenarios').textContent = PG.scenarios.length;
+    if ($('mode-count-scenarios')) $('mode-count-scenarios').textContent = PG.scenarios.length;
+    if ($('mode-count-tests')) $('mode-count-tests').textContent = count;
     $('tests-run').addEventListener('click', function () { PG.runTests(); });
     $('tests-stop').addEventListener('click', function () { PG.stopped = true; });
     $('tests-failed').addEventListener('change', function () { showFailedOnly = $('tests-failed').checked; renderResults(); });
