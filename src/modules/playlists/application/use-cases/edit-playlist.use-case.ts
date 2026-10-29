@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../shared/kernel/clock.js';
 import { err, ok, type Result } from '../../../../shared/kernel/result.js';
-import type { Playlist, PlaylistActor } from '../../domain/playlist.js';
+import type { Playlist, PlaylistActor, PlaylistProvider } from '../../domain/playlist.js';
 import {
   epgUrl,
   isValidPlaylistPin,
@@ -37,6 +37,8 @@ export interface EditPlaylistInput {
   newPin?: string | null;
   /** Where the edit came from: a new link on another host is reported as a provider move (DOM-1). */
   ip?: string;
+  /** The provider's contact the store sends; null removes it. */
+  provider?: PlaylistProvider | null;
 }
 
 /** The link a provider move is learned from: an M3U link, or an Xtream playlist's server. */
@@ -94,6 +96,7 @@ export class EditPlaylistUseCase {
       if (!content.ok) return content;
       changed = { ...changed, ...content.value };
     }
+    if (input.provider !== undefined) changed = { ...changed, provider: input.provider };
     if (input.epgUrl !== undefined) {
       const epg = epgUrl(input.epgUrl);
       if (!epg.ok) return epg;

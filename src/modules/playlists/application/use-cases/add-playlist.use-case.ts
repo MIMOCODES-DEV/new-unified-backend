@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../shared/kernel/clock.js';
 import { err, ok, type Result } from '../../../../shared/kernel/result.js';
-import type { AddedBy, Playlist } from '../../domain/playlist.js';
+import type { AddedBy, Playlist, PlaylistProvider } from '../../domain/playlist.js';
 import {
   epgUrl,
   isValidPlaylistPin,
@@ -29,6 +29,8 @@ export interface AddPlaylistInput {
   /** 4 digits to save it protected (the website's add form and V4 apps send it); else none. */
   pin?: string | null;
   addedBy: AddedBy;
+  /** The provider's contact the store sends (logo, WhatsApp, email); shown in the apps. */
+  provider?: PlaylistProvider | null;
 }
 
 /**
@@ -76,7 +78,7 @@ export class AddPlaylistUseCase {
       backup: { enabled: false, hosts: [] },
       protected: pin !== null,
       pinEnc: pin === null ? null : await this.pins.encrypt(pin),
-      provider: null,
+      provider: input.provider ?? null,
       addedBy: input.addedBy,
       legacy: null,
       createdAt: now,

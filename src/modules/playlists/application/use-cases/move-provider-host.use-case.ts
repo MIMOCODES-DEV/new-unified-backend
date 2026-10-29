@@ -10,7 +10,8 @@ import { PlaylistRepository } from '../ports/playlist.repository.js';
 export interface MoveProviderHostInput {
   /** The provider's old host, as plain text: `line.example.com` or `line.example.com:8080`. */
   from: string;
-  to: string;
+  /** Not needed to count only (the store's count-domain-updates). */
+  to?: string;
   /** Every playlist of the brand (staff), or only the devices with these MACs (a reseller). */
   scope:
     { readonly kind: 'brand' } | { readonly kind: 'devices'; readonly macs: readonly MacAddress[] };
@@ -46,9 +47,15 @@ export class MoveProviderHostUseCase {
   ): Promise<Result<MoveProviderHostReport, InvalidPlaylistError>> {
     const from = providerHost(input.from, 'from');
     if (!from.ok) return from;
-    const to = providerHost(input.to, 'to');
+    // Counting matches on `from` alone: moving to the same host matches the same playlists.
+    const to =
+      input.to === undefined && input.countOnly ? from : providerHost(input.to ?? '', 'to');
     if (!to.ok) return to;
-    if (from.value.host === to.value.host && from.value.port === to.value.port) {
+    if (
+      input.to !== undefined &&
+      from.value.host === to.value.host &&
+      from.value.port === to.value.port
+    ) {
       return err(new InvalidPlaylistError('The new host is the old host', { field: 'to' }));
     }
 

@@ -141,6 +141,15 @@ describe('MoveProviderHostUseCase (PL-8)', () => {
     expect(playlists.items.get(p.id)?.url).toBe('http://old.example.com/a.m3u');
   });
 
+  it('counts by the old host alone, with no new host given', async () => {
+    await addOne({ kind: 'link', url: 'http://old.example.com/a.m3u' });
+    await addOne({ kind: 'link', url: 'http://other.example.com/b.m3u' });
+
+    const report = await run({ countOnly: true, to: undefined });
+
+    expect(report).toEqual({ matched: 1, changed: 0, skipped: 0 });
+  });
+
   it('changes at most `limit`, oldest first, for a gradual move', async () => {
     for (const n of [1, 2, 3])
       await addOne({ kind: 'link', url: `http://old.example.com/${n}.m3u` });

@@ -26,3 +26,4 @@ export {
 } from './application/use-cases/playlist-reply.use-case.js';
 export { PlaylistBrand } from './application/ports/playlist-brand.js';
 export { PLAYLIST_PIN_KEY_SECRET, PlaylistPinKey } from './application/ports/playlist-pin-key.js';
+export type { Playlist, PlaylistProvider } from './domain/playlist.js';
