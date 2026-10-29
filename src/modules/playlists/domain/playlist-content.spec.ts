@@ -129,6 +129,7 @@ describe('playlistContent (PL-1)', () => {
     [{ kind: 'stalker', portalUrl: 'portal' }, 'portalUrl'],
     [{ kind: 'stalker', portalUrl: 'http://p.example', fallbackUrl: 'nope' }, 'fallbackUrl'],
     [{ kind: 'stalker', portalUrl: 'http://p.example', mac: 'zz' }, 'mac'],
+    [{ kind: 'stalker', portalUrl: 'http://p.example', mac: 'FL:2A:82:43:3E:EF' }, 'mac'],
     [{ kind: 'code', code: '12ab' }, 'code'],
   ] as const)('refuses %j, naming %s', (source, field) => {
     expect(errorField(source)).toBe(field);

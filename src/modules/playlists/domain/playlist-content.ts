@@ -1,4 +1,6 @@
 import { MacAddress } from '../../../shared/kernel/mac-address.js';
+
+const HEX_MAC = /^[0-9a-f]{2}(?::[0-9a-f]{2}){5}$/;
 import { err, ok, type Result } from '../../../shared/kernel/result.js';
 import type { Playlist } from './playlist.js';
 import { InvalidPlaylistError } from './playlist.errors.js';
@@ -90,7 +92,10 @@ export function playlistContent(
       }
       const macText = orNull(source.mac);
       const mac = macText ? MacAddress.parse(macText) : null;
-      if (mac && !mac.ok) return invalid('mac', 'The portal MAC address is not valid');
+      // A portal knows real set-top-box MACs: hex only, unlike the made-up MACs some apps send.
+      if (mac && (!mac.ok || !HEX_MAC.test(mac.value.value))) {
+        return invalid('mac', 'The portal MAC address is not valid');
+      }
       return ok({
         ...empty,
         type: 'stalker',
