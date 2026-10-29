@@ -8,7 +8,9 @@ import { StaffModule, SyncPermissionsUseCase } from '../../../modules/staff/inde
 import { AuthContext } from '../../../shared/auth/auth-context.js';
 import { StaffAccess } from '../../../shared/auth/staff-access.js';
 import { ContactModule } from '../../../modules/contact/index.js';
+import { TenantsModule } from '../../../modules/tenants/index.js';
 import { AdminAuthController } from './admin-auth.controller.js';
+import { AdminBrandsController } from './admin-brands.controller.js';
 import { AdminContactController } from './admin-contact.controller.js';
 import { AdminDevicesController } from './admin-devices.controller.js';
 import { AdminStaffController } from './admin-staff.controller.js';
@@ -19,6 +21,7 @@ import { StaffAccessAdapter } from './staff-access.adapter.js';
 /** Every controller with staff routes: their permission keys are the `permissions` collection. */
 export const ADMIN_CONTROLLERS = [
   AdminAuthController,
+  AdminBrandsController,
   AdminStaffController,
   AdminDevicesController,
   AdminContactController,
@@ -50,6 +53,7 @@ class SyncPermissionsOnStartup implements OnApplicationBootstrap {
     DevicesWithBrandConfig,
     LicensingWithDevices,
     ContactModule,
+    TenantsModule,
   ],
   controllers: [CustomerController, ...ADMIN_CONTROLLERS],
   providers: [

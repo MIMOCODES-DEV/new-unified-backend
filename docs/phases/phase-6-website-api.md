@@ -34,6 +34,7 @@ device session is `Authorization: Bearer <token>`, 24 hours, and works on its ow
 | `POST /site/check-playlist` | public | `{ server, username, password }` or `{ url }` (a `get.php` link) → `{ account: { username, status, expiresAt, activeConnections, maxConnections, message } }`. The server asks the provider's `player_api.php`: only http or https, only public addresses (loopback, private, link-local and other reserved ranges are refused, and the checked address is the one connected to), no redirects, 10 seconds, 256 KB; 20 per 10 minutes per IP |
 | `POST /site/contact` | public | `{ name?, email, subject?, message }`: kept in the brand's `contactMessages` (migration `0011-contact-messages`); 5 per hour per IP |
 | `GET /admin/contact-messages` | staff `contact.view` | the brand's messages (the host), newest first; `?limit=` up to 500 |
+| `GET /admin/brands` | any staff | the brands the caller may manage (`tenantAccess`, `*` = all), by name: `{ slug, name, status, hosts, mainHost }`; `mainHost` is the first host, the brand's main domain, where the admin panel calls the brand's routes |
 | `PATCH /customer/devices/:id` | customer | `{ name }`: a name for a linked TV, kept on the customer (`deviceNames`); empty or `null` removes it; unlinking forgets it |
 | `POST /customer/devices/:id/uid` | customer | `{ uid }` for one of the account's TVs |
 | `POST /customer/devices/:id/recovery-code` | customer | a recovery code for one of the account's paid TVs |

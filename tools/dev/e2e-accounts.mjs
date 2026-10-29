@@ -212,6 +212,13 @@ let roleId;
   check('super_admin may act on every brand', rootOnBob.status === 200, rootOnBob.json);
   const noSession = await request('GET', '/admin/devices/' + iboTv.mac);
   check('no session: 401', noSession.status === 401, noSession.json);
+  const samBrands = await request('GET', '/admin/brands', { brand: 'bob', token: samToken });
+  check('the brand list has only the brands a member may manage', samBrands.status === 200 && samBrands.json.brands.map((b) => b.slug).join() === 'ibo', samBrands.json);
+  const rootBrands = await request('GET', '/admin/brands', { token: root });
+  const ibo = rootBrands.json?.brands?.find((b) => b.slug === 'ibo');
+  check('a super admin gets every brand, with its hosts', rootBrands.json?.brands?.length > 1 && ibo?.mainHost === ibo?.hosts[0] && ibo.hosts.includes('ibo.localhost'), rootBrands.json);
+  const noSessionBrands = await request('GET', '/admin/brands');
+  check('the brand list needs a session', noSessionBrands.status === 401, noSessionBrands.json);
 }
 
 console.log('\nE2E-A4 a permission removed from a role');
