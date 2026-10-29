@@ -76,6 +76,17 @@ describe('XtreamAccountCheck', () => {
     expect(asked.length).toBe(before);
   });
 
+  it('lets public addresses through, IPv4 and IPv6', () => {
+    const check = new (class extends XtreamAccountCheck {
+      blockedFor = (address: string, family: number) => this.isBlocked(address, family);
+    })();
+    expect(check.blockedFor('172.67.69.73', 4)).toBe(false);
+    expect(check.blockedFor('8.8.8.8', 4)).toBe(false);
+    expect(check.blockedFor('2606:4700::6810:84e5', 6)).toBe(false);
+    expect(check.blockedFor('172.16.0.1', 4)).toBe(true);
+    expect(check.blockedFor('::ffff:127.0.0.1', 6)).toBe(true);
+  });
+
   it('refuses other schemes and a missing login', async () => {
     const check = new LocalProviderCheck();
     expect(await check.check({ server: 'ftp://x.example', username: 'u', password: 'p' })).toEqual({

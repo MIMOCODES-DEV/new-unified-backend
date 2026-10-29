@@ -7,8 +7,13 @@ import { Injectable } from '@nestjs/common';
 const TIMEOUT_MS = 10_000;
 const MAX_BODY_BYTES = 256 * 1024;
 
-/** Addresses a visitor must never make the server call: loopback, private, link-local, … */
-const blocked = new BlockList();
+/**
+ * Addresses a visitor must never make the server call: loopback, private, link-local, …
+ * Two lists, because one BlockList also matches every IPv4 address against the IPv6 rule
+ * `::ffff:0:0/96`, which would refuse every provider.
+ */
+const blockedV4 = new BlockList();
+const blockedV6 = new BlockList();
 for (const [net, prefix] of [
   ['0.0.0.0', 8],
   ['10.0.0.0', 8],
@@ -21,7 +26,7 @@ for (const [net, prefix] of [
   ['198.18.0.0', 15],
   ['224.0.0.0', 3],
 ] as const) {
-  blocked.addSubnet(net, prefix, 'ipv4');
+  blockedV4.addSubnet(net, prefix, 'ipv4');
 }
 for (const [net, prefix] of [
   ['::', 128],
@@ -32,7 +37,7 @@ for (const [net, prefix] of [
   ['fe80::', 10],
   ['ff00::', 8],
 ] as const) {
-  blocked.addSubnet(net, prefix, 'ipv6');
+  blockedV6.addSubnet(net, prefix, 'ipv6');
 }
 
 export interface XtreamAccount {
@@ -120,7 +125,7 @@ export class XtreamAccountCheck {
 
   /** Whether the server may not call this address (loopback, private, link-local, …). */
   protected isBlocked(address: string, family: number): boolean {
-    return blocked.check(address, family === 6 ? 'ipv6' : 'ipv4');
+    return family === 6 ? blockedV6.check(address, 'ipv6') : blockedV4.check(address, 'ipv4');
   }
 
   /** GET to the checked address only (pinned lookup); null on anything but a 200 within limits. */
