@@ -129,6 +129,8 @@ export interface DeviceSettingsChange {
   readonly deviceKey?: string;
   readonly parentPin?: string | null;
   readonly uid?: string;
+  /** Recorded from a V4 login (which finds the device by MAC); one device per id. */
+  readonly appDeviceId?: string;
   readonly updatedAt: Date;
 }
 

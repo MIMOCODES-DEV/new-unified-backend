@@ -464,6 +464,7 @@ export class V4Controller {
       uid: text(json.u_id),
       ip,
       appVersion: text(json.version) || null,
+      appDeviceId: text(json.app_device_id) || null,
       captcha: answered(text(json.recaptcha_code), text(json.recaptcha_token)),
       uidCaptcha,
     });

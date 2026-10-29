@@ -32,6 +32,11 @@ export interface LoginV4DeviceInput {
   uid: string;
   ip: string;
   appVersion: string | null;
+  /**
+   * The app's own install id, when it sends one. Only recorded on the device (V4 finds the device by
+   * MAC and uid); left out when another device already has it.
+   */
+  appDeviceId: string | null;
   /** The registration captcha; needed until this MAC has solved one. */
   captcha: AnsweredCaptcha | null;
   /** The uid recovery captcha; needed when the uid does not match. */
@@ -50,6 +55,7 @@ export type LoginV4DeviceError =
   | OlderApiRefusedError;
 
 const UID = /^[A-Z0-9]{6}$/;
+const APP_DEVICE_ID_MAX = 128;
 
 /**
  * DEV-4: a V4 app logs in, registering its device the first time.
@@ -91,8 +97,21 @@ export class LoginV4DeviceUseCase {
     });
     if (!registered.ok) return registered;
     const found = registered.value.found;
-    if (found.device.uid === uid) return ok(found);
-    return this.identity.changeSettings(found.device.id, { uid, updatedAt: this.clock.now() });
+    const appDeviceId = await this.newAppDeviceId(found, input.appDeviceId);
+    if (found.device.uid === uid && !appDeviceId) return ok(found);
+    return this.identity.changeSettings(found.device.id, {
+      uid,
+      ...(appDeviceId ? { appDeviceId } : {}),
+      updatedAt: this.clock.now(),
+    });
+  }
+
+  /** The app device id to record: null when there is none, it is already stored, or another device has it. */
+  private async newAppDeviceId(found: FoundDevice, sent: string | null): Promise<string | null> {
+    const appDeviceId = sent?.trim().slice(0, APP_DEVICE_ID_MAX) || null;
+    if (!appDeviceId || found.device.appDeviceId === appDeviceId) return null;
+    const holder = await this.identity.findByAppDeviceId(appDeviceId);
+    return holder && holder.device.id !== found.device.id ? null : appDeviceId;
   }
 
   /** A device that solved its captcha before: the uid must match, or the recovery captcha be solved. */

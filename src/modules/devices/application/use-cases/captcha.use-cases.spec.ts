@@ -95,6 +95,7 @@ describe('Captchas and V4 login (DEV-4)', () => {
     uid: 'QW12ER',
     ip: '198.51.100.20',
     appVersion: '4.0.1',
+    appDeviceId: null,
     captcha: null,
     uidCaptcha: null,
     ...overrides,
@@ -131,6 +132,40 @@ describe('Captchas and V4 login (DEV-4)', () => {
         apiVersion: 'v4',
       });
       expect(trials.items.size).toBe(1);
+    });
+
+    it('records the app device id the app sends, and a new one after a reinstall', async () => {
+      const { token } = await issueFor();
+      const first = await login.execute(
+        loginCall({ captcha: { token, answer: 'ab7k' }, appDeviceId: 'install-1' }),
+      );
+      expect(first.ok && first.value.device.appDeviceId).toBe('install-1');
+
+      const later = await login.execute(loginCall({ appDeviceId: 'install-2' }));
+
+      expect(later.ok && later.value.device.appDeviceId).toBe('install-2');
+      expect(trials.items.size).toBe(1);
+    });
+
+    it('leaves the app device id out when another device already has it', async () => {
+      const other = MacAddress.parse('00:11:22:33:44:55');
+      if (!other.ok) throw new Error('test MAC');
+      const { token: t1 } = await issueFor(other.value);
+      await login.execute(
+        loginCall({
+          mac: other.value,
+          captcha: { token: t1, answer: 'ab7k' },
+          appDeviceId: 'shared',
+        }),
+      );
+      const { token } = await issueFor();
+
+      const result = await login.execute(
+        loginCall({ captcha: { token, answer: 'ab7k' }, appDeviceId: 'shared' }),
+      );
+
+      expect(result.ok && result.value.device.appDeviceId).toBeNull();
+      expect(trials.items.size).toBe(2);
     });
 
     it('skips the captcha on every later login of a MAC that solved one', async () => {

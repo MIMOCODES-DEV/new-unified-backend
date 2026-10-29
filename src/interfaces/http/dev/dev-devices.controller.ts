@@ -65,6 +65,7 @@ const v4LoginBody = z.object({
   platform: z.enum(PLATFORMS),
   uid: z.string(),
   appVersion: z.string().nullable().default(null),
+  appDeviceId: z.string().nullable().default(null),
   captcha: answered,
   uidCaptcha: answered,
 });
