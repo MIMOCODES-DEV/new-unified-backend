@@ -36,7 +36,7 @@ export function deviceLicense(holder: LicenseHolder, now: Date): DeviceLicense {
 }
 
 /** The last millisecond of the day, in UTC: licenses end at the end of a day, like trials. */
-function endOfDayUtc(date: Date): Date {
+export function endOfDayUtc(date: Date): Date {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999),
   );

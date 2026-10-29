@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../shared/kernel/clock.js';
 import { err, ok, type Result } from '../../../../shared/kernel/result.js';
 import type { ActivatedBy, License, LicenseType } from '../../domain/license.js';
-import { CREDIT_COST, newLicenseEnd } from '../../domain/license-rules.js';
+import { CREDIT_COST, endOfDayUtc, newLicenseEnd } from '../../domain/license-rules.js';
 import {
   type AlreadyLifetimeError,
   DeviceConflictError,
@@ -28,6 +28,11 @@ export interface ActivateLicenseInput {
   /** The reseller who sold it, when one did; becomes the device's reseller. */
   resellerId?: string | null;
   customerId?: string | null;
+  /**
+   * The store sets the end itself (old `expire_date`): a yearly license that ends at the end of that
+   * day (UTC), whatever runs now, a lifetime included. Without it the end follows LIC-1.
+   */
+  endsOn?: Date;
 }
 
 export interface ActivateLicenseOutput {
@@ -84,18 +89,20 @@ export class ActivateLicenseUseCase {
       : null;
 
     const now = this.clock.now();
-    const end = newLicenseEnd(input.type, { trialEndsAt: device.trialEndsAt, current }, now);
+    const end = input.endsOn
+      ? ok(endOfDayUtc(input.endsOn))
+      : newLicenseEnd(input.type, { trialEndsAt: device.trialEndsAt, current }, now);
     if (!end.ok) return end;
 
     const license: License = {
       id: randomUUID(),
       deviceId: device.id,
-      type: input.type,
+      type: input.endsOn ? 'yearly' : input.type,
       expiresAt: end.value,
       revoked: false,
       revokedAt: null,
       activatedBy: input.activatedBy,
-      creditCost: CREDIT_COST[input.type],
+      creditCost: CREDIT_COST[input.endsOn ? 'yearly' : input.type],
       multiActivate: input.multiActivate,
       sourceId: input.sourceId,
       createdAt: now,

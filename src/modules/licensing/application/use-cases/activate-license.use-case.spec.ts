@@ -141,6 +141,22 @@ describe('ActivateLicenseUseCase (LIC-2)', () => {
     expect(licenses.items.size).toBe(1);
   });
 
+  it('ends on the date the store sets, at the end of that day, as a yearly license', async () => {
+    const { license } = await run({ endsOn: day('2027-03-15'), type: 'lifetime' });
+
+    expect(license).toMatchObject({ type: 'yearly', creditCost: 1 });
+    expect(license.expiresAt?.toISOString()).toBe('2027-03-15T23:59:59.999Z');
+  });
+
+  it('a date from the store replaces a running lifetime', async () => {
+    await run({ sourceId: 'a', type: 'lifetime' });
+
+    const { license } = await run({ sourceId: 'b', endsOn: day('2027-01-31') });
+
+    expect(license.expiresAt?.toISOString()).toBe('2027-01-31T23:59:59.999Z');
+    expect(licenses.items.size).toBe(2);
+  });
+
   it('stores multiActivate', async () => {
     expect((await run({ multiActivate: true })).license.multiActivate).toBe(true);
   });
