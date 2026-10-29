@@ -4,6 +4,7 @@ import { ClsModule } from 'nestjs-cls';
 import { AccountsHttpModule } from './interfaces/http/accounts/accounts-http.module.js';
 import { DevHttpModule } from './interfaces/http/dev/dev-http.module.js';
 import { SiteHttpModule } from './interfaces/http/site/site-http.module.js';
+import { StoreHttpModule } from './interfaces/http/store/store-http.module.js';
 import { LegacyHttpModule } from './interfaces/http/legacy/legacy-http.module.js';
 import { HealthModule } from './interfaces/http/health/health.module.js';
 import { TenantHttpModule } from './interfaces/http/tenant/tenant-http.module.js';
@@ -34,6 +35,7 @@ import { TenancyModule } from './shared/tenancy/tenancy.module.js';
     TenantHttpModule,
     // The old apps' routes (same paths and formats as the old backends).
     LegacyHttpModule,
+    StoreHttpModule,
     // Customer accounts and staff (Phase 5); also gives the guard its staff check.
     AccountsHttpModule,
     // The brand site's device dashboard and public tools (Phase 6).

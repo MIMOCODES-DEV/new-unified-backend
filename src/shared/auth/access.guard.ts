@@ -56,6 +56,11 @@ export class AccessGuard implements CanActivate {
     if (access.kind === 'legacy-device') {
       return true;
     }
+    // The store sends the brand's store key in a `token` header. Each store route answers a wrong
+    // key with its own old reply, so the route checks it (StoreKey), as the old backends did.
+    if (access.kind === 'store') {
+      return true;
+    }
     if (access.kind === 'staff' || access.kind === 'customer' || access.kind === 'device-session') {
       const headers = context.switchToHttp().getRequest<{ headers: IncomingHttpHeaders }>().headers;
       const token = bearerToken(headers.authorization);

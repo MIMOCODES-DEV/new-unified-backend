@@ -11,6 +11,7 @@ import {
   CentralStaff,
   Customer,
   DeviceSession,
+  Platform,
   Public,
   Staff,
   Store,
@@ -26,6 +27,9 @@ class TestController {
 
   @Store()
   store(): void {}
+
+  @Platform()
+  platform(): void {}
 
   @Staff('devices.activate')
   activate(): void {}
@@ -95,8 +99,12 @@ describe('AccessGuard', () => {
     );
   });
 
+  it('lets store routes through: each checks the store key itself', async () => {
+    await expect(guardWith({}).guard.canActivate(contextFor('store'))).resolves.toBe(true);
+  });
+
   it('refuses access kinds that are not implemented yet', async () => {
-    await expect(guardWith({}).guard.canActivate(contextFor('store'))).rejects.toThrow(
+    await expect(guardWith({}).guard.canActivate(contextFor('platform'))).rejects.toThrow(
       NotImplementedException,
     );
   });

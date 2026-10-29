@@ -61,7 +61,7 @@ The V4 routes are written once in a loop over the app types, so 10 lines of code
 | Feature | ibo | bob | cr | New backend |
 |---|---|---|---|---|
 | Kinds: general M3U, Xtream (host/user/pass), Stalker portal (+ portal MAC, fallback portal), code | ✅ | ✅ | ✅ | ✅ done (PL-1) |
-| CRUD from app / website / store / admin | ✅ | ✅ | ✅ | ◐ part: app and website done; store and admin not yet |
+| CRUD from app / website / store / admin | ✅ | ✅ | ✅ | ◐ part: app, website and store done; admin not yet |
 | Bulk upsert by MAC (`update_playlist`) | ✅ | ✅ | ✅ | ✅ done (PL-2) |
 | PIN protection per playlist | ✅ | ✅ | ✅ | ✅ done (PL-3) |
 | Provider branding (logo, contact, whatsapp, email) | ✅ | ✅ | ✅ | ◐ part: stored and sent to apps; the website forms do not save it yet |
@@ -69,7 +69,7 @@ The V4 routes are written once in a loop over the app types, so 10 lines of code
 | Demo playlist when none | ✅ | ✅ | ✅ | ✅ done (PL-4) |
 | Backup DNS / `backup_urls[]` (≤8) | — | — | ✅ | ◐ part: apps get them (PL-5); the website forms do not save them yet |
 | Learned domain migrations (≥3 distinct devices confirm host move, 90d expiry, ≤3 hops) | — | — | ✅ | ✅ done (DOM-1, DOM-2; a move is served only after approval) |
-| Bulk domain rewrite for a provider (store) + count | ✅ | ✅ | ✅ | ◐ part: the rule is built (PL-8), reachable only by a dev route; the store and admin routes not yet |
+| Bulk domain rewrite for a provider (store) + count | ✅ | ✅ | ✅ | ◐ part: store routes done (Phase 7); the admin route not yet |
 | Add playlist without login (captcha) | ✅ QR code | — | ✅ Stalker form † | ✅ done (PL-6, `/site/playlists`) |
 | Add / delete playlists by MAC only (no login) | — | — | ✅ | ✅ done (`/site/playlists`, `/site/playlists/delete-all`) |
 | `PUT /api/edit_playlist` (playlist status sync, plain form) | — | — (**called by BobPlayer, missing**) | ✅ used by CRPlayer | ✅ done (PL-7) |
@@ -109,8 +109,8 @@ The V4 routes are written once in a loop over the app types, so 10 lines of code
 
 | Feature | ibo | bob | cr | New backend |
 |---|---|---|---|---|
-| Store API (`token` header): `validate-mac-address`, `save-device-activation`, `save-play-list`, `delete-playlist`, `delete-playlist-by-id`(cr), `reset-playlist`, `update-domain`, `count-domain-updates`, `switch-mac-address` | ✅ | ✅ | ✅ | ⏳ not yet |
-| License transfer protocol (via `save-device-activation`: `create_if_missing`, `migrated_from/to_app`) | — | — | ✅ (checked in code, CAP-05) | ⏳ not yet |
+| Store API (`token` header): `validate-mac-address`, `save-device-activation`, `save-play-list`, `delete-playlist`, `delete-playlist-by-id`(cr), `reset-playlist`, `update-domain`, `count-domain-updates`, `switch-mac-address` | ✅ | ✅ | ✅ | ✅ done (Phase 7) |
+| License transfer protocol (via `save-device-activation`: `create_if_missing`, `migrated_from/to_app`) | — | — | ✅ (checked in code, CAP-05) | ◐ part: `create_if_missing` done (Phase 7); `migrated_from/to_app` not yet |
 | Mimo Store / MDLS order + signed callback | ✅ | ✅ | (x) HMAC computed, not compared | ⏳ not yet |
 | `PLATFORM_KEY` API: `transfer-device-app` (cross-app transfer) | — | — | ✅ | ⏳ not yet |
 | Cross-app import of paying devices (HTTP polling) | — | ✅ asks ibo | ✅ asks ibo + bob | → internal lookup via central `deviceRegistry` | ⏳ not yet |

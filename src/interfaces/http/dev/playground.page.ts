@@ -53,7 +53,7 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
     .nav-phase:not([open]) > summary::after { transform: rotate(-90deg); }
     .phase-num { @apply inline-flex size-5 shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-white shadow-sm; }
     .phase-num.p1 { @apply bg-sky-500; } .phase-num.p2 { @apply bg-teal-500; } .phase-num.p3 { @apply bg-indigo-500; }
-    .phase-num.p4 { @apply bg-amber-500; } .phase-num.p5 { @apply bg-rose-500; } .phase-num.p6 { @apply bg-violet-500; }
+    .phase-num.p4 { @apply bg-amber-500; } .phase-num.p5 { @apply bg-rose-500; } .phase-num.p6 { @apply bg-violet-500; } .phase-num.p7 { @apply bg-teal-600; }
     .nav-sub:empty { @apply hidden; }
     .nav-label { @apply px-2 pt-2 pb-0.5 text-[10px] font-semibold tracking-wider text-slate-400 uppercase dark:text-slate-500; }
     .nav-ico { @apply inline-flex size-4 items-center justify-center text-[11px] text-indigo-500; }
@@ -187,6 +187,10 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
       <details class="nav-phase" open>
         <summary><span class="phase-num p6">6</span>Website API</summary>
         <button class="nav-item" data-view="site">Website (device)<span class="code">SITE</span></button>
+      </details>
+      <details class="nav-phase" open>
+        <summary><span class="phase-num p7">7</span>Store</summary>
+        <button class="nav-item" data-view="store">Store routes<span class="code">STORE</span></button>
       </details>
       </div>
       <div data-mode-nav="scenarios">
@@ -838,6 +842,68 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
         </div>
       </div>
 
+      <div class="tab" id="tab-store">
+        <div class="step" data-submit="st-key-set">
+          <div class="step-title">Store key <span class="font-normal normal-case tracking-normal">this brand</span> <span id="st-key-pill" class="pill">not set</span></div>
+          <p class="hint mb-2">The store sends the brand's key in a <code class="mono">token</code> header; a brand with no key refuses every call. This sets the brand's <code class="mono">store.key</code> (dev only; on a server: <code class="mono">pnpm cli tenant:set-secret &lt;brand&gt; store.key …</code>). The calls below use the MAC at the top.</p>
+          <div class="row">
+            <label class="field">Key<input id="st-key" class="input font-mono" placeholder="empty = a new random key"></label>
+            <button class="btn btn-primary" id="st-key-set">Set key</button>
+            <button class="btn" id="st-validate">Validate MAC</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="st-activate">
+          <div class="step-title">Sell or cancel <span class="font-normal normal-case tracking-normal">save-device-activation</span></div>
+          <p class="hint mb-2">The store sets the end itself: a date is a license until that day, lifetime is <code class="mono">is_trial 2</code>, and a cancel (<code class="mono">is_trial 0</code>, a past date) ends the license, keeping its history.</p>
+          <div class="row">
+            <label class="field max-w-[11rem]">Until<input id="st-until" class="input font-mono" type="date"></label>
+            <label class="field max-w-[10rem]">Reseller id<input id="st-reseller" class="input font-mono" placeholder="optional"></label>
+            <button class="btn btn-primary" id="st-activate">Activate until</button>
+            <button class="btn" id="st-lifetime">Lifetime</button>
+            <button class="btn" id="st-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="st-pl-add">
+          <div class="step-title">Playlists <span class="font-normal normal-case tracking-normal">save-play-list · reset-playlist</span></div>
+          <div class="row">
+            <label class="field">Name<input id="st-pl-name" class="input" value="From the store"></label>
+            <label class="field">Link or Xtream server<input id="st-pl-url" class="input font-mono" value="http://old.example.com:8080/list.m3u"></label>
+          </div>
+          <div class="row mt-2">
+            <label class="field max-w-[8rem]">Username<input id="st-pl-user" class="input"></label>
+            <label class="field max-w-[8rem]">Password<input id="st-pl-pass" class="input"></label>
+            <label class="field max-w-[10rem]">Logo<input id="st-pl-logo" class="input" placeholder="optional"></label>
+            <button class="btn btn-primary" id="st-pl-add">Add</button>
+            <label class="field max-w-[8rem]">Device key<input id="st-devkey" class="input font-mono" placeholder="for delete all"></label>
+            <button class="btn" id="st-reset">Delete all</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="st-domain-count">
+          <div class="step-title">Provider host <span class="font-normal normal-case tracking-normal">count-domain-updates · update-domain</span></div>
+          <p class="hint mb-2">Whole brand (<code class="mono">is_admin: true</code>), or only the MAC at the top (<code class="mono">is_admin: false</code> + <code class="mono">activated_macs</code>).</p>
+          <div class="row">
+            <label class="field">Old host<input id="st-from" class="input font-mono" value="old.example.com"></label>
+            <label class="field">New host<input id="st-to" class="input font-mono" value="new.example.com"></label>
+            <label class="field max-w-[8rem]">Scope<select id="st-scope" class="input"><option value="brand">Brand</option><option value="mac">This MAC</option></select></label>
+            <button class="btn" id="st-domain-count">Count</button>
+            <button class="btn btn-primary" id="st-domain-move">Move</button>
+          </div>
+        </div>
+
+        <div class="step" data-submit="st-switch">
+          <div class="step-title">Switch MAC <span class="font-normal normal-case tracking-normal">switch-mac-address</span></div>
+          <p class="hint mb-2">Moves the license of the MAC at the top to a TV that opened the app once. Refusals come back as HTTP 302 with the old message.</p>
+          <div class="row">
+            <label class="field max-w-[12rem]">New TV MAC<input id="st-newmac" class="input font-mono"></label>
+            <label class="row items-center gap-1 text-sm"><input id="st-allow-year" type="checkbox"> allow a yearly license</label>
+            <button class="btn btn-primary" id="st-switch">Switch</button>
+          </div>
+        </div>
+      </div>
+
       <div class="tab" id="tab-site">
         <div class="step" data-submit="dv-login">
           <div class="step-title">Device login on the site <span class="font-normal normal-case tracking-normal">MAC + key</span> <span id="dv-session" class="pill">logged out</span></div>
@@ -1127,11 +1193,11 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
   });
 
   // Requests
-  function call(method, path, body, base, token) {
+  function call(method, path, body, base, token, headers) {
     base = base || '/dev/devices';
     var button = pressed; pressed = null;
     busy(button, true);
-    var opts = { method: method, headers: {} };
+    var opts = { method: method, headers: Object.assign({}, headers || {}) };
     if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
     if (token) opts.headers.Authorization = 'Bearer ' + token;
     return fetch(base + path, opts).then(function (res) {
@@ -2088,6 +2154,61 @@ export const PLAYGROUND_HTML = String.raw`<!doctype html>
   $('dv-switch').addEventListener('click', function () {
     asDevice('POST', '/switch-mac', { newMac: val('dv-newmac') }).then(function () { lookUp(); refreshLicense(); });
   });
+  // Phase 7: the store's routes, called as the store does (the brand's key in a token header).
+  var storeKey = stored('storeKey') || '';
+  function showStoreKey() { $('st-key-pill').textContent = storeKey ? 'key set' : 'not set'; }
+  showStoreKey();
+  function storeCall(path, body) {
+    if (!storeKey) return warn('Set the store key first');
+    return call('POST', '/' + path, body, '/api', null, { token: storeKey });
+  }
+  function needMac() { if (!mac()) { warn('Pick a MAC at the top first'); return false; } return true; }
+  function isoDay(offsetDays) { return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10); }
+  $('st-until').value = isoDay(365);
+  $('st-key-set').addEventListener('click', function () {
+    call('POST', '/key', { key: val('st-key') }, '/dev/store').then(function (r) {
+      if (r.json && r.json.key) { storeKey = r.json.key; store('storeKey', storeKey); $('st-key').value = storeKey; showStoreKey(); }
+    });
+  });
+  $('st-validate').addEventListener('click', function () {
+    if (needMac()) storeCall('validate-mac-address', { macAddress: mac() });
+  });
+  function activation(isTrial, until) {
+    if (!needMac()) return;
+    var body = { mac_address: mac(), expire_date: until, is_trial: isTrial };
+    if (val('st-reseller')) body.reseller_id = val('st-reseller');
+    storeCall('save-device-activation', body);
+  }
+  $('st-activate').addEventListener('click', function () { activation(3, val('st-until')); });
+  $('st-lifetime').addEventListener('click', function () { activation(2, isoDay(0)); });
+  $('st-cancel').addEventListener('click', function () { activation(0, isoDay(-1)); });
+  $('st-pl-add').addEventListener('click', function () {
+    if (!needMac()) return;
+    var xc = !!val('st-pl-user');
+    var body = { mac_address: mac(), current_playlist_url_id: -1, playlist_name: val('st-pl-name'), playlist_url: val('st-pl-url'), playlist_type: xc ? 'xc' : 'general' };
+    if (xc) { body.username = val('st-pl-user'); body.password = $('st-pl-pass').value; }
+    if (val('st-pl-logo')) body.logo = val('st-pl-logo');
+    storeCall('save-play-list', body);
+  });
+  $('st-reset').addEventListener('click', function () {
+    if (!needMac()) return;
+    if (!val('st-devkey')) return warn('Needs the device key (on the Device card)');
+    storeCall('reset-playlist', { mac_address: mac(), device_key: val('st-devkey') });
+  });
+  function domainScope() {
+    return val('st-scope') === 'mac' ? { is_admin: false, activated_macs: [mac()] } : { is_admin: true };
+  }
+  $('st-domain-count').addEventListener('click', function () {
+    storeCall('count-domain-updates', Object.assign({ current_domain: val('st-from') }, domainScope()));
+  });
+  $('st-domain-move').addEventListener('click', function () {
+    storeCall('update-domain', Object.assign({ current_domain: val('st-from'), new_domain: val('st-to') }, domainScope()));
+  });
+  $('st-switch').addEventListener('click', function () {
+    if (!needMac()) return;
+    storeCall('switch-mac-address', { current_mac_address: mac(), mac_address: val('st-newmac'), allow_one_year: $('st-allow-year').checked });
+  });
+
   $('dv-status').addEventListener('click', function () {
     if (!mac()) return warn('Pick a MAC at the top first');
     call('POST', '/device-status', { mac: mac(), captcha: captchaBody() }, '/site');

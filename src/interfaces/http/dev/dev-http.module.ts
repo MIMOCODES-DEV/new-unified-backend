@@ -15,6 +15,7 @@ import { DevOnlyGuard } from './dev-only.guard.js';
 import { DevAccountsController } from './dev-accounts.controller.js';
 import { DevPlaygroundController } from './dev-playground.controller.js';
 import { DevPlaylistsController } from './dev-playlists.controller.js';
+import { DevStoreController } from './dev-store.controller.js';
 
 /**
  * Dev-only routes and the device playground (`/dev/playground`), to try the rules against a real
@@ -37,6 +38,7 @@ import { DevPlaylistsController } from './dev-playlists.controller.js';
     DevPlaygroundController,
     DevDatabaseController,
     DevAccountsController,
+    DevStoreController,
   ],
   providers: [DevOnlyGuard],
 })

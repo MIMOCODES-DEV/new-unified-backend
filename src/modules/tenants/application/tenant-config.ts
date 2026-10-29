@@ -16,6 +16,11 @@ export const tenantConfigSchema = z.strictObject({
         .string()
         .regex(/^[A-Z]{3}$/, 'ISO 4217 code')
         .default('EUR'),
+      /**
+       * EGP for one EUR: the store prices in EGP with it (old `euro_to_egp` in validate-mac-address).
+       * Set by hand until the payments phase keeps it current.
+       */
+      eurToEgp: z.number().positive().max(10_000).nullable().default(null),
     })
     .prefault({}),
   contact: z
