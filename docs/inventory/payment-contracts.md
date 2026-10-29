@@ -273,7 +273,7 @@ ibo admin also lists crypto transactions (`admin.js:237`, `AdC:3909`).
 | Transaction | `{device_id, amount: client value, pay_time 'Y-MM-DD', status:'success', payment_type:'app_purchase'}` | same, `device_id` undefined | — |
 | Replay / amount | every call activates + new success Transaction / no | same | n/a |
 
-FEATURES §8: do not rebuild as-is; replace with verified Google Play (PAY-09).
+FEATURES §7: do not rebuild as-is; replace with verified Google Play (PAY-09).
 
 ## 17. `google_pay`
 
