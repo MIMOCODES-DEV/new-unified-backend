@@ -5,7 +5,7 @@ export const TRIAL_DEVICES_COLLECTION = 'trialDevices';
 export const PAID_DEVICES_COLLECTION = 'devices';
 
 /** Normalized MAC, as MacAddress produces it. */
-const MAC = /^[0-9a-f]{2}(?::[0-9a-f]{2}){5}$/;
+const MAC = /^[0-9a-z]{2}(?::[0-9a-z]{2}){5}$/;
 
 export const legacySchema = z
   .looseObject({ id: z.string().optional(), brand: z.string().optional() })

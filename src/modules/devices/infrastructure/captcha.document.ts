@@ -11,7 +11,7 @@ export const captchaDocumentSchema = z.object({
   /** Normalized, as MacAddress produces it: findSolved looks it up that way. */
   macAddress: z
     .string()
-    .regex(/^[0-9a-f]{2}(?::[0-9a-f]{2}){5}$/)
+    .regex(/^[0-9a-z]{2}(?::[0-9a-z]{2}){5}$/)
     .nullable(),
   appDeviceId: z.string().nullable(),
   platform: z.string().nullable(),

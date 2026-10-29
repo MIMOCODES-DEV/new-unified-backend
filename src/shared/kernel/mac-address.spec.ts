@@ -14,7 +14,13 @@ describe('MacAddress', () => {
     expect(result.ok && result.value.toString()).toBe('aa:bb:cc:dd:ee:ff');
   });
 
-  it.each(['', 'aa:bb:cc:dd:ee', 'gg:bb:cc:dd:ee:ff', 'aa:bb:cc:dd:ee:ff:00', '{"$ne":"x"}'])(
+  it('accepts letters past F, as apps that make up a MAC send them', () => {
+    const result = MacAddress.parse('FL:2A:82:43:3E:EF');
+
+    expect(result.ok && result.value.toString()).toBe('fl:2a:82:43:3e:ef');
+  });
+
+  it.each(['', 'aa:bb:cc:dd:ee', 'aa:bb:cc:dd:ee:f!', 'aa:bb:cc:dd:ee:ff:00', '{"$ne":"x"}'])(
     'rejects %s',
     (input) => {
       const result = MacAddress.parse(input);
