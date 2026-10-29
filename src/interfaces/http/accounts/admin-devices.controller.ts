@@ -1,7 +1,11 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { FindDeviceUseCase } from '../../../modules/devices/index.js';
-import { ActivateLicenseUseCase, LICENSE_TYPES } from '../../../modules/licensing/index.js';
+import {
+  ActivateLicenseUseCase,
+  DeviceLicenseUseCase,
+  LICENSE_TYPES,
+} from '../../../modules/licensing/index.js';
 import { Staff } from '../../../shared/auth/access.decorators.js';
 import { AuthContext } from '../../../shared/auth/auth-context.js';
 import { MacAddress } from '../../../shared/kernel/mac-address.js';
@@ -24,6 +28,7 @@ export class AdminDevicesController {
   constructor(
     private readonly findDevice: FindDeviceUseCase,
     private readonly activate: ActivateLicenseUseCase,
+    private readonly licenseOf: DeviceLicenseUseCase,
     private readonly auth: AuthContext,
   ) {}
 
@@ -31,7 +36,10 @@ export class AdminDevicesController {
   @Get(':mac')
   async device(@Param('mac') value: string) {
     const mac = unwrap(MacAddress.parse(value), STATUSES);
-    return unwrap(await this.findDevice.execute(mac), STATUSES);
+    const found = unwrap(await this.findDevice.execute(mac), STATUSES);
+    // What the device may do now: trial, yearly, lifetime, expired or revoked, and until when.
+    const license = unwrap(await this.licenseOf.execute(found.device.id), STATUSES);
+    return { ...found, license };
   }
 
   /** LIC-2 by a staff member: recorded with source `admin` and the member's id. */

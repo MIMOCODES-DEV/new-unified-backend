@@ -100,7 +100,8 @@ export class AdminStaffController {
     return { staff: staffView(staff) };
   }
 
-  @CentralStaff('roles.manage')
+  /** Any staff member: the staff form picks a role from this list, so `staff.manage` needs it too. */
+  @CentralStaff()
   @Get('roles')
   async roles() {
     return { roles: await this.listRoles.execute() };
