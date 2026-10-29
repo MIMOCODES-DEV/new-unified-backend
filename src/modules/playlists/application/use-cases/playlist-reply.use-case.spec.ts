@@ -16,13 +16,21 @@ const DEMO = 'http://demo.example/get.php?username=demo&password=demo';
 
 class Brand extends PlaylistBrand {
   profile: 'xc' | 'general' = 'xc';
+  mobile: 'xc' | 'general' | null = null;
   raw44 = false;
+  rawAll = false;
   demo: string | null = DEMO;
   replyProfile() {
     return Promise.resolve(this.profile);
   }
+  mobileReplyProfile() {
+    return Promise.resolve(this.mobile);
+  }
   rawForAndroid44() {
     return Promise.resolve(this.raw44);
+  }
+  rawForAllApps() {
+    return Promise.resolve(this.rawAll);
   }
   demoUrl() {
     return Promise.resolve(this.demo);
@@ -151,6 +159,39 @@ describe('PlaylistReplyUseCase (PL-4)', () => {
 
       expect(android44.playlists[0]).toMatchObject({ type: 'general', url: XTREAM });
       expect(android45.playlists[0]).toMatchObject({ type: 'xc' });
+    });
+
+    it('phone apps follow the brand phone profile; TV apps keep the brand profile', async () => {
+      brand.mobile = 'general';
+      await playlists.insert(stored({ kind: 'link', url: XTREAM }));
+
+      for (const platform of ['android', 'ios', 'android_tv']) {
+        const phone = await ask({ platform });
+        expect(phone.playlists[0]).toMatchObject({ type: 'general', url: XTREAM });
+      }
+      expect((await ask({ platform: 'samsung' })).playlists[0]).toMatchObject({ type: 'xc' });
+    });
+
+    it('every app gets links as typed when the brand turns raw playlists on', async () => {
+      brand.rawAll = true;
+      const typed = 'http://line.example:8080/get.php?username=u1&password=p1&output=hls';
+      await playlists.insert(stored({ kind: 'link', url: typed }));
+
+      for (const platform of ['samsung', 'lg', 'android']) {
+        expect((await ask({ platform })).playlists[0]).toMatchObject({
+          type: 'general',
+          url: typed,
+        });
+      }
+    });
+
+    it('the phone profile comes before raw playlists, as in the old cr backend', async () => {
+      brand.mobile = 'xc';
+      brand.rawAll = true;
+      await playlists.insert(stored({ kind: 'link', url: XTREAM }));
+
+      expect((await ask({ platform: 'ios' })).playlists[0]?.type).toBe('xc');
+      expect((await ask({ platform: 'lg' })).playlists[0]?.type).toBe('general');
     });
 
     it('Android 44* builds follow the profile when the brand flag is off', async () => {

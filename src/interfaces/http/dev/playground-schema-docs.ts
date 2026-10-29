@@ -449,7 +449,7 @@ export const PLAYGROUND_SCHEMA_DOCS: Record<
         from: '',
       },
       settings: {
-        rule: 'features, legacy, playlistProfile, corsOrigins, frontendUrl, partners',
+        rule: 'features, legacy, playlistProfile, playlistProfileMobile, corsOrigins, frontendUrl, partners',
         from: '',
       },
       createdAt: {

@@ -24,7 +24,9 @@ describe('tenant document', () => {
     expect(tenant.settings.features).toEqual({
       maintenance: true,
       rawPlaylistsForAndroid44: false,
+      rawPlaylists: false,
     });
+    expect(tenant.settings.playlistProfileMobile).toBeNull();
   });
 
   it('reads dates back from the JSON cache', () => {

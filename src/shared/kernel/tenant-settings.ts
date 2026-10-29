@@ -15,6 +15,8 @@ export interface TenantSettings {
     readonly maintenance: boolean;
     /** Android `44*` app builds get playlists unshaped (raw URL). */
     readonly rawPlaylistsForAndroid44: boolean;
+    /** Every app gets playlists unshaped, as typed (the old cr `mac` and `ibostb`). */
+    readonly rawPlaylists: boolean;
   };
   readonly legacy: {
     /**
@@ -35,6 +37,11 @@ export interface TenantSettings {
     readonly notificationInterval: string;
   };
   readonly playlistProfile: PlaylistProfile;
+  /**
+   * The phone apps' shape (Android, iOS, Android TV) when it differs from `playlistProfile` (the
+   * old cr `ibosol` and `king`: one `general` link on phones, `xc` parts on TVs); null = the same.
+   */
+  readonly playlistProfileMobile: PlaylistProfile | null;
   /** Browser origins allowed to call this brand's API (`https://example.com`). */
   readonly corsOrigins: readonly string[];
   /** Public website of the brand, used in links sent to customers. */
@@ -50,6 +57,7 @@ export interface TenantSettingsPatch {
   features?: Partial<TenantSettings['features']>;
   legacy?: Partial<TenantSettings['legacy']>;
   playlistProfile?: PlaylistProfile;
+  playlistProfileMobile?: PlaylistProfile | null;
   corsOrigins?: readonly string[];
   frontendUrl?: string | null;
   partners?: Partial<TenantSettings['partners']>;
@@ -57,7 +65,7 @@ export interface TenantSettingsPatch {
 
 /** Settings of a new brand, and of brands stored before a setting existed. */
 export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
-  features: { maintenance: false, rawPlaylistsForAndroid44: false },
+  features: { maintenance: false, rawPlaylistsForAndroid44: false, rawPlaylists: false },
   legacy: {
     dialect: 'ibo',
     plainBodyAddRemove: false,
@@ -66,6 +74,7 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
     notificationInterval: '300',
   },
   playlistProfile: 'xc',
+  playlistProfileMobile: null,
   corsOrigins: [],
   frontendUrl: null,
   partners: { starArcsAppName: null },
@@ -79,6 +88,10 @@ export function mergeTenantSettings(
     features: { ...base.features, ...patch.features },
     legacy: { ...base.legacy, ...patch.legacy },
     playlistProfile: patch.playlistProfile ?? base.playlistProfile,
+    playlistProfileMobile:
+      patch.playlistProfileMobile === undefined
+        ? base.playlistProfileMobile
+        : patch.playlistProfileMobile,
     corsOrigins: [...(patch.corsOrigins ?? base.corsOrigins)],
     frontendUrl: patch.frontendUrl === undefined ? base.frontendUrl : patch.frontendUrl,
     partners: { ...base.partners, ...patch.partners },

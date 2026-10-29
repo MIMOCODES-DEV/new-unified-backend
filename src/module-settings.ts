@@ -127,8 +127,10 @@ export const PlaylistsWithDevices = PlaylistsModule.forRootAsync({
     inject: [GetTenantConfigUseCase, TenantContext],
     useFactory: (getConfig: GetTenantConfigUseCase, context: TenantContext): PlaylistBrand => ({
       replyProfile: () => Promise.resolve(context.current.settings.playlistProfile),
+      mobileReplyProfile: () => Promise.resolve(context.current.settings.playlistProfileMobile),
       rawForAndroid44: () =>
         Promise.resolve(context.current.settings.features.rawPlaylistsForAndroid44),
+      rawForAllApps: () => Promise.resolve(context.current.settings.features.rawPlaylists),
       demoUrl: async () => (await getConfig.execute(context.current)).app.demoUrl,
     }),
   },

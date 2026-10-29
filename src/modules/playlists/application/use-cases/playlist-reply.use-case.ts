@@ -11,6 +11,9 @@ import { PlaylistBrand } from '../ports/playlist-brand.js';
 import { PlaylistHostMoves } from '../ports/playlist-host-moves.js';
 import { PlaylistRepository } from '../ports/playlist.repository.js';
 
+/** The phone apps of `playlistProfileMobile` (the old cr `android`, `ios` and `androidtv`). */
+const MOBILE_PLATFORMS: ReadonlySet<string> = new Set(['android', 'ios', 'android_tv']);
+
 export interface PlaylistReplyInput {
   deviceId: string;
   platform: string;
@@ -29,8 +32,10 @@ export interface PlaylistReply {
 
 /**
  * PL-4: a device's playlists as the apps receive them.
- * - Links follow the brand's `playlistProfile` (xc or general); Android builds whose version starts
- *   with `44` get them exactly as typed when the brand turns `rawPlaylistsForAndroid44` on.
+ * - Links follow the brand's `playlistProfile` (xc or general), or `playlistProfileMobile` on the
+ *   phone apps when set. They go exactly as typed on every app when the brand turns `rawPlaylists`
+ *   on, and on Android builds whose version starts with `44` when it turns `rawPlaylistsForAndroid44`
+ *   on. The phone shape comes first, as in the old cr backend.
  * - A device with no playlist gets the brand's demo playlist; so does one whose playlists are all
  *   Stalker portals while Stalker is off, because the app would show nothing.
  * - The PIN is only included when asked (Roku, iOS).
@@ -67,6 +72,11 @@ export class PlaylistReplyUseCase {
   }
 
   private async profile(input: PlaylistReplyInput): Promise<ReplyProfile> {
+    if (MOBILE_PLATFORMS.has(input.platform)) {
+      const mobile = await this.brand.mobileReplyProfile();
+      if (mobile) return mobile;
+    }
+    if (await this.brand.rawForAllApps()) return 'raw';
     const isAndroid44 =
       input.platform.startsWith('android') && (input.appVersion ?? '').trim().startsWith('44');
     if (isAndroid44 && (await this.brand.rawForAndroid44())) return 'raw';

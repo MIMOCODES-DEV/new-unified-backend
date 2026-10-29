@@ -70,6 +70,22 @@ request log with its old reply.
 - **`validate-mac-address` warns only for a paid running license**, not for a running trial.
 - **PINs are never sent back** in the playlist objects.
 
+## Also in this phase: playlist shapes of four cr brands
+
+The old cr backend shaped playlists by brand name for four brands; the new backend uses two brand settings instead:
+
+| Setting | What | Set on |
+|---|---|---|
+| `playlistProfileMobile` (`xc`, `general` or null) | the phone apps' shape (Android, iOS, Android TV) when it differs from `playlistProfile`: one `get.php` link on phones, `xc` parts on TVs | `ibosol`, `king4k` |
+| `features.rawPlaylists` | every app gets the links exactly as typed | `mac`, `ibostb` |
+
+```sh
+pnpm cli tenant:set ibosol playlistProfileMobile general
+pnpm cli tenant:set mac features.rawPlaylists true
+```
+
+The phone shape is checked first, then raw playlists, then Android `44*`, as the old code did.
+
 ## Not in this phase
 
 - The payment row ibo/bob wrote for every activation (`source`, `amount`): with the payments phase.

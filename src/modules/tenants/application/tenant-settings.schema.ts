@@ -21,7 +21,11 @@ function isOrigin(value: string): boolean {
 export const tenantSettingsPatchSchema = z
   .strictObject({
     features: z
-      .strictObject({ maintenance: z.boolean(), rawPlaylistsForAndroid44: z.boolean() })
+      .strictObject({
+        maintenance: z.boolean(),
+        rawPlaylistsForAndroid44: z.boolean(),
+        rawPlaylists: z.boolean(),
+      })
       .partial(),
     legacy: z
       .strictObject({
@@ -33,6 +37,7 @@ export const tenantSettingsPatchSchema = z
       })
       .partial(),
     playlistProfile: z.enum(['xc', 'general']),
+    playlistProfileMobile: z.enum(['xc', 'general']).nullable(),
     corsOrigins: z
       .array(z.string().refine(isOrigin, 'must be an origin like https://example.com'))
       .max(50)
