@@ -45,6 +45,7 @@ import { CENTRAL_DB } from './shared/database/database.tokens.js';
 import { runMigrations } from './shared/database/migrations/migration-runner.js';
 import { TenantDbRegistry } from './shared/database/tenant-db.registry.js';
 import type { DomainError } from './shared/kernel/domain-error.js';
+import { LEGACY_DIALECTS } from './shared/kernel/tenant-settings.js';
 import { LockUnavailableError, RedisLock } from './shared/redis/redis-lock.js';
 import { TenantContext } from './shared/tenancy/tenant-context.js';
 
@@ -275,6 +276,40 @@ const commands: Record<string, Command> = {
     const result = await app.get(SetTenantSecretUseCase).execute({ slug, name, value });
     if (!result.ok) return fail(logger, result.error);
     logger.log(`Secret ${name} of ${slug} saved`);
+  },
+  // pnpm cli tenants:set-secret <name> --dialect <ibo|bob|cr>   or   … <name> <slug> [slug...]
+  // One secret on many brands, e.g. the store key every brand of one old backend used. The value
+  // is read from stdin only, so it never lands in the shell history.
+  'tenants:set-secret': async (app, logger, args) => {
+    const { values, rest } = options(args, ['dialect']);
+    const [name = '', ...slugs] = rest;
+    const dialect = values.get('dialect');
+    const line = 'tenants:set-secret <name> (--dialect <ibo|bob|cr> | <slug> [slug...])  < value';
+    if (!name || (!dialect && slugs.length === 0) || (dialect && slugs.length > 0)) {
+      return usage(logger, line);
+    }
+    if (dialect && !(LEGACY_DIALECTS as readonly string[]).includes(dialect)) {
+      return usage(logger, line);
+    }
+    const value = await readStdin();
+    if (!value) return usage(logger, line);
+    const tenants = dialect
+      ? (await app.get(ListTenantsUseCase).execute()).filter(
+          (t) => t.settings.legacy.dialect === dialect,
+        )
+      : await selectTenants(app, logger, slugs);
+    if (tenants.length === 0) {
+      logger.error('No brand matched');
+      process.exitCode = 1;
+      return;
+    }
+    for (const tenant of tenants) {
+      const result = await app
+        .get(SetTenantSecretUseCase)
+        .execute({ slug: tenant.slug, name, value });
+      if (!result.ok) return fail(logger, result.error);
+    }
+    logger.log(`Secret ${name} saved on ${tenants.map((t) => t.slug).join(', ')}`);
   },
   // pnpm cli tenant:delete-secret <slug> <name>
   'tenant:delete-secret': async (app, logger, [slug = '', name = '']) => {
